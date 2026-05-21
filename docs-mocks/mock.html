@@ -1,0 +1,3374 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GeoCarto — Embassies of France in Europe</title>
+<style>
+/* =========================================================================
+   GeoCarto — UI Mock
+   Single-file, light + dark, macOS Tahoe liquid-glass aesthetic.
+   ========================================================================= */
+
+/* ---- 1. Design tokens --------------------------------------------------- */
+
+:root {
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-window: 14px;
+
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 160ms;
+  --t-base: 240ms;
+  --t-slow: 420ms;
+
+  /* macOS system blue, accent */
+  --accent: #007aff;
+  --accent-strong: #0a6fe3;
+  --accent-soft: rgba(0, 122, 255, 0.16);
+  --accent-ring: rgba(0, 122, 255, 0.35);
+
+  --success: #34c759;
+  --warn: #ff9f0a;
+  --danger: #ff453a;
+}
+
+/* Light theme */
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --wallpaper:
+    radial-gradient(1200px 800px at 15% 10%, #cfe1ff 0%, transparent 55%),
+    radial-gradient(1000px 700px at 90% 20%, #ffd9e7 0%, transparent 50%),
+    radial-gradient(1100px 800px at 70% 95%, #d2f0e1 0%, transparent 55%),
+    linear-gradient(135deg, #eef2f8 0%, #e7ecf3 100%);
+
+  --text:           #1d1d1f;
+  --text-2:         #4a4a4f;
+  --text-3:         #86868b;
+  --text-on-accent: #ffffff;
+
+  --glass:        rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.78);
+  --glass-thin:   rgba(255, 255, 255, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-edge:   rgba(0, 0, 0, 0.06);
+  --glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 12px 40px rgba(20, 40, 80, 0.14),
+    0 2px 6px rgba(20, 40, 80, 0.06);
+
+  --divider: rgba(0, 0, 0, 0.07);
+  --hover:   rgba(0, 0, 0, 0.04);
+  --active:  rgba(0, 0, 0, 0.07);
+
+  --land:        #e6dfcf;
+  --land-line:   rgba(60, 50, 30, 0.18);
+  --land-fr:     rgba(0, 122, 255, 0.18);
+  --land-fr-line: rgba(0, 122, 255, 0.55);
+  --water:       #d2e3f3;
+  --water-deep:  #c1d6ea;
+  --grid:        rgba(0, 30, 80, 0.07);
+}
+
+/* Dark theme */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --wallpaper:
+    radial-gradient(1200px 800px at 15% 10%, #16294a 0%, transparent 55%),
+    radial-gradient(1000px 700px at 90% 20%, #2a1a30 0%, transparent 50%),
+    radial-gradient(1100px 800px at 70% 95%, #11241f 0%, transparent 55%),
+    linear-gradient(135deg, #0e1014 0%, #14171c 100%);
+
+  --text:           #f5f5f7;
+  --text-2:         #c7c7cc;
+  --text-3:         #8e8e93;
+  --text-on-accent: #ffffff;
+
+  --glass:        rgba(40, 42, 52, 0.55);
+  --glass-strong: rgba(54, 56, 66, 0.78);
+  --glass-thin:   rgba(40, 42, 52, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-edge:   rgba(0, 0, 0, 0.5);
+  --glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 0 0 0.5px rgba(255, 255, 255, 0.06),
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+
+  --divider: rgba(255, 255, 255, 0.08);
+  --hover:   rgba(255, 255, 255, 0.06);
+  --active:  rgba(255, 255, 255, 0.10);
+
+  --land:        #2c2e36;
+  --land-line:   rgba(255, 255, 255, 0.10);
+  --land-fr:     rgba(10, 132, 255, 0.30);
+  --land-fr-line: rgba(10, 132, 255, 0.75);
+  --water:       #161a22;
+  --water-deep:  #11141b;
+  --grid:        rgba(255, 255, 255, 0.05);
+
+  --accent: #0a84ff;
+  --accent-strong: #2c94ff;
+  --accent-soft: rgba(10, 132, 255, 0.22);
+  --accent-ring: rgba(10, 132, 255, 0.45);
+}
+
+/* ---- 2. Reset + base ---------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--wallpaper);
+  background-attachment: fixed;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  transition: background-color var(--t-slow) var(--ease-out), color var(--t-slow) var(--ease-out);
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+svg { display: block; }
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* ---- 3. App window shell ----------------------------------------------- */
+
+.stage {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 28px 28px;
+}
+
+.window {
+  width: min(1320px, 100%);
+  height: min(820px, 100%);
+  display: grid;
+  grid-template-rows: 44px 1fr 28px;
+  border-radius: var(--radius-window);
+  background: var(--glass-strong);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.7) inset,
+    0 0 0 0.5px var(--glass-edge),
+    0 40px 120px rgba(10, 20, 60, 0.30),
+    0 16px 40px rgba(10, 20, 60, 0.18);
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  animation: window-in var(--t-slow) var(--ease-out);
+  transition: background-color var(--t-slow) var(--ease-out), box-shadow var(--t-slow) var(--ease-out);
+}
+html[data-theme="dark"] .window {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 0 0 0.5px rgba(0,0,0,0.6),
+    0 40px 120px rgba(0,0,0,0.55),
+    0 16px 40px rgba(0,0,0,0.35);
+}
+
+@keyframes window-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.992); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---- 4. Title bar ------------------------------------------------------ */
+
+.titlebar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 14px;
+  border-bottom: 0.5px solid var(--divider);
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: 5;
+}
+
+.tl-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+.tl {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  position: relative;
+  transition: filter var(--t-fast) var(--ease-out);
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.18);
+}
+.tl-close    { background: #ff5f57; }
+.tl-minimize { background: #febc2e; }
+.tl-maximize { background: #28c840; }
+.tl:hover { filter: brightness(0.92); }
+.tl-group:hover .tl::after {
+  content: "";
+  position: absolute; inset: 3px;
+  border-radius: 50%;
+  background:
+    linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.3));
+  -webkit-mask: var(--tl-glyph) center / 7px no-repeat;
+          mask: var(--tl-glyph) center / 7px no-repeat;
+}
+.tl-close    { --tl-glyph: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'><path d='M1 1 L6 6 M6 1 L1 6' stroke='black' stroke-width='1.3' stroke-linecap='round' fill='none'/></svg>"); }
+.tl-minimize { --tl-glyph: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'><path d='M1 3.5 L6 3.5' stroke='black' stroke-width='1.3' stroke-linecap='round' fill='none'/></svg>"); }
+.tl-maximize { --tl-glyph: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'><path d='M1.5 1.5 L1.5 5.5 L5.5 5.5 M5.5 1.5 L1.5 5.5' stroke='black' stroke-width='1.3' stroke-linecap='round' fill='none'/></svg>"); }
+
+.title-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background var(--t-base) var(--ease-out);
+}
+.title-center:hover { background: var(--hover); }
+.title-center .doc-icon {
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--accent), #5ac8fa);
+  display: grid; place-items: center;
+  color: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(255,255,255,0.4) inset;
+}
+.title-center .doc-icon svg { width: 10px; height: 10px; }
+.title-center .doc-name { color: var(--text); font-weight: 600; }
+.title-center .doc-meta { color: var(--text-3); }
+.title-center .doc-meta::before { content: "·"; margin: 0 4px; }
+
+.title-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-self: end;
+  -webkit-app-region: no-drag;
+}
+
+.icon-btn {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn:active { transform: scale(0.94); background: var(--active); }
+.icon-btn svg { width: 16px; height: 16px; }
+.icon-btn.is-active-pressed {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--glass-thin);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset;
+  transition: background var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+}
+.pill-btn:hover { background: var(--hover); }
+.pill-btn:active { transform: scale(0.97); }
+.pill-btn svg { width: 14px; height: 14px; }
+
+.pill-btn.primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: var(--text-on-accent);
+  border-color: transparent;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.35) inset,
+    0 1px 2px rgba(0, 60, 180, 0.3),
+    0 0 0 0.5px rgba(0, 60, 180, 0.4);
+}
+.pill-btn.primary:hover { filter: brightness(1.05); }
+
+/* ---- 5. Workspace ------------------------------------------------------ */
+
+.workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: 60px 1fr 300px;
+  min-height: 0;
+}
+
+/* Rail sits above the canvas so tooltips can escape over the map. */
+.rail { position: relative; z-index: 5; }
+.tool { position: relative; }
+.tool:hover { z-index: 30; }
+
+/* ---- 5a. Tool rail ----------------------------------------------------- */
+
+.rail {
+  margin: 12px 6px 12px 12px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  align-self: start;
+  animation: panel-in var(--t-slow) var(--ease-out) 80ms backwards;
+}
+
+.tool {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  color: var(--text-2);
+  position: relative;
+  transition:
+    background var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-spring);
+}
+.tool svg { width: 18px; height: 18px; }
+.tool:hover { background: var(--hover); color: var(--text); transform: scale(1.05); }
+.tool:active { transform: scale(0.94); }
+.tool.is-active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.4) inset,
+    0 4px 14px rgba(0, 122, 255, 0.35),
+    0 0 0 0.5px rgba(0, 60, 180, 0.4);
+}
+
+.tool-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--glass-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  z-index: 20;
+}
+.tool-tooltip kbd {
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  margin-left: 6px;
+  font-size: 10.5px;
+}
+.tool:hover .tool-tooltip { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+.rail-divider {
+  width: 24px;
+  height: 0.5px;
+  background: var(--divider);
+  margin: 4px 0;
+}
+
+/* ---- 5b. Canvas + map -------------------------------------------------- */
+
+.canvas {
+  position: relative;
+  margin: 12px 6px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--water);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.4) inset,
+    0 1px 2px rgba(0,0,0,0.06),
+    0 0 0 0.5px rgba(0,0,0,0.08);
+  animation: panel-in var(--t-slow) var(--ease-out) 120ms backwards;
+}
+html[data-theme="dark"] .canvas {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 0 0 0.5px rgba(0,0,0,0.5);
+}
+
+.basemap { width: 100%; height: 100%; display: block; }
+
+/* Map paint */
+.m-water  { fill: var(--water); }
+.m-deep   { fill: var(--water-deep); }
+.m-land   { fill: var(--land); stroke: var(--land-line); stroke-width: 0.6; stroke-linejoin: round; transition: fill var(--t-slow) var(--ease-out); }
+.m-grid   { stroke: var(--grid); stroke-width: 0.5; fill: none; }
+.m-fr     { fill: var(--land-fr); stroke: var(--land-fr-line); stroke-width: 1.1; }
+.m-label  { fill: var(--text-3); font-family: var(--font-sans); font-size: 9.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; pointer-events: none; }
+.m-label.major { fill: var(--text-2); font-size: 10.5px; }
+
+/* Embassy pins */
+.pin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pin-drop var(--t-slow) var(--ease-spring) backwards;
+}
+.pin-dot { fill: var(--accent); }
+.pin-ring { fill: white; stroke: rgba(0,0,0,0.18); stroke-width: 0.5; }
+html[data-theme="dark"] .pin-ring { fill: #f5f5f7; stroke: rgba(0,0,0,0.4); }
+.pin-pulse { fill: var(--accent); opacity: 0.25; animation: pulse 2.4s ease-out infinite; }
+.pin-label {
+  fill: var(--text);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--water);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  transition: stroke var(--t-slow) var(--ease-out), fill var(--t-slow) var(--ease-out);
+}
+
+.pin.capital .pin-dot { fill: var(--accent); }
+.pin.capital .pin-star {
+  fill: white;
+  stroke: rgba(0,0,0,0.15); stroke-width: 0.4;
+}
+
+/* Selected pin */
+.pin.selected .pin-ring-sel {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  animation: marching 1.2s linear infinite;
+}
+
+@keyframes pulse {
+  0%   { transform: scale(1);   opacity: 0.35; }
+  70%  { transform: scale(2.4); opacity: 0;    }
+  100% { transform: scale(2.4); opacity: 0;    }
+}
+@keyframes pin-drop {
+  from { transform: translateY(-8px) scale(0.6); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes marching {
+  to { stroke-dashoffset: -12; }
+}
+
+/* Callout note (the "Renovation 2026" annotation) */
+.callout-leader { fill: none; stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.callout-arrow  { fill: var(--text-2); }
+.callout-box {
+  fill: var(--glass-strong);
+  stroke: var(--glass-border);
+  stroke-width: 0.5;
+  filter: drop-shadow(0 4px 12px rgba(0, 20, 60, 0.12));
+  transition: fill var(--t-slow) var(--ease-out);
+}
+.callout-title { fill: var(--text); font-family: var(--font-sans); font-size: 11px; font-weight: 600; }
+.callout-sub   { fill: var(--text-3); font-family: var(--font-sans); font-size: 10px; }
+
+/* Floating canvas chrome */
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.canvas-overlay > * { pointer-events: auto; }
+
+.title-block {
+  position: absolute;
+  top: 18px; left: 18px;
+  max-width: 280px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  animation: panel-in var(--t-slow) var(--ease-out) 280ms backwards;
+}
+.title-block .eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.title-block h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.title-block p {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.legend {
+  position: absolute;
+  bottom: 18px; left: 18px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  min-width: 200px;
+  animation: panel-in var(--t-slow) var(--ease-out) 360ms backwards;
+}
+.legend-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.legend-swatch {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+  flex: none;
+}
+.legend-swatch.fr { background: var(--land-fr); border: 1px solid var(--land-fr-line); }
+.legend-swatch.embassy {
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white;
+}
+html[data-theme="dark"] .legend-swatch.embassy { box-shadow: 0 0 0 2px #f5f5f7; }
+.legend-swatch.capital {
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white, 0 0 0 3px var(--accent);
+}
+html[data-theme="dark"] .legend-swatch.capital { box-shadow: 0 0 0 2px #f5f5f7, 0 0 0 3px var(--accent); }
+
+.zoom-stack {
+  position: absolute;
+  right: 18px; top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--glass-strong);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  animation: panel-in var(--t-slow) var(--ease-out) 200ms backwards;
+}
+.zoom-stack .icon-btn {
+  width: 32px; height: 32px; border-radius: 0;
+  color: var(--text);
+}
+.zoom-stack .icon-btn + .icon-btn { border-top: 0.5px solid var(--divider); }
+
+.scale-bar {
+  position: absolute;
+  bottom: 18px; right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-2);
+  box-shadow: var(--glass-shadow);
+  animation: panel-in var(--t-slow) var(--ease-out) 320ms backwards;
+}
+.scale-bar .bar {
+  width: 80px; height: 3px;
+  background: linear-gradient(90deg, var(--text-2) 50%, transparent 50%);
+  background-size: 16px 100%;
+  border-radius: 1px;
+  position: relative;
+}
+.scale-bar .bar::before, .scale-bar .bar::after {
+  content: ""; position: absolute; top: -2px; height: 7px; width: 1px; background: var(--text-2);
+}
+.scale-bar .bar::before { left: 0; }
+.scale-bar .bar::after  { right: 0; }
+
+/* ---- 5c. Inspector ----------------------------------------------------- */
+
+.inspector {
+  margin: 12px 12px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  animation: panel-in var(--t-slow) var(--ease-out) 160ms backwards;
+  overflow: hidden;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tabs {
+  display: flex;
+  padding: 6px;
+  gap: 2px;
+  border-bottom: 0.5px solid var(--divider);
+}
+.tab {
+  flex: 1;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.tab svg { width: 13px; height: 13px; }
+.tab:hover { background: var(--hover); color: var(--text); }
+.tab.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow:
+    0 0 0 0.5px var(--accent-ring),
+    0 1px 0 rgba(255,255,255,0.3) inset,
+    0 1px 2px rgba(0, 60, 180, 0.08);
+}
+.tab.is-active svg { color: var(--accent); }
+
+.inspector-body {
+  padding: 14px 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.inspector-body::-webkit-scrollbar { width: 6px; }
+.inspector-body::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 3px; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.section-head .chev { transition: transform var(--t-base) var(--ease-out); }
+.section-head:hover .chev { transform: translateY(1px); }
+
+.selection-card {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.selection-card .badge {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.selection-card .badge svg { width: 16px; height: 16px; }
+.selection-card .meta .name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.selection-card .meta .sub {
+  font-size: 11.5px; color: var(--text-3); font-family: var(--font-mono);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.row label {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.input {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  transition: background var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+  outline: none;
+  width: 100%;
+}
+.input:focus {
+  background: var(--glass-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: transparent;
+}
+.input.mono { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: -0.01em; }
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.1) inset;
+  transition: transform var(--t-fast) var(--ease-spring);
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.is-active { box-shadow: 0 0 0 2px var(--accent), 0 0 0 0.5px rgba(0,0,0,0.1) inset; }
+
+.size-slider {
+  position: relative;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+.size-slider .track {
+  height: 4px; width: 100%;
+  border-radius: 999px;
+  background: var(--divider);
+  position: relative;
+}
+.size-slider .fill {
+  position: absolute; left: 0; top: 0;
+  height: 100%; width: 60%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+.size-slider .thumb {
+  position: absolute; left: 60%;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.18);
+  transform: translate(-50%, -50%);
+  top: 50%;
+  cursor: grab;
+  transition: transform var(--t-fast) var(--ease-spring);
+}
+.size-slider .thumb:hover { transform: translate(-50%, -50%) scale(1.1); }
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 36px; height: 20px;
+  border-radius: 999px;
+  background: var(--divider);
+  padding: 2px;
+  transition: background var(--t-base) var(--ease-out);
+}
+.toggle::after {
+  content: "";
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  transition: transform var(--t-base) var(--ease-spring);
+}
+.toggle.is-on { background: var(--accent); }
+.toggle.is-on::after { transform: translateX(16px); }
+
+/* Inspector panes */
+.pane { display: flex; flex-direction: column; gap: 16px; }
+.pane[hidden] { display: none; }
+
+/* --- Layers pane --- */
+.tree-toolbar {
+  display: flex; align-items: center; gap: 6px;
+}
+.search {
+  position: relative; flex: 1;
+}
+.search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 10px 0 28px;
+  border-radius: 7px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: background var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
+}
+.search input:focus {
+  background: var(--glass-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: transparent;
+}
+.search input::placeholder { color: var(--text-3); }
+.search svg {
+  position: absolute; left: 8px; top: 50%;
+  width: 14px; height: 14px;
+  transform: translateY(-50%);
+  color: var(--text-3); pointer-events: none;
+}
+.ghost-btn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  color: var(--text-2);
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+}
+.ghost-btn svg { width: 14px; height: 14px; }
+.ghost-btn:hover { background: var(--hover); color: var(--text); }
+.ghost-btn:active { transform: scale(0.94); }
+
+.tree {
+  border-radius: 8px;
+  background: var(--glass-thin);
+  padding: 4px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.tree-row {
+  display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 6px;
+  border-radius: 6px;
+  font-size: 12.5px; color: var(--text);
+  transition: background var(--t-fast) var(--ease-out);
+  cursor: default;
+}
+.tree-row:hover { background: var(--hover); }
+.tree-row.is-selected { background: var(--accent-soft); }
+.tree-row.indent-1 { padding-left: 22px; }
+.tree-row .chev {
+  width: 14px; height: 14px;
+  display: grid; place-items: center;
+  color: var(--text-3);
+  flex: none;
+  transition: transform var(--t-base) var(--ease-out);
+}
+.tree-row .chev svg { width: 10px; height: 10px; }
+.tree-row.is-open .chev { transform: rotate(90deg); }
+.tree-row.no-chev .chev { visibility: hidden; }
+.tree-row .ic {
+  width: 16px; height: 16px;
+  display: grid; place-items: center;
+  color: var(--text-2);
+  flex: none;
+}
+.tree-row .ic svg { width: 14px; height: 14px; }
+.tree-row.is-selected .ic { color: var(--accent); }
+.tree-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-row .count { color: var(--text-3); font-size: 11px; font-family: var(--font-mono); margin-right: 4px; }
+.tree-row .actions {
+  display: flex; gap: 1px;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease-out);
+}
+.tree-row:hover .actions, .tree-row.is-selected .actions { opacity: 1; }
+.tree-row .actions button {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  display: grid; place-items: center;
+  color: var(--text-3);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.tree-row .actions button svg { width: 13px; height: 13px; }
+.tree-row .actions button:hover { background: var(--hover); color: var(--text); }
+.tree-row .actions .is-off { opacity: 1; color: var(--text-3); }
+.tree-children { display: flex; flex-direction: column; gap: 1px; }
+.tree-children[hidden] { display: none; }
+
+/* --- Style pane --- */
+.style-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.style-card {
+  border-radius: 10px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease-spring), box-shadow var(--t-base) var(--ease-out);
+  position: relative;
+}
+.style-card:hover { transform: translateY(-1px); }
+.style-card.is-active {
+  box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgba(0,122,255,0.18);
+  border-color: transparent;
+}
+.style-card .thumb {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  display: block;
+}
+.style-card .label {
+  padding: 6px 10px 8px;
+  font-size: 11.5px; font-weight: 500; color: var(--text);
+}
+
+.style-card[data-preset="editorial-light"] { --c-water: #d2e3f3; --c-land: #e6dfcf; --c-line: rgba(60,50,30,0.18); --c-pin: #007aff; }
+.style-card[data-preset="editorial-dark"]  { --c-water: #161a22; --c-land: #2c2e36; --c-line: rgba(255,255,255,0.12); --c-pin: #0a84ff; }
+.style-card[data-preset="minimal-grey"]    { --c-water: #f3f3f5; --c-land: #d8d8dc; --c-line: rgba(0,0,0,0.10); --c-pin: #1d1d1f; }
+.style-card[data-preset="print-bw"]        { --c-water: #ffffff; --c-land: #ececec; --c-line: #1d1d1f; --c-pin: #1d1d1f; }
+
+/* Sublayer toggle rows */
+.toggle-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.toggle-row:hover { background: var(--hover); }
+.toggle-row .ic { width: 18px; height: 18px; color: var(--text-2); display: grid; place-items: center; flex: none; }
+.toggle-row .ic svg { width: 14px; height: 14px; }
+.toggle-row .name { flex: 1; font-size: 12.5px; color: var(--text); }
+
+/* Select-style pill (read-only mock) */
+.select-pill {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  height: 28px; padding: 0 10px;
+  border-radius: 7px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  font-size: 12.5px; color: var(--text);
+  transition: background var(--t-fast) var(--ease-out);
+}
+.select-pill:hover { background: var(--hover); }
+.select-pill svg { width: 12px; height: 12px; color: var(--text-3); }
+
+/* Layer list */
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 8px;
+  background: var(--glass-thin);
+  overflow: hidden;
+}
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--text);
+  transition: background var(--t-fast) var(--ease-out);
+  cursor: default;
+}
+.layer:hover { background: var(--hover); }
+.layer.is-selected {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.layer .layer-icon {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: var(--text-2);
+}
+.layer .layer-icon svg { width: 14px; height: 14px; }
+.layer .layer-name { flex: 1; }
+.layer .layer-meta { color: var(--text-3); font-size: 11px; font-family: var(--font-mono); }
+.layer .layer-eye {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 5px;
+  color: var(--text-3);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.layer .layer-eye:hover { background: var(--hover); color: var(--text); }
+.layer .layer-eye svg { width: 13px; height: 13px; }
+
+/* ---- 6. Status bar ----------------------------------------------------- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-top: 0.5px solid var(--divider);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.statusbar .group { display: flex; gap: 14px; align-items: center; }
+.statusbar .dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--success); margin-right: 6px;
+  box-shadow: 0 0 6px var(--success);
+}
+
+/* ---- 7. Theme-toggle glyphs ------------------------------------------- */
+
+.theme-toggle .sun, .theme-toggle .moon {
+  transition: opacity var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-spring);
+}
+html[data-theme="light"] .theme-toggle .sun  { opacity: 1; transform: rotate(0); }
+html[data-theme="light"] .theme-toggle .moon { opacity: 0; transform: rotate(60deg); position: absolute; }
+html[data-theme="dark"]  .theme-toggle .sun  { opacity: 0; transform: rotate(-60deg); position: absolute; }
+html[data-theme="dark"]  .theme-toggle .moon { opacity: 1; transform: rotate(0); }
+.theme-toggle { position: relative; }
+.theme-toggle .sun, .theme-toggle .moon { display: block; }
+
+/* ---- 8. Menu bar (system, top of screen — like macOS) ---------------- */
+
+.system-menubar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 10px;
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 0.5px solid rgba(0,0,0,0.10);
+  z-index: 100;
+  font-size: 12.5px;
+  color: var(--text);
+  letter-spacing: -0.005em;
+  -webkit-app-region: drag;
+}
+html[data-theme="dark"] .system-menubar {
+  background: rgba(20,22,28,0.55);
+  border-bottom-color: rgba(0,0,0,0.55);
+}
+.system-menubar .sm-apple {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: var(--text);
+  -webkit-app-region: no-drag;
+}
+.system-menubar .sm-apple svg { width: 13px; height: 14px; }
+.system-menubar .sm-app {
+  font-weight: 700;
+  margin: 0 6px 0 2px;
+  -webkit-app-region: no-drag;
+}
+.system-menubar .sm-spacer { flex: 1; }
+.system-menubar .sm-status {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  -webkit-app-region: no-drag;
+}
+.system-menubar .sm-status svg { width: 13px; height: 13px; }
+
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+.menu-item {
+  height: 24px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.menu-item:hover { background: var(--hover); color: var(--text); }
+.menu-item.is-open {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---- 9. Shared popover (menu dropdowns + context menus) --------------- */
+
+.menu-popover {
+  position: fixed;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.6) inset,
+    0 0 0 0.5px rgba(0,0,0,0.08),
+    0 18px 48px rgba(10, 20, 60, 0.22),
+    0 4px 12px rgba(10, 20, 60, 0.10);
+  z-index: 110;
+  opacity: 0;
+  transform: translateY(-2px) scale(0.985);
+  pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+}
+.menu-popover.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+html[data-theme="dark"] .menu-popover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 0 0 0.5px rgba(0,0,0,0.5),
+    0 18px 48px rgba(0,0,0,0.5),
+    0 4px 12px rgba(0,0,0,0.3);
+}
+.menu-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto 10px;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: default;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.menu-row:hover { background: var(--accent); color: var(--text-on-accent); }
+.menu-row:hover .menu-kbd,
+.menu-row:hover .menu-sub { color: rgba(255,255,255,0.85); }
+.menu-row .menu-ic { color: var(--text-3); display: grid; place-items: center; }
+.menu-row .menu-ic svg { width: 13px; height: 13px; }
+.menu-row .menu-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-row .menu-kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  letter-spacing: 0;
+}
+.menu-row .menu-sub {
+  color: var(--text-3);
+  display: grid; place-items: center;
+}
+.menu-row .menu-sub svg { width: 10px; height: 10px; }
+.menu-row.is-disabled { opacity: 0.45; pointer-events: none; }
+.menu-row.is-disabled:hover { background: transparent; color: var(--text); }
+.menu-divider {
+  height: 0.5px;
+  margin: 4px 6px;
+  background: var(--divider);
+}
+
+/* ---- 10. Inspector tool panes (vertical, inside Properties tab) ------- */
+
+/* Tool-driven panes inside the Properties tab. When a tool is active and
+   nothing is selected, the inspector shows that tool's defaults instead of
+   selection properties. The Move tool is the "selection tool" — its pane
+   shows the current selection (Berlin in the mock). */
+.tool-pane { display: flex; flex-direction: column; gap: 16px; }
+.tool-pane[hidden] { display: none; }
+
+.tool-header {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tool-header .badge {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+.tool-header .badge svg { width: 16px; height: 16px; }
+.tool-header .meta .name {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+}
+.tool-header .meta .sub {
+  font-size: 11px; color: var(--text-3); margin-top: 1px;
+}
+.tool-header .meta .sub kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  margin-left: 4px;
+}
+
+/* Segmented control (3-4 short choices) — reused in tool panes and inspector */
+.seg-row {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  width: 100%;
+}
+.seg-row button {
+  flex: 1;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.seg-row button:hover { background: var(--hover); color: var(--text); }
+.seg-row button.is-active { background: var(--accent); color: var(--text-on-accent); }
+
+/* Stepper used inline in inspector rows */
+.stepper {
+  display: inline-flex; align-items: center;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  overflow: hidden;
+}
+.stepper button {
+  width: 26px; height: 100%;
+  display: grid; place-items: center;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out);
+}
+.stepper button:hover { background: var(--hover); color: var(--text); }
+.stepper button svg { width: 11px; height: 11px; }
+.stepper .value {
+  flex: 1;
+  min-width: 36px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  border-left: 0.5px solid var(--divider);
+  border-right: 0.5px solid var(--divider);
+  height: 100%;
+  display: grid; place-items: center;
+}
+
+/* Icon-button grid (used for alignment, distribute, arrow heads, text style) */
+.btn-grid {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  gap: 1px;
+}
+.btn-grid button {
+  flex: 1;
+  height: 24px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.btn-grid button svg { width: 14px; height: 14px; }
+.btn-grid button:hover { background: var(--hover); color: var(--text); }
+.btn-grid button.is-active { background: var(--accent-soft); color: var(--accent); }
+
+.hint-row {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--glass-thin);
+  border: 0.5px dashed var(--divider);
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.hint-row strong { color: var(--text-2); font-weight: 500; }
+
+/* ---- 11. Selection transformer (SVG, on canvas) ----------------------- */
+
+.transformer .tx-bbox {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  animation: marching 1.2s linear infinite;
+}
+.transformer .tx-handle {
+  fill: white;
+  stroke: var(--accent);
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.18));
+}
+html[data-theme="dark"] .transformer .tx-handle { fill: #f5f5f7; }
+.transformer .tx-rot-line {
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+.transformer .tx-rot {
+  fill: white;
+  stroke: var(--accent);
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.18));
+}
+html[data-theme="dark"] .transformer .tx-rot { fill: #f5f5f7; }
+.transformer .tx-rot-glyph {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- 12. Modal (export sheet) ----------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 40, 0.32);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  z-index: 130;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease-out);
+  display: grid;
+  place-items: center;
+}
+html[data-theme="dark"] .modal-backdrop { background: rgba(0, 0, 0, 0.5); }
+.modal-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+.modal {
+  width: min(680px, calc(100% - 48px));
+  max-height: calc(100% - 64px);
+  display: grid;
+  grid-template-rows: 48px 1fr 56px;
+  border-radius: var(--radius-xl);
+  background: var(--glass-strong);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.6) inset,
+    0 0 0 0.5px rgba(0,0,0,0.08),
+    0 40px 100px rgba(10, 20, 60, 0.32),
+    0 14px 36px rgba(10, 20, 60, 0.18);
+  overflow: hidden;
+  transform: scale(0.97) translateY(4px);
+  opacity: 0;
+  transition: opacity var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-spring);
+}
+html[data-theme="dark"] .modal {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 0 0 0.5px rgba(0,0,0,0.6),
+    0 40px 100px rgba(0,0,0,0.6),
+    0 14px 36px rgba(0,0,0,0.35);
+}
+.modal-backdrop.is-open .modal { transform: scale(1) translateY(0); opacity: 1; }
+
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px 0 18px;
+  border-bottom: 0.5px solid var(--divider);
+}
+.modal-head .title {
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+.modal-body {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  min-height: 0;
+}
+.modal-rail {
+  border-right: 0.5px solid var(--divider);
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto;
+}
+.format-tab {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: default;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.format-tab .fm-ic { color: var(--text-2); display: grid; place-items: center; }
+.format-tab .fm-ic svg { width: 14px; height: 14px; }
+.format-tab .fm-chip {
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--glass-thin);
+  color: var(--text-3);
+  border: 0.5px solid var(--divider);
+}
+.format-tab .fm-chip.phase-1 { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.format-tab .fm-chip.v1      { background: rgba(52,199,89,0.16); color: var(--success); border-color: transparent; }
+.format-tab .fm-chip.roadmap { background: rgba(255,159,10,0.16); color: var(--warn); border-color: transparent; }
+.format-tab:hover { background: var(--hover); }
+.format-tab.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.format-tab.is-active .fm-ic { color: var(--accent); }
+
+.modal-pane {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.modal-pane[hidden] { display: none; }
+.modal-pane .preview {
+  height: 130px;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(0,122,255,0.06), transparent 60%),
+    var(--water);
+  border: 0.5px solid var(--divider);
+  position: relative;
+  overflow: hidden;
+}
+.modal-pane .preview svg { width: 100%; height: 100%; display: block; }
+.modal-pane .row { grid-template-columns: 100px 1fr; }
+.modal-pane .seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--glass-thin);
+  border: 0.5px solid var(--divider);
+  width: 100%;
+}
+.modal-pane .seg button {
+  flex: 1;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.modal-pane .seg button:hover { background: var(--hover); color: var(--text); }
+.modal-pane .seg button.is-active { background: var(--accent); color: var(--text-on-accent); }
+.modal-pane .roadmap-empty {
+  display: grid; place-items: center;
+  padding: 36px 12px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.modal-pane .roadmap-empty .big { font-size: 14px; color: var(--text-2); font-weight: 600; margin-bottom: 4px; }
+
+.modal-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px;
+  border-top: 0.5px solid var(--divider);
+}
+.modal-foot .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.modal-foot .actions { display: flex; gap: 6px; }
+
+/* ---- 13. Toast stack -------------------------------------------------- */
+
+.toast-stack {
+  position: absolute;
+  bottom: 44px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 50;
+  pointer-events: none;
+}
+.toast {
+  display: inline-flex; align-items: center; gap: 10px;
+  max-width: 420px;
+  padding: 8px 12px 8px 12px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 0.5px solid var(--glass-border);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.5) inset,
+    0 8px 24px rgba(10,20,60,0.18),
+    0 2px 6px rgba(10,20,60,0.08);
+  font-size: 12.5px;
+  color: var(--text);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  animation: toast-in var(--t-base) var(--ease-spring) forwards;
+}
+.toast.is-leaving {
+  animation: toast-out var(--t-base) var(--ease-out) forwards;
+}
+.toast .t-ic {
+  width: 16px; height: 16px;
+  display: grid; place-items: center;
+  color: var(--accent);
+  flex: none;
+}
+.toast .t-ic svg { width: 14px; height: 14px; }
+.toast .t-msg { color: var(--text); }
+.toast .t-msg em { color: var(--text-3); font-style: normal; }
+.toast .t-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 5px;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.toast .t-action:hover { background: var(--accent-soft); }
+.toast .t-close {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 4px;
+  color: var(--text-3);
+  margin-right: -4px;
+  transition: background var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out);
+}
+.toast .t-close:hover { background: var(--hover); color: var(--text); }
+.toast .t-close svg { width: 11px; height: 11px; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+
+/* ---- 14. Tool rail (added rows) --------------------------------------- */
+/* Existing .tool styles in §5a cover the new tools. */
+
+/* ---- 15. Mobile fallback note ------------------------------------------ */
+
+@media (max-width: 900px) {
+  .stage { padding: 0; }
+  .window { height: 100vh; width: 100vw; border-radius: 0; grid-template-rows: 44px 1fr 28px; }
+  .workspace { grid-template-columns: 56px 1fr 0; }
+  .inspector { display: none; }
+  .system-menubar .menubar { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ SYSTEM MENU BAR (macOS-style) ============================ -->
+<div class="system-menubar" role="menubar" aria-label="System menu">
+  <span class="sm-apple" aria-hidden="true">
+    <svg viewBox="0 0 24 28" fill="currentColor"><path d="M17.9 14.6c0-3 2.5-4.5 2.6-4.5-1.4-2.1-3.6-2.4-4.4-2.4-1.9-.2-3.6 1.1-4.6 1.1-1 0-2.4-1.1-4-1-2.1 0-4 1.2-5 3-2.2 3.8-.6 9.4 1.5 12.5 1.1 1.5 2.3 3.2 4 3.1 1.6-.1 2.2-1 4.1-1s2.5 1 4.1 1c1.7 0 2.8-1.5 3.8-3 .8-1.3 1.5-2.6 1.9-4-2.2-.8-3.9-2.9-4-5.8zM14.4 5.8c.9-1 1.4-2.5 1.3-3.9-1.2.1-2.7.8-3.5 1.8-.8.9-1.5 2.4-1.3 3.8 1.3.1 2.7-.7 3.5-1.7z"/></svg>
+  </span>
+  <span class="sm-app">GeoCarto</span>
+  <nav class="menubar" aria-label="App menu">
+    <button class="menu-item" role="menuitem" data-menu="file">File</button>
+    <button class="menu-item" role="menuitem" data-menu="edit">Edit</button>
+    <button class="menu-item" role="menuitem" data-menu="view">View</button>
+    <button class="menu-item" role="menuitem" data-menu="object">Object</button>
+    <button class="menu-item" role="menuitem" data-menu="help">Help</button>
+  </nav>
+  <span class="sm-spacer"></span>
+  <span class="sm-status" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><rect x="22" y="10" width="1.5" height="4"/><rect x="4" y="7" width="14" height="10" rx="1.5" fill="currentColor"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13a8 8 0 0 1 14 0"/><path d="M8.5 16a4 4 0 0 1 7 0"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>
+    <span>Mon 12:42</span>
+  </span>
+</div>
+
+<div class="stage">
+  <div class="window" role="application" aria-label="GeoCarto editor">
+
+    <!-- ============================ TITLE BAR ============================ -->
+    <div class="titlebar">
+      <div class="tl-group" aria-label="Window controls">
+        <button class="tl tl-close"    aria-label="Close"></button>
+        <button class="tl tl-minimize" aria-label="Minimize"></button>
+        <button class="tl tl-maximize" aria-label="Zoom"></button>
+      </div>
+
+      <div class="title-center" tabindex="0">
+        <span class="doc-icon" aria-hidden="true">
+          <!-- map icon -->
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 4l4-2 4 2 4-2v10l-4 2-4-2-4 2z"/>
+            <path d="M6 2v10"/><path d="M10 4v10"/>
+          </svg>
+        </span>
+        <span class="doc-name">Embassies of France in Europe</span>
+        <span class="doc-meta">Edited just now</span>
+      </div>
+
+      <div class="title-actions">
+        <button class="icon-btn" id="undoBtn" aria-label="Undo" title="Undo (⌘Z)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H9"/></svg>
+        </button>
+        <button class="icon-btn" id="redoBtn" aria-label="Redo" title="Redo (⇧⌘Z)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h6"/></svg>
+        </button>
+        <button class="icon-btn is-active-pressed" id="snapToggle" aria-pressed="true" aria-label="Toggle snap" title="Snap to grid">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        </button>
+        <span style="width: 0.5px; height: 18px; background: var(--divider); margin: 0 4px;"></span>
+        <button class="icon-btn theme-toggle" id="themeToggle" aria-label="Toggle appearance">
+          <!-- sun -->
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <!-- moon -->
+          <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M20 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2"/>
+          </svg>
+        </button>
+        <button class="pill-btn primary" aria-label="Export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>
+          </svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================ WORKSPACE ============================ -->
+    <div class="workspace">
+
+      <!-- TOOL RAIL -->
+      <aside class="rail" aria-label="Tools">
+        <button class="tool is-active" aria-label="Move" data-tool="move">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 17 1.93-7 7-2z"/></svg>
+          <span class="tool-tooltip">Move <kbd>V</kbd></span>
+        </button>
+        <button class="tool" aria-label="Marquee" data-tool="marquee">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 2"><rect x="3" y="3" width="18" height="18" rx="1.5"/></svg>
+          <span class="tool-tooltip">Marquee <kbd>M</kbd></span>
+        </button>
+        <button class="tool" aria-label="Hand" data-tool="hand">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 11V6.5a1.5 1.5 0 1 1 3 0V11"/>
+            <path d="M9 11V4.5a1.5 1.5 0 1 1 3 0V11"/>
+            <path d="M12 11V5.5a1.5 1.5 0 1 1 3 0V13"/>
+            <path d="M15 13V8.5a1.5 1.5 0 0 1 3 0v8a5.5 5.5 0 0 1-11 0V11"/>
+          </svg>
+          <span class="tool-tooltip">Pan <kbd>H</kbd></span>
+        </button>
+        <button class="tool" aria-label="Ruler" data-tool="ruler">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2M4 14l2 2"/></svg>
+          <span class="tool-tooltip">Ruler <kbd>K</kbd></span>
+        </button>
+        <div class="rail-divider"></div>
+        <button class="tool" aria-label="Pen" data-tool="pen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/>
+          </svg>
+          <span class="tool-tooltip">Pen <kbd>P</kbd></span>
+        </button>
+        <button class="tool" aria-label="Rectangle" data-tool="rectangle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          <span class="tool-tooltip">Rectangle <kbd>R</kbd></span>
+        </button>
+        <button class="tool" aria-label="Ellipse" data-tool="ellipse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg>
+          <span class="tool-tooltip">Ellipse <kbd>O</kbd></span>
+        </button>
+        <button class="tool" aria-label="Polygon" data-tool="polygon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 5-3 10H7L4 8z"/></svg>
+          <span class="tool-tooltip">Polygon <kbd>G</kbd></span>
+        </button>
+        <button class="tool" aria-label="Text" data-tool="text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+          <span class="tool-tooltip">Text <kbd>T</kbd></span>
+        </button>
+        <button class="tool" aria-label="Paint area" data-tool="paint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3l7 7-9 9-7-7z"/><path d="M5 12l7 7"/><path d="M21 22a2 2 0 1 0-4 0c0 1.5 4 4 4 4"/>
+          </svg>
+          <span class="tool-tooltip">Paint area <kbd>B</kbd></span>
+        </button>
+        <button class="tool" aria-label="Pin" data-tool="pin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span class="tool-tooltip">Pin <kbd>I</kbd></span>
+        </button>
+        <button class="tool" aria-label="Arrow" data-tool="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><path d="M9 5h10v10"/></svg>
+          <span class="tool-tooltip">Arrow <kbd>A</kbd></span>
+        </button>
+        <button class="tool" aria-label="Image" data-tool="image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 17l-5-5-9 8"/></svg>
+          <span class="tool-tooltip">Image <kbd>J</kbd></span>
+        </button>
+        <div class="rail-divider"></div>
+        <button class="tool" aria-label="Legend" data-tool="legend">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h12"/><path d="M3 18h18"/><circle cx="20" cy="12" r="1.5" fill="currentColor"/></svg>
+          <span class="tool-tooltip">Legend <kbd>L</kbd></span>
+        </button>
+        <button class="tool" aria-label="Comment" data-tool="comment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>
+          <span class="tool-tooltip">Comment <kbd>C</kbd></span>
+        </button>
+      </aside>
+
+      <!-- CANVAS -->
+      <div class="canvas">
+        <!-- Basemap SVG ----------------------------------------------------
+             A stylised Europe. Country shapes are abstracted hand-tuned paths;
+             they are *evocative*, not geodetically accurate, in keeping with
+             editorial cartography mock-ups.
+        ------------------------------------------------------------------- -->
+        <svg class="basemap" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <!-- water + deep gradient -->
+          <defs>
+            <radialGradient id="waterGrad" cx="50%" cy="50%" r="70%">
+              <stop offset="0%"  stop-color="var(--water)"/>
+              <stop offset="100%" stop-color="var(--water-deep)"/>
+            </radialGradient>
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000" flood-opacity="0.10"/>
+            </filter>
+          </defs>
+          <rect class="m-water" width="1000" height="700" fill="url(#waterGrad)"/>
+
+          <!-- graticule -->
+          <g class="m-grid">
+            <path d="M0 100 H1000"/><path d="M0 200 H1000"/><path d="M0 300 H1000"/>
+            <path d="M0 400 H1000"/><path d="M0 500 H1000"/><path d="M0 600 H1000"/>
+            <path d="M100 0 V700"/><path d="M200 0 V700"/><path d="M300 0 V700"/>
+            <path d="M400 0 V700"/><path d="M500 0 V700"/><path d="M600 0 V700"/>
+            <path d="M700 0 V700"/><path d="M800 0 V700"/><path d="M900 0 V700"/>
+          </g>
+
+          <!-- Land masses (stylised) -->
+          <g filter="url(#softShadow)">
+
+            <!-- Ireland -->
+            <path class="m-land" d="M170 215 q-22 -6 -28 14 q-6 22 8 36 q14 12 32 4 q18 -8 14 -28 q-2 -16 -26 -26 z"/>
+            <!-- Great Britain -->
+            <path class="m-land" d="M250 150 q-22 14 -30 50 q-6 28 6 60 q10 26 30 38 q24 10 32 -4 q4 -10 -4 -20 q-2 -16 6 -26 q12 -16 6 -32 q-4 -18 -12 -30 q-10 -24 -34 -36 z"/>
+
+            <!-- Scandinavia (Norway + Sweden as one stylised mass) -->
+            <path class="m-land" d="M470 60 q-14 24 -10 60 q4 36 -14 70 q-12 24 -4 50 q12 28 30 18 q14 -8 8 -28 q-4 -18 8 -34 q18 -26 22 -60 q4 -32 -8 -60 q-12 -22 -32 -16 z"/>
+
+            <!-- Iberian peninsula (Spain + Portugal) -->
+            <path class="m-land" d="M250 470 q-20 8 -22 36 q-2 36 18 56 q24 26 64 28 q44 4 78 -12 q26 -12 28 -36 q2 -22 -22 -32 q-30 -10 -64 -8 q-32 -2 -54 -18 q-12 -10 -26 -14 z"/>
+
+            <!-- France (highlighted) -->
+            <path class="m-fr" id="fr"
+              d="M345 320
+                 q-18 10 -22 32
+                 q-4 28 6 56
+                 q8 26 28 38
+                 q26 14 56 8
+                 q24 -4 38 -22
+                 q12 -16 4 -36
+                 q-10 -22 4 -34
+                 q12 -10 4 -24
+                 q-8 -14 -28 -12
+                 q-22 2 -36 -8
+                 q-14 -10 -28 -8
+                 q-14 2 -26 10 z"/>
+
+            <!-- Low countries (Belgium + Netherlands stylised) -->
+            <path class="m-land" d="M410 290 q-10 -2 -16 8 q-6 12 6 22 q14 8 30 4 q18 -4 16 -16 q-2 -14 -16 -16 q-10 -2 -20 -2 z"/>
+
+            <!-- Germany -->
+            <path class="m-land" d="M460 240 q-18 8 -16 40 q2 30 22 50 q22 20 50 16 q26 -4 30 -28 q4 -22 -10 -38 q-12 -16 -10 -32 q2 -18 -16 -22 q-22 -4 -38 4 q-8 4 -12 10 z"/>
+
+            <!-- Switzerland (tiny) -->
+            <path class="m-land" d="M460 360 q-10 4 -8 16 q4 12 18 12 q14 0 16 -10 q2 -10 -10 -16 q-8 -4 -16 -2 z"/>
+
+            <!-- Italy (boot) -->
+            <path class="m-land" d="M530 360 q-12 6 -14 26 q-2 22 12 38 q10 12 22 18 q4 4 6 18 q2 14 12 24 q14 14 24 6 q8 -8 0 -22 q-8 -14 -10 -28 q-2 -14 8 -22 q12 -10 4 -22 q-8 -12 -22 -16 q-12 -4 -16 -16 q-4 -12 -16 -10 q-6 2 -10 6 z"/>
+            <!-- Sicily -->
+            <ellipse class="m-land" cx="590" cy="495" rx="22" ry="11"/>
+
+            <!-- Poland -->
+            <path class="m-land" d="M610 240 q-20 8 -20 32 q0 28 18 44 q22 18 52 14 q24 -4 28 -22 q4 -20 -8 -36 q-14 -18 -16 -28 q-2 -10 -18 -10 q-18 0 -36 6 z"/>
+
+            <!-- Central/East Europe (Czechia/Austria/Hungary stylised) -->
+            <path class="m-land" d="M540 320 q-16 4 -16 24 q0 20 16 30 q22 12 50 6 q24 -6 32 -22 q8 -16 -8 -28 q-18 -14 -42 -16 q-20 -2 -32 6 z"/>
+
+            <!-- Balkans / SE Europe -->
+            <path class="m-land" d="M620 390 q-22 8 -22 36 q0 32 24 50 q26 18 56 10 q22 -6 24 -28 q2 -20 -12 -34 q-12 -12 -14 -22 q-4 -16 -22 -16 q-20 -2 -34 4 z"/>
+
+            <!-- North Africa coastline (just a sliver for context) -->
+            <path class="m-land" d="M120 580 q60 30 180 24 q160 -6 280 30 q140 28 280 4 L1000 700 L0 700 Z" opacity="0.85"/>
+
+            <!-- Denmark -->
+            <path class="m-land" d="M500 215 q-8 -2 -12 10 q-4 14 6 22 q10 6 18 2 q10 -4 6 -16 q-4 -14 -18 -18 z"/>
+          </g>
+
+          <!-- Country labels -->
+          <g>
+            <text class="m-label major" x="380" y="396">FRANCE</text>
+            <text class="m-label" x="312" y="540">ESPAÑA</text>
+            <text class="m-label" x="490" y="290">DEUTSCHLAND</text>
+            <text class="m-label" x="555" y="430">ITALIA</text>
+          </g>
+
+          <!-- Callout: Berlin -->
+          <g>
+            <path class="callout-leader" d="M535 270 Q 600 220 720 200"/>
+            <circle class="callout-arrow" cx="535" cy="270" r="2.5"/>
+            <g transform="translate(720, 170)">
+              <rect class="callout-box" x="0" y="0" width="190" height="58" rx="10"/>
+              <text class="callout-title" x="14" y="22">Berlin · Renovation 2026</text>
+              <text class="callout-sub" x="14" y="40">Re-opens Q3 — temporary services in Bonn</text>
+            </g>
+          </g>
+
+          <!-- Embassy pins ------------------------------------------------- -->
+          <!-- Each pin: pulse, ring, dot, label -->
+          <!-- Capital (Paris) -->
+          <g class="pin capital" transform="translate(395, 365)" style="animation-delay: 220ms">
+            <circle class="pin-pulse" r="5"/>
+            <circle class="pin-ring"  r="7"/>
+            <circle class="pin-dot"   r="4"/>
+            <path class="pin-star" d="M0,-2.4 L0.7,-0.7 L2.4,-0.7 L1.0,0.4 L1.5,2.1 L0,1.0 L-1.5,2.1 L-1.0,0.4 L-2.4,-0.7 L-0.7,-0.7 Z"/>
+            <text class="pin-label" x="10" y="3">Paris</text>
+          </g>
+
+          <!-- London -->
+          <g class="pin" transform="translate(258, 235)" style="animation-delay: 280ms">
+            <circle class="pin-ring" r="5.5"/><circle class="pin-dot" r="3"/>
+            <text class="pin-label" x="10" y="3">London</text>
+          </g>
+          <!-- Brussels -->
+          <g class="pin" transform="translate(425, 295)" style="animation-delay: 320ms">
+            <circle class="pin-ring" r="5.5"/><circle class="pin-dot" r="3"/>
+            <text class="pin-label" x="10" y="3">Brussels</text>
+          </g>
+          <!-- Berlin (selected) -->
+          <g class="pin selected" transform="translate(530, 270)" style="animation-delay: 400ms">
+            <circle class="pin-ring-sel" r="12"/>
+            <circle class="pin-pulse" r="5"/>
+            <circle class="pin-ring"   r="6.5"/>
+            <circle class="pin-dot"    r="3.5"/>
+            <text class="pin-label" x="10" y="3">Berlin</text>
+          </g>
+          <!-- Madrid -->
+          <g class="pin" transform="translate(320, 540)" style="animation-delay: 480ms">
+            <circle class="pin-ring" r="5.5"/><circle class="pin-dot" r="3"/>
+            <text class="pin-label" x="10" y="3">Madrid</text>
+          </g>
+          <!-- Rome -->
+          <g class="pin" transform="translate(560, 425)" style="animation-delay: 560ms">
+            <circle class="pin-ring" r="5.5"/><circle class="pin-dot" r="3"/>
+            <text class="pin-label" x="10" y="3">Rome</text>
+          </g>
+          <!-- Warsaw -->
+          <g class="pin" transform="translate(660, 270)" style="animation-delay: 600ms">
+            <circle class="pin-ring" r="5.5"/><circle class="pin-dot" r="3"/>
+            <text class="pin-label" x="10" y="3">Warsaw</text>
+          </g>
+
+          <!-- Selected rectangle annotation with transformer handles -->
+          <g class="transformer" transform="translate(740, 430)" aria-label="Selected annotation">
+            <!-- Highlighted accent-tinted bbox with marching-ants stroke -->
+            <rect class="tx-bbox" x="0" y="0" width="160" height="86" rx="8"/>
+            <!-- Inner label so the rectangle reads as a real annotation -->
+            <text x="10" y="20" style="font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--accent);">Catchment area</text>
+            <text x="10" y="36" style="font-family: var(--font-sans); font-size: 11px; fill: var(--text-2);">Consular district</text>
+            <text x="10" y="52" style="font-family: var(--font-mono); font-size: 9.5px; fill: var(--text-3);">~ 12 500 km²</text>
+
+            <!-- 4 corner handles -->
+            <rect class="tx-handle" x="-4" y="-4" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="156" y="-4" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="-4" y="82" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="156" y="82" width="8" height="8" rx="1.5"/>
+            <!-- 4 edge handles -->
+            <rect class="tx-handle" x="76" y="-4" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="76" y="82" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="-4" y="39" width="8" height="8" rx="1.5"/>
+            <rect class="tx-handle" x="156" y="39" width="8" height="8" rx="1.5"/>
+            <!-- Rotate handle -->
+            <line class="tx-rot-line" x1="80" y1="-4" x2="80" y2="-18"/>
+            <circle class="tx-rot" cx="80" cy="-22" r="6"/>
+            <path class="tx-rot-glyph" d="M77 -22 a3 3 0 1 0 1 -2.5" />
+            <path class="tx-rot-glyph" d="M78 -25 l2 -0.5 l-0.4 2"/>
+          </g>
+        </svg>
+
+        <!-- Floating canvas overlays -->
+        <div class="canvas-overlay">
+
+          <div class="title-block">
+            <div class="eyebrow">Diplomatic network</div>
+            <h1>French Embassies in Europe</h1>
+            <p>Ministère de l'Europe et des Affaires étrangères · May 2026</p>
+          </div>
+
+          <div class="legend">
+            <div class="legend-title">Legend</div>
+            <div class="legend-row"><span class="legend-swatch capital"></span> Capital embassy</div>
+            <div class="legend-row"><span class="legend-swatch embassy"></span> Embassy</div>
+            <div class="legend-row"><span class="legend-swatch fr"></span> French territory</div>
+          </div>
+
+          <div class="zoom-stack">
+            <button class="icon-btn" aria-label="Zoom in">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button class="icon-btn" aria-label="Zoom out">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+            </button>
+            <button class="icon-btn" aria-label="Fit to content">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9V3h6"/><path d="M21 9V3h-6"/><path d="M3 15v6h6"/><path d="M21 15v6h-6"/>
+              </svg>
+            </button>
+            <button class="icon-btn" aria-label="Compass / north">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/><path d="M16 8l-2 6-6 2 2-6z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="scale-bar"><span>0</span><div class="bar"></div><span>500 km</span></div>
+        </div>
+      </div>
+
+      <!-- INSPECTOR -->
+      <aside class="inspector" aria-label="Inspector">
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" role="tab" aria-selected="true" data-pane="properties">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h7"/><path d="M4 12h16"/><path d="M4 18h10"/><circle cx="17" cy="6" r="1.5" fill="currentColor"/></svg>
+            Properties
+          </button>
+          <button class="tab" role="tab" data-pane="layers">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            Layers
+          </button>
+          <button class="tab" role="tab" data-pane="style">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><path d="M6 8v8"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M18 8v8"/><circle cx="18" cy="18" r="2"/></svg>
+            Style
+          </button>
+        </div>
+
+        <div class="inspector-body">
+
+         <!-- ============== PROPERTIES PANE ============== -->
+         <div class="pane" data-pane="properties">
+
+          <!-- ===== Move tool: shows current selection (Berlin) ===== -->
+          <div class="tool-pane" data-tool-pane="move">
+            <!-- Selection card -->
+            <div class="selection-card">
+              <div class="badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+              </div>
+              <div class="meta">
+                <div class="name">Berlin Embassy</div>
+                <div class="sub">52.5170° N · 13.3889° E</div>
+              </div>
+            </div>
+
+            <!-- Position -->
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;">
+                <span>Position</span>
+                <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="row"><label>Label</label><input class="input" value="Berlin"/></div>
+                <div class="row"><label>Latitude</label><input class="input mono" value="52.5170"/></div>
+                <div class="row"><label>Longitude</label><input class="input mono" value="13.3889"/></div>
+              </div>
+            </div>
+
+            <!-- Alignment + arrange -->
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Arrange</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row">
+                  <label>Align</label>
+                  <div class="btn-grid">
+                    <button aria-label="Align left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16"/><rect x="7" y="7" width="11" height="4" rx="1"/><rect x="7" y="14" width="7" height="4" rx="1"/></svg></button>
+                    <button aria-label="Align center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><rect x="6" y="7" width="12" height="4" rx="1"/><rect x="9" y="14" width="6" height="4" rx="1"/></svg></button>
+                    <button aria-label="Align right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4v16"/><rect x="6" y="7" width="11" height="4" rx="1"/><rect x="10" y="14" width="7" height="4" rx="1"/></svg></button>
+                    <button aria-label="Align top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16"/><rect x="7" y="7" width="4" height="11" rx="1"/><rect x="14" y="7" width="4" height="7" rx="1"/></svg></button>
+                    <button aria-label="Align middle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><rect x="7" y="6" width="4" height="12" rx="1"/><rect x="14" y="9" width="4" height="6" rx="1"/></svg></button>
+                    <button aria-label="Align bottom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><rect x="7" y="6" width="4" height="11" rx="1"/><rect x="14" y="10" width="4" height="7" rx="1"/></svg></button>
+                  </div>
+                </div>
+                <div class="row">
+                  <label>Anchor</label>
+                  <div class="seg-row">
+                    <button class="is-active">Map</button>
+                    <button>Canvas</button>
+                  </div>
+                </div>
+                <div class="row">
+                  <label>Opacity</label>
+                  <div class="size-slider"><div class="track"><div class="fill" style="width:100%;"></div></div><div class="thumb" style="left:100%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Marker style -->
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;">
+                <span>Marker style</span>
+                <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                  <div style="font-size:11.5px;color:var(--text-3);margin-bottom:6px;">Color</div>
+                  <div class="swatch-grid">
+                    <div class="swatch is-active" style="background:#007aff;"></div>
+                    <div class="swatch" style="background:#5856d6;"></div>
+                    <div class="swatch" style="background:#34c759;"></div>
+                    <div class="swatch" style="background:#ff9500;"></div>
+                    <div class="swatch" style="background:#ff3b30;"></div>
+                    <div class="swatch" style="background:#1d1d1f;"></div>
+                  </div>
+                </div>
+                <div class="row"><label>Size</label><div class="size-slider"><div class="track"><div class="fill"></div></div><div class="thumb"></div></div></div>
+                <div class="row"><label>Pulse</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+                <div class="row"><label>Show label</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Marquee tool ===== -->
+          <div class="tool-pane" data-tool-pane="marquee" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 2"><rect x="3" y="3" width="18" height="18" rx="1.5"/></svg></div>
+              <div class="meta"><div class="name">Marquee</div><div class="sub">Drag to select <kbd>M</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Mode</span></div>
+              <div class="seg-row"><button class="is-active">New</button><button>Add</button><button>Subtract</button></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Targets</span></div>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="row"><label>Layers</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+                <div class="row"><label>Annotations</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+                <div class="row"><label>Locked</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Pan / Hand ===== -->
+          <div class="tool-pane" data-tool-pane="hand" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11V6.5a1.5 1.5 0 1 1 3 0V11"/><path d="M9 11V4.5a1.5 1.5 0 1 1 3 0V11"/><path d="M12 11V5.5a1.5 1.5 0 1 1 3 0V13"/><path d="M15 13V8.5a1.5 1.5 0 0 1 3 0v8a5.5 5.5 0 0 1-11 0V11"/></svg></div>
+              <div class="meta"><div class="name">Pan</div><div class="sub">Drag canvas <kbd>H</kbd></div></div>
+            </div>
+            <div class="hint-row">Drag anywhere to pan. Hold <strong>Space</strong> to temporarily switch to hand from any tool.</div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Viewport</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Zoom</label><input class="input mono" value="4.80"/></div>
+                <div class="row"><label>Center</label><input class="input mono" value="10.40, 47.20"/></div>
+                <div class="row"><label>Bearing</label><input class="input mono" value="0°"/></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Ruler ===== -->
+          <div class="tool-pane" data-tool-pane="ruler" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2M4 14l2 2"/></svg></div>
+              <div class="meta"><div class="name">Ruler</div><div class="sub">Measure distance <kbd>K</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Units</span></div>
+              <div class="seg-row"><button class="is-active">km</button><button>mi</button><button>nmi</button></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Measurement</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>From</label><input class="input mono" value="48.857, 2.351"/></div>
+                <div class="row"><label>To</label><input class="input mono" value="52.520, 13.405"/></div>
+                <div class="row"><label>Distance</label><input class="input mono" value="878 km" readonly/></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Pen ===== -->
+          <div class="tool-pane" data-tool-pane="pen" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg></div>
+              <div class="meta"><div class="name">Pen</div><div class="sub">Click to add vertices <kbd>P</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Stroke</span></div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div>
+                  <div style="font-size:11.5px;color:var(--text-3);margin-bottom:6px;">Color</div>
+                  <div class="swatch-grid">
+                    <div class="swatch is-active" style="background:#1d1d1f;"></div>
+                    <div class="swatch" style="background:#007aff;"></div>
+                    <div class="swatch" style="background:#ff3b30;"></div>
+                    <div class="swatch" style="background:#34c759;"></div>
+                    <div class="swatch" style="background:#ff9500;"></div>
+                    <div class="swatch" style="background:#86868b;"></div>
+                  </div>
+                </div>
+                <div class="row"><label>Width</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">1.5</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Dash</label>
+                  <div class="seg-row">
+                    <button class="is-active">Solid</button>
+                    <button>Dashed</button>
+                    <button>Dotted</button>
+                  </div>
+                </div>
+                <div class="row"><label>Opacity</label><div class="size-slider"><div class="track"><div class="fill" style="width:100%;"></div></div><div class="thumb" style="left:100%;"></div></div></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Behavior</span></div>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div class="row"><label>Close path</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+                <div class="row"><label>Snap to map</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Rectangle ===== -->
+          <div class="tool-pane" data-tool-pane="rectangle" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></div>
+              <div class="meta"><div class="name">Rectangle</div><div class="sub">Drag to draw <kbd>R</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Fill</span></div>
+              <div class="swatch-grid">
+                <div class="swatch is-active" style="background:#007aff;"></div>
+                <div class="swatch" style="background:#5856d6;"></div>
+                <div class="swatch" style="background:#34c759;"></div>
+                <div class="swatch" style="background:#ff9500;"></div>
+                <div class="swatch" style="background:#ff3b30;"></div>
+                <div class="swatch" style="background: linear-gradient(135deg,#fff 25%,#eee 25% 50%,#fff 50% 75%,#eee 75%); background-size: 8px 8px;" title="None"></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Stroke</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Color</label><button class="select-pill"><span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:14px; height:14px; border-radius:3px; background:#1d1d1f; box-shadow:0 0 0 0.5px rgba(0,0,0,0.18) inset;"></span>Charcoal</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Width</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">1</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Dash</label><div class="seg-row"><button class="is-active">Solid</button><button>Dashed</button><button>Dotted</button></div></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Geometry</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Radius</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">8</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Anchor</label><div class="seg-row"><button class="is-active">Map</button><button>Canvas</button></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Ellipse ===== -->
+          <div class="tool-pane" data-tool-pane="ellipse" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg></div>
+              <div class="meta"><div class="name">Ellipse</div><div class="sub">Hold ⇧ for circle <kbd>O</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Fill</span></div>
+              <div class="swatch-grid">
+                <div class="swatch" style="background:#007aff;"></div>
+                <div class="swatch is-active" style="background:#ff9500;"></div>
+                <div class="swatch" style="background:#34c759;"></div>
+                <div class="swatch" style="background:#5856d6;"></div>
+                <div class="swatch" style="background:#ff3b30;"></div>
+                <div class="swatch" style="background: linear-gradient(135deg,#fff 25%,#eee 25% 50%,#fff 50% 75%,#eee 75%); background-size: 8px 8px;" title="None"></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Stroke</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Width</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">1</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Constrain</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Polygon ===== -->
+          <div class="tool-pane" data-tool-pane="polygon" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 5-3 10H7L4 8z"/></svg></div>
+              <div class="meta"><div class="name">Polygon</div><div class="sub">Click vertices · ↵ to close <kbd>G</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Shape</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Sides</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">6</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Geo-anchor</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Fill</span></div>
+              <div class="swatch-grid">
+                <div class="swatch" style="background:#007aff;"></div>
+                <div class="swatch" style="background:#ff9500;"></div>
+                <div class="swatch is-active" style="background:#34c759;"></div>
+                <div class="swatch" style="background:#5856d6;"></div>
+                <div class="swatch" style="background:#ff3b30;"></div>
+                <div class="swatch" style="background:#1d1d1f;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Text ===== -->
+          <div class="tool-pane" data-tool-pane="text" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></div>
+              <div class="meta"><div class="name">Text</div><div class="sub">Click to place <kbd>T</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Type</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Font</label><button class="select-pill"><span>SF Pro Display</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Weight</label><button class="select-pill"><span>Semibold</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Size</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">14</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Align</label>
+                  <div class="btn-grid">
+                    <button class="is-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg></button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M5 18h14"/></svg></button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M10 12h10M7 18h13"/></svg></button>
+                  </div>
+                </div>
+                <div class="row"><label>Style</label>
+                  <div class="btn-grid">
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h6.5a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4h-9M14 4l-4 16M5 20h9"/></svg></button>
+                    <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v9a6 6 0 0 0 12 0V4"/><path d="M4 21h16"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Color</span></div>
+              <div class="swatch-grid">
+                <div class="swatch is-active" style="background:#1d1d1f;"></div>
+                <div class="swatch" style="background:#86868b;"></div>
+                <div class="swatch" style="background:#007aff;"></div>
+                <div class="swatch" style="background:#ff3b30;"></div>
+                <div class="swatch" style="background:#34c759;"></div>
+                <div class="swatch" style="background:#ffffff; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.18) inset;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Paint area ===== -->
+          <div class="tool-pane" data-tool-pane="paint" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-9 9-7-7z"/><path d="M5 12l7 7"/><path d="M21 22a2 2 0 1 0-4 0c0 1.5 4 4 4 4"/></svg></div>
+              <div class="meta"><div class="name">Paint area</div><div class="sub">Brush a region <kbd>B</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Fill</span></div>
+              <div class="swatch-grid">
+                <div class="swatch" style="background:#007aff;"></div>
+                <div class="swatch is-active" style="background:#5856d6;"></div>
+                <div class="swatch" style="background:#34c759;"></div>
+                <div class="swatch" style="background:#ff9500;"></div>
+                <div class="swatch" style="background:#ff3b30;"></div>
+                <div class="swatch" style="background:#1d1d1f;"></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Blend</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Mode</label><button class="select-pill"><span>Multiply</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Opacity</label><div class="size-slider"><div class="track"><div class="fill" style="width:65%;"></div></div><div class="thumb" style="left:65%;"></div></div></div>
+                <div class="row"><label>Soft edge</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Pin ===== -->
+          <div class="tool-pane" data-tool-pane="pin" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
+              <div class="meta"><div class="name">Pin</div><div class="sub">Click to place <kbd>I</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Marker</span></div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div>
+                  <div style="font-size:11.5px;color:var(--text-3);margin-bottom:6px;">Color</div>
+                  <div class="swatch-grid">
+                    <div class="swatch is-active" style="background:#007aff;"></div>
+                    <div class="swatch" style="background:#5856d6;"></div>
+                    <div class="swatch" style="background:#34c759;"></div>
+                    <div class="swatch" style="background:#ff9500;"></div>
+                    <div class="swatch" style="background:#ff3b30;"></div>
+                    <div class="swatch" style="background:#1d1d1f;"></div>
+                  </div>
+                </div>
+                <div class="row"><label>Size</label><div class="size-slider"><div class="track"><div class="fill" style="width:60%;"></div></div><div class="thumb" style="left:60%;"></div></div></div>
+                <div class="row"><label>Style</label>
+                  <div class="seg-row"><button class="is-active">Dot</button><button>Star</button><button>Flag</button></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Label</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Show</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+                <div class="row"><label>Position</label><button class="select-pill"><span>Right</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Pulse</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Arrow ===== -->
+          <div class="tool-pane" data-tool-pane="arrow" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5"/><path d="M9 5h10v10"/></svg></div>
+              <div class="meta"><div class="name">Arrow</div><div class="sub">Drag from anchor <kbd>A</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Head</span></div>
+              <div class="btn-grid">
+                <button class="is-active" aria-label="Triangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><path d="M14 7l6 5-6 5z" fill="currentColor"/></svg></button>
+                <button aria-label="Line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h17"/><path d="M14 6l6 6-6 6"/></svg></button>
+                <button aria-label="Dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><circle cx="18" cy="12" r="3" fill="currentColor"/></svg></button>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Stroke</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Color</label><button class="select-pill"><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:14px;height:14px;border-radius:3px;background:#1d1d1f;"></span>Charcoal</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+                <div class="row"><label>Width</label><div class="stepper"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button><span class="value">2</span><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+                <div class="row"><label>Curve</label><div class="toggle" role="switch" aria-checked="false"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Image ===== -->
+          <div class="tool-pane" data-tool-pane="image" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 17l-5-5-9 8"/></svg></div>
+              <div class="meta"><div class="name">Image</div><div class="sub">Place a raster or SVG <kbd>J</kbd></div></div>
+            </div>
+            <div class="hint-row">Drop a <strong>PNG</strong>, <strong>JPEG</strong>, or <strong>SVG</strong> onto the canvas, or click to choose a file.</div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Defaults</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Anchor</label><div class="seg-row"><button>Map</button><button class="is-active">Canvas</button></div></div>
+                <div class="row"><label>Opacity</label><div class="size-slider"><div class="track"><div class="fill" style="width:100%;"></div></div><div class="thumb" style="left:100%;"></div></div></div>
+                <div class="row"><label>Maintain ratio</label><div class="toggle is-on" role="switch" aria-checked="true"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Legend ===== -->
+          <div class="tool-pane" data-tool-pane="legend" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h12"/><path d="M3 18h18"/><circle cx="20" cy="12" r="1.5" fill="currentColor"/></svg></div>
+              <div class="meta"><div class="name">Legend</div><div class="sub">Editorial legend block <kbd>L</kbd></div></div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Layout</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Direction</label><div class="seg-row"><button class="is-active">Vertical</button><button>Horizontal</button></div></div>
+                <div class="row"><label>Title</label><input class="input" value="Legend"/></div>
+                <div class="row"><label>Swatch</label><div class="seg-row"><button class="is-active">Square</button><button>Dot</button><button>Line</button></div></div>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Rows</span></div>
+              <div class="layer-list">
+                <div class="layer"><span class="layer-icon"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></span><span class="layer-name">Capital embassy</span><span class="layer-meta">●</span></div>
+                <div class="layer"><span class="layer-icon"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></span><span class="layer-name">Embassy</span><span class="layer-meta">●</span></div>
+                <div class="layer"><span class="layer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></span><span class="layer-name">French territory</span><span class="layer-meta">▢</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Comment ===== -->
+          <div class="tool-pane" data-tool-pane="comment" hidden>
+            <div class="tool-header">
+              <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg></div>
+              <div class="meta"><div class="name">Comment</div><div class="sub">Roadmap <kbd>C</kbd></div></div>
+            </div>
+            <div class="hint-row">Comments are tracked for the post-v1 roadmap — see <strong>PRD §1 non-goals</strong>. Click anywhere on the canvas to leave a placeholder pin.</div>
+            <div>
+              <div class="section-head" style="margin-bottom: 10px;"><span>Thread</span></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="row"><label>Author</label><input class="input" value="kilian" readonly/></div>
+                <div class="row"><label>Visible to</label><button class="select-pill"><span>Project members</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+              </div>
+            </div>
+          </div>
+
+         </div><!-- /properties -->
+
+         <!-- ============== LAYERS PANE ============== -->
+         <div class="pane" data-pane="layers" hidden>
+
+          <div class="tree-toolbar">
+            <div class="search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+              <input type="text" placeholder="Search layers" />
+            </div>
+            <button class="ghost-btn" aria-label="Sort">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13"/><path d="M3 12h9"/><path d="M3 18h5"/><path d="M17 8V4m0 0l-3 3m3-3l3 3"/></svg>
+            </button>
+            <button class="ghost-btn" aria-label="Add layer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+
+          <div class="tree" role="tree" aria-label="Layer tree">
+
+            <!-- Annotations group -->
+            <div class="tree-row is-open" role="treeitem" aria-expanded="true">
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h13"/></svg></span>
+              <span class="name">Annotations</span>
+              <span class="count">3</span>
+              <span class="actions">
+                <button aria-label="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              </span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
+                <span class="name">Title block</span>
+                <span class="count">text</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0z"/><path d="M8 12h8"/></svg></span>
+                <span class="name">Berlin · Renovation 2026</span>
+                <span class="count">note</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/></svg></span>
+                <span class="name">Legend</span>
+                <span class="count">3 rows</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+            </div>
+
+            <!-- Embassies group -->
+            <div class="tree-row is-open" role="treeitem" aria-expanded="true">
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></span>
+              <span class="name">Embassies</span>
+              <span class="count">7</span>
+              <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 5.2L20 8l-4 3.9L17 18l-5-3-5 3 1-6.1L4 8l5.6-0.8z"/></svg></span>
+                <span class="name">Paris</span>
+                <span class="count">capital</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">London</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">Brussels</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev is-selected" role="treeitem" aria-selected="true">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">Berlin</span>
+                <span class="count">selected</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">Madrid</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">Rome</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg></span>
+                <span class="name">Warsaw</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+            </div>
+
+            <!-- Highlights group -->
+            <div class="tree-row" role="treeitem" aria-expanded="false">
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-9 9-7-7z"/><path d="M5 12l7 7"/></svg></span>
+              <span class="name">Highlights</span>
+              <span class="count">1</span>
+              <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+            </div>
+            <div class="tree-children" hidden></div>
+
+            <!-- Basemap group -->
+            <div class="tree-row is-open" role="treeitem" aria-expanded="true">
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l7-2 6 2 7-2v15l-7 2-6-2-7 2z"/><path d="M9 3v17"/><path d="M15 5v17"/></svg></span>
+              <span class="name">Basemap</span>
+              <span class="count">OSM</span>
+              <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row indent-1 no-chev" role="treeitem">
+                <span class="chev"></span>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12a14 6 0 0 0 18 0"/></svg></span>
+                <span class="name">Editorial Light</span>
+                <span class="count">style</span>
+                <span class="actions"><button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
+              </div>
+            </div>
+
+          </div>
+
+         </div><!-- /layers -->
+
+         <!-- ============== STYLE PANE ============== -->
+         <div class="pane" data-pane="style" hidden>
+
+          <!-- Basemap style presets -->
+          <div>
+            <div class="section-head" style="margin-bottom: 10px;">
+              <span>Basemap style</span>
+              <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <div class="style-grid">
+
+              <div class="style-card is-active" data-preset="editorial-light">
+                <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+                  <rect width="160" height="90" fill="var(--c-water)"/>
+                  <path d="M28 24 Q48 18 70 24 Q98 18 124 28 Q138 48 124 68 Q96 74 70 68 Q42 72 28 52 Q22 36 28 24Z" fill="var(--c-land)" stroke="var(--c-line)" stroke-width="0.6"/>
+                  <circle cx="80" cy="44" r="3" fill="var(--c-pin)"/>
+                  <circle cx="80" cy="44" r="5.5" fill="none" stroke="var(--c-pin)" stroke-width="0.8" opacity="0.35"/>
+                </svg>
+                <div class="label">Editorial Light</div>
+              </div>
+
+              <div class="style-card" data-preset="editorial-dark">
+                <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+                  <rect width="160" height="90" fill="var(--c-water)"/>
+                  <path d="M28 24 Q48 18 70 24 Q98 18 124 28 Q138 48 124 68 Q96 74 70 68 Q42 72 28 52 Q22 36 28 24Z" fill="var(--c-land)" stroke="var(--c-line)" stroke-width="0.6"/>
+                  <circle cx="80" cy="44" r="3" fill="var(--c-pin)"/>
+                  <circle cx="80" cy="44" r="5.5" fill="none" stroke="var(--c-pin)" stroke-width="0.8" opacity="0.5"/>
+                </svg>
+                <div class="label">Editorial Dark</div>
+              </div>
+
+              <div class="style-card" data-preset="minimal-grey">
+                <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+                  <rect width="160" height="90" fill="var(--c-water)"/>
+                  <path d="M28 24 Q48 18 70 24 Q98 18 124 28 Q138 48 124 68 Q96 74 70 68 Q42 72 28 52 Q22 36 28 24Z" fill="var(--c-land)" stroke="var(--c-line)" stroke-width="0.6"/>
+                  <circle cx="80" cy="44" r="3" fill="var(--c-pin)"/>
+                </svg>
+                <div class="label">Minimal Grey</div>
+              </div>
+
+              <div class="style-card" data-preset="print-bw">
+                <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice">
+                  <rect width="160" height="90" fill="var(--c-water)"/>
+                  <path d="M28 24 Q48 18 70 24 Q98 18 124 28 Q138 48 124 68 Q96 74 70 68 Q42 72 28 52 Q22 36 28 24Z" fill="var(--c-land)" stroke="var(--c-line)" stroke-width="0.8"/>
+                  <circle cx="80" cy="44" r="2.4" fill="var(--c-pin)"/>
+                </svg>
+                <div class="label">Print B&amp;W</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Sublayers -->
+          <div>
+            <div class="section-head" style="margin-bottom: 6px;">
+              <span>Map layers</span>
+              <span style="color: var(--text-3); font-size: 10px; font-family: var(--font-mono); letter-spacing: 0;">5 / 6</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1px;">
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l16-16"/><path d="M4 4l16 16"/></svg></span>
+                <span class="name">Roads</span>
+                <div class="toggle is-on" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
+                <span class="name">Labels</span>
+                <div class="toggle is-on" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c4 5 6 8 6 12a6 6 0 0 1-12 0c0-4 2-7 6-12z"/></svg></span>
+                <span class="name">Water</span>
+                <div class="toggle is-on" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l5-8 4 5 3-4 6 7z"/><circle cx="17" cy="6" r="2"/></svg></span>
+                <span class="name">Landuse</span>
+                <div class="toggle is-on" role="switch" aria-checked="true"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="7" height="12"/><rect x="14" y="3" width="7" height="18"/><path d="M6 13h1M6 17h1M17 7h1M17 11h1M17 15h1"/></svg></span>
+                <span class="name">Buildings</span>
+                <div class="toggle" role="switch" aria-checked="false"></div>
+              </div>
+              <div class="toggle-row">
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
+                <span class="name">Boundaries</span>
+                <div class="toggle is-on" role="switch" aria-checked="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Page + projection -->
+          <div>
+            <div class="section-head" style="margin-bottom: 10px;">
+              <span>Page</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="row">
+                <label>Projection</label>
+                <button class="select-pill">
+                  <span>Web Mercator</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="row">
+                <label>Paper size</label>
+                <button class="select-pill">
+                  <span>A4 · Landscape</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="row">
+                <label>Background</label>
+                <div class="swatch-grid">
+                  <div class="swatch is-active" style="background:#ffffff; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.18) inset;"></div>
+                  <div class="swatch" style="background:#f5f5f7;"></div>
+                  <div class="swatch" style="background:#1d1d1f;"></div>
+                  <div class="swatch" style="background:#d2e3f3;"></div>
+                  <div class="swatch" style="background:#e6dfcf;"></div>
+                  <div class="swatch" style="background: linear-gradient(135deg,#fff 25%,#eee 25% 50%,#fff 50% 75%,#eee 75%); background-size: 8px 8px;" title="Transparent"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+         </div><!-- /style -->
+
+        </div>
+      </aside>
+    </div>
+
+    <!-- ============================ STATUS BAR =========================== -->
+    <div class="statusbar">
+      <div class="group">
+        <span><span class="dot"></span>Autosaved</span>
+        <span>Projection: Web Mercator</span>
+        <span>7 features</span>
+      </div>
+      <div class="group">
+        <span>52.5170°N, 13.3889°E</span>
+        <span>1 : 12 000 000</span>
+        <span>Zoom 4.8</span>
+      </div>
+    </div>
+
+    <!-- ============================ TOAST STACK ========================== -->
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+  </div>
+</div>
+
+<!-- Popovers and modal live OUTSIDE .window so they escape the window's transform containing block. -->
+
+<!-- ============================ MENU POPOVERS ======================== -->
+<div class="menu-popover" id="menu-file" role="menu" aria-label="File">
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><span class="menu-label">New map</span><span class="menu-kbd">⌘N</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10H3z"/></svg></span><span class="menu-label">Open…</span><span class="menu-kbd">⌘O</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Open Recent</span><span class="menu-kbd"></span><span class="menu-sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg></span><span class="menu-label">Save</span><span class="menu-kbd">⌘S</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Save As…</span><span class="menu-kbd">⇧⌘S</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg></span><span class="menu-label">Import GeoJSON…</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-row" data-action="export"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></span><span class="menu-label">Export…</span><span class="menu-kbd">⌘E</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Close</span><span class="menu-kbd">⌘W</span><span class="menu-sub"></span></div>
+    </div>
+
+    <div class="menu-popover" id="menu-edit" role="menu" aria-label="Edit">
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H9"/></svg></span><span class="menu-label">Undo</span><span class="menu-kbd">⌘Z</span><span class="menu-sub"></span></div>
+      <div class="menu-row is-disabled"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h6"/></svg></span><span class="menu-label">Redo</span><span class="menu-kbd">⇧⌘Z</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Cut</span><span class="menu-kbd">⌘X</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Copy</span><span class="menu-kbd">⌘C</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Paste</span><span class="menu-kbd">⌘V</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Duplicate</span><span class="menu-kbd">⌘D</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Delete</span><span class="menu-kbd">⌫</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Select All</span><span class="menu-kbd">⌘A</span><span class="menu-sub"></span></div>
+    </div>
+
+    <div class="menu-popover" id="menu-view" role="menu" aria-label="View">
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6M11 8v6"/></svg></span><span class="menu-label">Zoom In</span><span class="menu-kbd">⌘+</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M8 11h6"/></svg></span><span class="menu-label">Zoom Out</span><span class="menu-kbd">⌘−</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V3h6"/><path d="M21 9V3h-6"/><path d="M3 15v6h6"/><path d="M21 15v6h-6"/></svg></span><span class="menu-label">Fit to content</span><span class="menu-kbd">⇧F</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span><span class="menu-label">Show grid</span><span class="menu-kbd">⌘'</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Show rulers</span><span class="menu-kbd">⌘R</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span><span class="menu-label">Show inspector</span><span class="menu-kbd">⌥⌘I</span><span class="menu-sub"></span></div>
+    </div>
+
+    <div class="menu-popover" id="menu-object" role="menu" aria-label="Object">
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Group</span><span class="menu-kbd">⌘G</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Ungroup</span><span class="menu-kbd">⇧⌘G</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Bring forward</span><span class="menu-kbd">⌘]</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Send backward</span><span class="menu-kbd">⌘[</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="menu-label">Lock</span><span class="menu-kbd">⌘L</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 6.1A10 10 0 0 1 12 6c7 0 11 6 11 6a13 13 0 0 1-1.7 2.5"/><path d="M6.6 6.6A13 13 0 0 0 1 12s4 6 11 6a11 11 0 0 0 5.4-1.4"/></svg></span><span class="menu-label">Hide</span><span class="menu-kbd">⌘3</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Pin to map</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Pin to canvas</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+    </div>
+
+    <div class="menu-popover" id="menu-help" role="menu" aria-label="Help">
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 0.7-1.5 1.5-1.5 3"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg></span><span class="menu-label">Documentation</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12"/></svg></span><span class="menu-label">Keyboard shortcuts</span><span class="menu-kbd">⌘/</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">About GeoCarto</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+    </div>
+
+    <!-- ============================ CONTEXT MENUS ======================== -->
+    <div class="menu-popover" id="ctx-canvas" role="menu" aria-label="Canvas context">
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Cut</span><span class="menu-kbd">⌘X</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Copy</span><span class="menu-kbd">⌘C</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Paste here</span><span class="menu-kbd">⌘V</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Duplicate</span><span class="menu-kbd">⌘D</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Delete</span><span class="menu-kbd">⌫</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="menu-label">Lock</span><span class="menu-kbd">⌘L</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 6.1A10 10 0 0 1 12 6c7 0 11 6 11 6a13 13 0 0 1-1.7 2.5"/><path d="M6.6 6.6A13 13 0 0 0 1 12s4 6 11 6a11 11 0 0 0 5.4-1.4"/></svg></span><span class="menu-label">Hide</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Pin to map</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Pin to canvas</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Bring to front</span><span class="menu-kbd">⇧⌘]</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Send to back</span><span class="menu-kbd">⇧⌘[</span><span class="menu-sub"></span></div>
+    </div>
+
+    <div class="menu-popover" id="ctx-layer" role="menu" aria-label="Layer context">
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V7l9-4 9 4v10l-9 4z"/></svg></span><span class="menu-label">Rename</span><span class="menu-kbd">↩</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Duplicate</span><span class="menu-kbd">⌘D</span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Delete</span><span class="menu-kbd">⌫</span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 6.1A10 10 0 0 1 12 6c7 0 11 6 11 6a13 13 0 0 1-1.7 2.5"/><path d="M6.6 6.6A13 13 0 0 0 1 12s4 6 11 6a11 11 0 0 0 5.4-1.4"/></svg></span><span class="menu-label">Hide</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-row"><span class="menu-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="menu-label">Lock</span><span class="menu-kbd"></span><span class="menu-sub"></span></div>
+      <div class="menu-divider"></div>
+      <div class="menu-row"><span class="menu-ic"></span><span class="menu-label">Move to group</span><span class="menu-kbd"></span><span class="menu-sub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span></div>
+    </div>
+
+    <!-- ============================ EXPORT MODAL ========================= -->
+    <div class="modal-backdrop" id="exportBackdrop" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
+      <div class="modal">
+        <div class="modal-head">
+          <div class="title" id="exportTitle">Export</div>
+          <button class="icon-btn" id="exportClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-rail" role="tablist" aria-label="Export formats">
+            <div class="format-tab is-active" role="tab" data-format="png">
+              <span class="fm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 17l-5-5-9 8"/></svg></span>
+              <span>PNG</span>
+              <span class="fm-chip phase-1">Phase 1</span>
+            </div>
+            <div class="format-tab" role="tab" data-format="jpeg">
+              <span class="fm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 17l-5-5-9 8"/></svg></span>
+              <span>JPEG</span>
+              <span class="fm-chip phase-1">Phase 1</span>
+            </div>
+            <div class="format-tab" role="tab" data-format="svg">
+              <span class="fm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l3 12L10 9l3 9 4-12"/><path d="M19 18h2"/></svg></span>
+              <span>SVG</span>
+              <span class="fm-chip v1">v1</span>
+            </div>
+            <div class="format-tab" role="tab" data-format="pdf">
+              <span class="fm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>
+              <span>PDF</span>
+              <span class="fm-chip roadmap">Roadmap</span>
+            </div>
+            <div class="format-tab" role="tab" data-format="html">
+              <span class="fm-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/><path d="M14 4l-4 16"/></svg></span>
+              <span>HTML</span>
+              <span class="fm-chip roadmap">Roadmap</span>
+            </div>
+          </div>
+
+          <div class="modal-pane" data-format-pane="png">
+            <div class="preview">
+              <svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="130" fill="var(--water)"/>
+                <path d="M40 30 Q90 22 140 32 Q200 22 260 42 Q286 70 260 100 Q190 110 140 95 Q80 110 40 80 Q24 50 40 30Z" fill="var(--land)" stroke="var(--land-line)" stroke-width="0.6"/>
+                <path d="M120 50 Q160 46 180 60 Q200 76 170 88 Q140 92 122 78 Q112 64 120 50Z" fill="var(--land-fr)" stroke="var(--land-fr-line)" stroke-width="1"/>
+                <circle cx="148" cy="68" r="3" fill="var(--accent)"/>
+                <circle cx="148" cy="68" r="6" fill="none" stroke="var(--accent)" stroke-width="0.8" opacity="0.4"/>
+              </svg>
+            </div>
+            <div class="row"><label>Format</label><div class="seg"><button class="is-active">PNG</button></div></div>
+            <div class="row"><label>Resolution</label>
+              <div class="seg">
+                <button>1×</button><button class="is-active">2×</button><button>3×</button><button>Custom</button>
+              </div>
+            </div>
+            <div class="row"><label>Background</label>
+              <div class="swatch-grid" style="grid-template-columns: repeat(6, 24px);">
+                <div class="swatch is-active" style="background:#ffffff; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.18) inset;"></div>
+                <div class="swatch" style="background:#1d1d1f;"></div>
+                <div class="swatch" style="background:#d2e3f3;"></div>
+                <div class="swatch" style="background:#e6dfcf;"></div>
+                <div class="swatch" style="background: linear-gradient(135deg,#fff 25%,#eee 25% 50%,#fff 50% 75%,#eee 75%); background-size: 8px 8px;" title="Transparent"></div>
+                <div class="swatch" style="background:#f5f5f7;"></div>
+              </div>
+            </div>
+            <div class="row"><label>Frame</label>
+              <div class="seg"><button class="is-active">Whole canvas</button><button>Export frame</button></div>
+            </div>
+            <div class="row"><label>File name</label><input class="input" value="embassies-of-france.png"/></div>
+          </div>
+
+          <div class="modal-pane" data-format-pane="jpeg" hidden>
+            <div class="preview">
+              <svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="130" fill="var(--water)"/>
+                <path d="M40 30 Q90 22 140 32 Q200 22 260 42 Q286 70 260 100 Q190 110 140 95 Q80 110 40 80 Q24 50 40 30Z" fill="var(--land)"/>
+              </svg>
+            </div>
+            <div class="row"><label>Resolution</label><div class="seg"><button>1×</button><button class="is-active">2×</button><button>3×</button></div></div>
+            <div class="row"><label>Quality</label>
+              <div class="size-slider"><div class="track"><div class="fill" style="width: 85%;"></div></div><div class="thumb" style="left: 85%;"></div></div>
+            </div>
+            <div class="row"><label>Background</label><button class="select-pill"><span>White</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+            <div class="row"><label>File name</label><input class="input" value="embassies-of-france.jpg"/></div>
+          </div>
+
+          <div class="modal-pane" data-format-pane="svg" hidden>
+            <div class="preview">
+              <svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid slice">
+                <rect width="320" height="130" fill="var(--water)"/>
+                <path d="M40 30 Q90 22 140 32 Q200 22 260 42 Q286 70 260 100 Q190 110 140 95 Q80 110 40 80 Q24 50 40 30Z" fill="none" stroke="var(--land-fr-line)" stroke-width="1" stroke-dasharray="2 2"/>
+              </svg>
+            </div>
+            <div class="row"><label>Layers</label><div class="seg"><button class="is-active">Preserve groups</button><button>Flatten</button></div></div>
+            <div class="row"><label>Text</label><div class="seg"><button class="is-active">Editable</button><button>Outlined</button></div></div>
+            <div class="row"><label>Effects</label><div class="seg"><button class="is-active">Rasterize fallback</button><button>Skip</button></div></div>
+            <div class="row"><label>File name</label><input class="input" value="embassies-of-france.svg"/></div>
+          </div>
+
+          <div class="modal-pane" data-format-pane="pdf" hidden>
+            <div class="roadmap-empty">
+              <div class="big">PDF export — Roadmap</div>
+              <div>Will be built from the SVG export scene graph.<br>Tracked in PRD §5.4.</div>
+            </div>
+          </div>
+
+          <div class="modal-pane" data-format-pane="html" hidden>
+            <div class="roadmap-empty">
+              <div class="big">Interactive HTML — Roadmap</div>
+              <div>Self-contained bundle with pan, zoom, and tooltips.<br>Tracked in PRD §6.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <span class="meta" id="exportMeta">Estimated size · 2.4 MB · 3840 × 2160 px</span>
+          <div class="actions">
+            <button class="pill-btn" id="exportCancel">Cancel</button>
+            <button class="pill-btn primary" id="exportGo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              Export PNG
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script>
+  // Theme toggle with persistence
+  (function () {
+    const root = document.documentElement;
+    const KEY = "geocarto-theme";
+    const safeGet = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+    const safeSet = v => { try { localStorage.setItem(KEY, v); } catch {} };
+
+    const saved = safeGet();
+    if (saved) root.setAttribute("data-theme", saved);
+    else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      root.setAttribute("data-theme", "dark");
+    }
+    const btn = document.getElementById("themeToggle");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        safeSet(next);
+      });
+    }
+  })();
+
+  // Light interactivity sugar — tabs, swatches, toggles, layer selection.
+  document.querySelectorAll(".tabs").forEach(group => {
+    const host = group.closest(".inspector") || group.parentElement;
+    group.addEventListener("click", e => {
+      const t = e.target.closest(".tab"); if (!t) return;
+      group.querySelectorAll(".tab").forEach(b => b.classList.remove("is-active"));
+      t.classList.add("is-active");
+      const target = t.dataset.pane;
+      if (!target) return;
+      host.querySelectorAll(".pane").forEach(p => {
+        p.hidden = p.dataset.pane !== target;
+      });
+    });
+  });
+
+  // Tree group expand/collapse
+  document.querySelectorAll(".tree").forEach(tree => {
+    tree.addEventListener("click", e => {
+      const row = e.target.closest(".tree-row");
+      if (!row || row.classList.contains("no-chev")) {
+        // leaf row: just select within tree
+        const leaf = e.target.closest(".tree-row.no-chev");
+        if (leaf && !e.target.closest(".actions")) {
+          tree.querySelectorAll(".tree-row").forEach(r => r.classList.remove("is-selected"));
+          leaf.classList.add("is-selected");
+        }
+        return;
+      }
+      if (e.target.closest(".actions")) return;
+      const open = row.classList.toggle("is-open");
+      row.setAttribute("aria-expanded", open);
+      const next = row.nextElementSibling;
+      if (next && next.classList.contains("tree-children")) next.hidden = !open;
+    });
+  });
+
+  // Style preset cards
+  document.querySelectorAll(".style-grid").forEach(grid => {
+    grid.addEventListener("click", e => {
+      const card = e.target.closest(".style-card"); if (!card) return;
+      grid.querySelectorAll(".style-card").forEach(c => c.classList.remove("is-active"));
+      card.classList.add("is-active");
+    });
+  });
+  document.querySelectorAll(".swatch-grid").forEach(group => {
+    group.addEventListener("click", e => {
+      const s = e.target.closest(".swatch"); if (!s) return;
+      group.querySelectorAll(".swatch").forEach(b => b.classList.remove("is-active"));
+      s.classList.add("is-active");
+    });
+  });
+  document.querySelectorAll(".toggle").forEach(t => {
+    t.addEventListener("click", () => t.classList.toggle("is-on"));
+  });
+  document.querySelectorAll(".rail").forEach(rail => {
+    rail.addEventListener("click", e => {
+      const tool = e.target.closest(".tool"); if (!tool) return;
+      rail.querySelectorAll(".tool").forEach(t => t.classList.remove("is-active"));
+      tool.classList.add("is-active");
+    });
+  });
+  document.querySelectorAll(".layer-list").forEach(list => {
+    list.addEventListener("click", e => {
+      const layer = e.target.closest(".layer"); if (!layer || e.target.closest(".layer-eye")) return;
+      list.querySelectorAll(".layer").forEach(l => l.classList.remove("is-selected"));
+      layer.classList.add("is-selected");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Toast notifications
+  // -----------------------------------------------------------------------
+  const toastStack = document.getElementById("toastStack");
+  function toast(msg, opts = {}) {
+    if (!toastStack) return;
+    const node = document.createElement("div");
+    node.className = "toast";
+    const icon = opts.icon !== false
+      ? `<span class="t-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>`
+      : "";
+    const action = opts.action
+      ? `<button class="t-action">${opts.action}</button>`
+      : "";
+    node.innerHTML = `${icon}<span class="t-msg">${msg}</span>${action}<button class="t-close" aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+    toastStack.appendChild(node);
+    const dismiss = () => {
+      if (node.classList.contains("is-leaving")) return;
+      node.classList.add("is-leaving");
+      setTimeout(() => node.remove(), 240);
+    };
+    node.querySelector(".t-close").addEventListener("click", dismiss);
+    if (opts.action) node.querySelector(".t-action").addEventListener("click", dismiss);
+    if (opts.persistent !== true) setTimeout(dismiss, opts.duration || 3500);
+    return node;
+  }
+
+  // Welcome toast on first paint
+  setTimeout(() => toast("Welcome back. Last edit · 2 min ago", { action: "Reopen" }), 700);
+
+  // -----------------------------------------------------------------------
+  // Menu bar + popover system (also used by context menus)
+  // -----------------------------------------------------------------------
+  let openPopover = null;
+  function closePopover() {
+    if (!openPopover) return;
+    openPopover.classList.remove("is-open");
+    document.querySelectorAll(".menu-item.is-open").forEach(m => m.classList.remove("is-open"));
+    openPopover = null;
+  }
+  function openPopoverAt(popover, x, y, anchor) {
+    if (openPopover && openPopover !== popover) closePopover();
+    // Render first (off-screen) so we can measure.
+    popover.style.left = "-9999px";
+    popover.style.top = "-9999px";
+    popover.classList.add("is-open");
+    const rect = popover.getBoundingClientRect();
+    const ww = window.innerWidth, wh = window.innerHeight;
+    let nx = x, ny = y;
+    if (nx + rect.width > ww - 8) nx = Math.max(8, ww - rect.width - 8);
+    if (ny + rect.height > wh - 8) ny = Math.max(8, wh - rect.height - 8);
+    popover.style.left = nx + "px";
+    popover.style.top = ny + "px";
+    if (anchor) anchor.classList.add("is-open");
+    openPopover = popover;
+  }
+
+  document.querySelectorAll(".menu-item").forEach(item => {
+    item.addEventListener("click", e => {
+      e.stopPropagation();
+      const key = item.dataset.menu;
+      const popover = document.getElementById("menu-" + key);
+      if (!popover) return;
+      if (openPopover === popover) { closePopover(); return; }
+      const rect = item.getBoundingClientRect();
+      openPopoverAt(popover, rect.left, rect.bottom + 4, item);
+    });
+    item.addEventListener("mouseenter", () => {
+      if (!openPopover) return;
+      const key = item.dataset.menu;
+      const popover = document.getElementById("menu-" + key);
+      if (!popover || popover === openPopover) return;
+      const rect = item.getBoundingClientRect();
+      openPopoverAt(popover, rect.left, rect.bottom + 4, item);
+    });
+  });
+
+  // Menu rows: special-case Export action; otherwise just close.
+  document.querySelectorAll(".menu-popover .menu-row").forEach(row => {
+    row.addEventListener("click", e => {
+      if (row.classList.contains("is-disabled")) return;
+      const action = row.dataset.action;
+      const label = row.querySelector(".menu-label")?.textContent?.trim();
+      closePopover();
+      if (action === "export") { openExportModal(); return; }
+      if (label && !row.querySelector(".menu-sub svg")) {
+        toast(`<em>${label}</em> · mock action`);
+      }
+    });
+  });
+
+  document.addEventListener("click", e => {
+    if (!openPopover) return;
+    if (e.target.closest(".menu-popover")) return;
+    if (e.target.closest(".menu-item")) return;
+    closePopover();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      if (openPopover) closePopover();
+      if (modalBackdrop && modalBackdrop.classList.contains("is-open")) closeExportModal();
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Context menus
+  // -----------------------------------------------------------------------
+  const ctxCanvas = document.getElementById("ctx-canvas");
+  const ctxLayer = document.getElementById("ctx-layer");
+  document.querySelectorAll(".canvas").forEach(c => {
+    c.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      openPopoverAt(ctxCanvas, e.clientX, e.clientY);
+    });
+  });
+  document.querySelectorAll(".tree").forEach(t => {
+    t.addEventListener("contextmenu", e => {
+      const row = e.target.closest(".tree-row");
+      if (!row) return;
+      e.preventDefault();
+      openPopoverAt(ctxLayer, e.clientX, e.clientY);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Tool options bar: swap pane based on active tool
+  // -----------------------------------------------------------------------
+  const TOOL_NAMES = {
+    move: "Move", marquee: "Marquee", hand: "Pan", ruler: "Ruler", pen: "Pen",
+    rectangle: "Rectangle", ellipse: "Ellipse", polygon: "Polygon",
+    text: "Text", paint: "Paint area", pin: "Pin", arrow: "Arrow",
+    image: "Image", legend: "Legend", comment: "Comment"
+  };
+  // Swap inspector tool pane and auto-activate the Properties tab so the
+  // user always sees their tool's controls after picking a tool.
+  function showToolPane(tool) {
+    document.querySelectorAll("[data-tool-pane]").forEach(p => {
+      p.hidden = p.dataset.toolPane !== tool;
+    });
+    // Activate Properties tab
+    const tabs = document.querySelector(".inspector .tabs");
+    if (tabs) {
+      tabs.querySelectorAll(".tab").forEach(t => t.classList.remove("is-active"));
+      const propTab = tabs.querySelector('[data-pane="properties"]');
+      if (propTab) propTab.classList.add("is-active");
+      document.querySelectorAll(".inspector .pane").forEach(p => {
+        p.hidden = p.dataset.pane !== "properties";
+      });
+    }
+  }
+  document.querySelectorAll(".rail .tool").forEach(t => {
+    t.addEventListener("click", () => {
+      const tool = t.dataset.tool;
+      if (!tool) return;
+      showToolPane(tool);
+      if (TOOL_NAMES[tool]) toast(`<em>${TOOL_NAMES[tool]}</em> tool selected`, { duration: 1800 });
+    });
+  });
+  showToolPane("move");
+
+  // Snap toggle (title bar)
+  const snapBtn = document.getElementById("snapToggle");
+  if (snapBtn) {
+    snapBtn.addEventListener("click", () => {
+      snapBtn.classList.toggle("is-active-pressed");
+      const on = snapBtn.classList.contains("is-active-pressed");
+      snapBtn.setAttribute("aria-pressed", on);
+      toast(`Snap ${on ? "enabled" : "disabled"}`, { duration: 1600 });
+    });
+  }
+  // Undo / Redo (mock)
+  document.getElementById("undoBtn")?.addEventListener("click", () => toast("Undo · <em>Move Berlin pin</em>", { action: "Redo", duration: 2400 }));
+  document.getElementById("redoBtn")?.addEventListener("click", () => toast("Nothing to redo", { duration: 1400 }));
+
+  // Segmented controls (.seg-row, .btn-grid) — single-select within group
+  document.querySelectorAll(".seg-row, .btn-grid").forEach(group => {
+    group.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      group.querySelectorAll("button").forEach(x => x.classList.remove("is-active"));
+      b.classList.add("is-active");
+    });
+  });
+
+  // Feedback toasts on swatch / toggle / preset changes
+  document.querySelectorAll(".swatch-grid").forEach(g => g.addEventListener("click", e => {
+    if (e.target.closest(".swatch")) toast("Color updated", { duration: 1400 });
+  }));
+  document.querySelectorAll(".style-grid").forEach(g => g.addEventListener("click", e => {
+    const card = e.target.closest(".style-card"); if (!card) return;
+    const label = card.querySelector(".label")?.textContent?.trim();
+    if (label) toast(`Basemap style · <em>${label}</em>`, { duration: 1800 });
+  }));
+
+  // -----------------------------------------------------------------------
+  // Export modal
+  // -----------------------------------------------------------------------
+  const modalBackdrop = document.getElementById("exportBackdrop");
+  function openExportModal() {
+    if (!modalBackdrop) return;
+    modalBackdrop.hidden = false;
+    // Next frame so the transition triggers
+    requestAnimationFrame(() => modalBackdrop.classList.add("is-open"));
+  }
+  function closeExportModal() {
+    if (!modalBackdrop) return;
+    modalBackdrop.classList.remove("is-open");
+    setTimeout(() => { modalBackdrop.hidden = true; }, 240);
+  }
+  document.querySelector(".pill-btn.primary")?.addEventListener("click", e => {
+    // Only the title-bar Export pill, not the modal's primary action
+    if (!e.target.closest(".modal")) openExportModal();
+  });
+  document.getElementById("exportClose")?.addEventListener("click", closeExportModal);
+  document.getElementById("exportCancel")?.addEventListener("click", closeExportModal);
+  modalBackdrop?.addEventListener("click", e => {
+    if (e.target === modalBackdrop) closeExportModal();
+  });
+  // Format tab switching
+  document.querySelectorAll(".format-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const fmt = tab.dataset.format;
+      document.querySelectorAll(".format-tab").forEach(t => t.classList.remove("is-active"));
+      tab.classList.add("is-active");
+      document.querySelectorAll("[data-format-pane]").forEach(p => {
+        p.hidden = p.dataset.formatPane !== fmt;
+      });
+      const btn = document.getElementById("exportGo");
+      const meta = document.getElementById("exportMeta");
+      if (btn) {
+        const svg = btn.querySelector("svg")?.outerHTML || "";
+        btn.innerHTML = svg + " Export " + fmt.toUpperCase();
+      }
+      if (meta) {
+        const sizes = {
+          png:  "Estimated size · 2.4 MB · 3840 × 2160 px",
+          jpeg: "Estimated size · 0.9 MB · 3840 × 2160 px",
+          svg:  "Estimated size · 480 KB · vector",
+          pdf:  "Roadmap — see PRD §5.4",
+          html: "Roadmap — see PRD §6"
+        };
+        meta.textContent = sizes[fmt] || "";
+      }
+    });
+  });
+  // Segmented buttons inside the modal
+  document.querySelectorAll(".modal .seg").forEach(seg => {
+    seg.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      seg.querySelectorAll("button").forEach(x => x.classList.remove("is-active"));
+      b.classList.add("is-active");
+    });
+  });
+  document.getElementById("exportGo")?.addEventListener("click", () => {
+    closeExportModal();
+    toast("Export started · <em>embassies-of-france.png</em>", { action: "Show in Finder" });
+  });
+
+  // -----------------------------------------------------------------------
+  // Map pin hover tooltip (sugar)
+  // -----------------------------------------------------------------------
+  document.querySelectorAll(".pin").forEach(p => {
+    p.style.cursor = "pointer";
+    p.addEventListener("click", e => {
+      e.stopPropagation();
+      const label = p.querySelector(".pin-label")?.textContent;
+      if (label) toast(`Pin · <em>${label}</em>`, { duration: 1600 });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Sliders: draggable thumbs
+  // -----------------------------------------------------------------------
+  document.querySelectorAll(".size-slider").forEach(slider => {
+    const track = slider.querySelector(".track");
+    const fill = slider.querySelector(".fill");
+    const thumb = slider.querySelector(".thumb");
+    if (!track || !fill || !thumb) return;
+    let dragging = false;
+    const set = clientX => {
+      const r = track.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+      fill.style.width = (pct * 100) + "%";
+      thumb.style.left = (pct * 100) + "%";
+    };
+    thumb.addEventListener("mousedown", e => {
+      dragging = true; e.preventDefault();
+      document.body.style.cursor = "grabbing";
+    });
+    track.addEventListener("mousedown", e => { dragging = true; set(e.clientX); });
+    window.addEventListener("mousemove", e => { if (dragging) set(e.clientX); });
+    window.addEventListener("mouseup", () => { dragging = false; document.body.style.cursor = ""; });
+  });
+</script>
+
+</body>
+</html>
