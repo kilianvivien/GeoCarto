@@ -1,1 +1,22 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.vite/
+
+# test artifacts
+playwright-report/
+test-results/
+
+# environment / local
+*.local
+
+# editor / OS
 .DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
