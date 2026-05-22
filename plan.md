@@ -30,6 +30,7 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Default editorial basemap (remote Protomaps demo PMTiles, light/dark flavors)
 - ✅ Pan/zoom, zoom + coordinate display, attribution, export frame overlay
 - ✅ macOS liquid-glass app shell; light/dark theme with basemap restyle
+- ✅ Required basemap setup flow: choose source, frame map, lock map before editing
 
 ### Milestone 3 — Document Model and Layers ✅
 

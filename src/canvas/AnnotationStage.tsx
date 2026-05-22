@@ -259,6 +259,7 @@ export function AnnotationStage() {
   useViewportStore((s) => s.viewport);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
+  const mode = useDocumentStore((s) => s.project.mode);
   const { addAnnotation, selectAnnotation, updateAnnotation } = useDocumentStore.getState();
   const activeTool = useToolStore((s) => s.activeTool);
   const defaultAnchorMode = useToolStore((s) => s.defaultAnchorMode);
@@ -272,7 +273,7 @@ export function AnnotationStage() {
   const [editingText, setEditingText] = useState<{ id: string; value: string } | null>(null);
   const textEditorRef = useRef<HTMLTextAreaElement>(null);
 
-  const capturesPointer = activeTool === 'move' || toolToAnnotationKind(activeTool) !== null;
+  const capturesPointer = mode === 'editing' && (activeTool === 'move' || toolToAnnotationKind(activeTool) !== null);
   const selectedTextEditable = useMemo(
     () =>
       annotations.find(
@@ -340,13 +341,14 @@ export function AnnotationStage() {
     transformer.getLayer()?.batchDraw();
   }, [selectedAnnotationId, annotations]);
 
+  const editingTextId = editingText?.id ?? null;
   useEffect(() => {
-    if (!editingText) return;
+    if (!editingTextId) return;
     requestAnimationFrame(() => {
       textEditorRef.current?.focus();
       textEditorRef.current?.select();
     });
-  }, [editingText]);
+  }, [editingTextId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -391,6 +393,7 @@ export function AnnotationStage() {
   ]);
 
   const handleStagePointer = (event: KonvaEventObject<MouseEvent>) => {
+    if (mode !== 'editing') return;
     if (!isStageTarget(event)) return;
     const stage = event.target.getStage();
     const pointer = stage?.getPointerPosition();
@@ -477,7 +480,7 @@ export function AnnotationStage() {
                 x={position.x}
                 y={position.y}
                 rotation={annotation.rotation}
-                draggable={!annotation.locked && activeTool === 'move'}
+                draggable={mode === 'editing' && !annotation.locked && activeTool === 'move'}
                 onMouseDown={(event) => {
                   blurFocusedControl();
                   if (

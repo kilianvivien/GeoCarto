@@ -250,6 +250,8 @@ function RowButton({
 export function LayerPanel() {
   const layers = useDocumentStore((s) => s.project.layers);
   const annotations = useDocumentStore((s) => s.project.annotations);
+  const mode = useDocumentStore((s) => s.project.mode);
+  const locked = mode !== 'editing';
 
   return (
     <div className="flex flex-col gap-2">
@@ -261,8 +263,9 @@ export function LayerPanel() {
           type="button"
           aria-label="Import GeoJSON"
           title="Import GeoJSON"
+          disabled={locked}
           onClick={pickAndImportGeoJson}
-          className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
+          className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus size={14} />
         </button>
@@ -284,12 +287,13 @@ export function LayerPanel() {
       {layers.length === 0 ? (
         <button
           type="button"
+          disabled={locked}
           onClick={pickAndImportGeoJson}
-          className="rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-6 text-center text-[11.5px] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)]"
+          className="rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-6 text-center text-[11.5px] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           No GeoJSON layers yet.
           <br />
-          Drop a GeoJSON file on the map, or click to import.
+          {locked ? 'Lock the map area before importing.' : 'Drop a GeoJSON file on the map, or click to import.'}
         </button>
       ) : (
         <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">

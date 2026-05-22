@@ -4,6 +4,7 @@ import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
 import { createEmptyProject, DEFAULT_ANNOTATION_STYLE, type Annotation } from '@/project/cartoproj';
 import { useToolStore } from '@/state/toolStore';
+import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
 
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
 vi.mock('@/canvas/MapView', () => ({
@@ -57,12 +58,16 @@ describe('App', () => {
 
   it('updates the shared active tool from the rail', () => {
     render(<App />);
+    expect(screen.getByText(/set up map/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /text/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
     fireEvent.click(screen.getByRole('button', { name: /text/i }));
     expect(useToolStore.getState().activeTool).toBe('text');
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
   });
 
   it('shows selected annotation properties and deletes editable annotations', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     useDocumentStore.getState().addAnnotation(makeAnnotation());
     render(<App />);
 

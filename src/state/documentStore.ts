@@ -4,9 +4,11 @@ import {
   createEmptyProject,
   type Annotation,
   type AnnotationStyle,
+  type BasemapConfig,
   type CartoProject,
   type GeoJsonLayer,
 } from '@/project/cartoproj';
+import type { Viewport } from './viewportStore';
 
 /** A feature picked on the map, surfaced in the attribute inspector. */
 export interface SelectedFeature {
@@ -22,6 +24,10 @@ interface DocumentState {
   /** Feature clicked on the map. */
   selectedFeature: SelectedFeature | null;
 
+  setBasemap: (basemap: BasemapConfig) => void;
+  setExportFrame: (frame: { width: number; height: number }) => void;
+  lockMapArea: (viewport: Viewport) => void;
+  unlockMapArea: () => void;
   addLayer: (layer: GeoJsonLayer) => void;
   removeLayer: (id: string) => void;
   renameLayer: (id: string, name: string) => void;
@@ -53,8 +59,42 @@ export const useDocumentStore = create<DocumentState>()(
     selectedAnnotationId: null,
     selectedFeature: null,
 
+    setBasemap: (basemap) =>
+      set((state) => {
+        state.project.basemap = basemap;
+        state.project.meta.updatedAt = new Date().toISOString();
+      }),
+
+    setExportFrame: (frame) =>
+      set((state) => {
+        state.project.exportFrame = frame;
+        state.project.meta.updatedAt = new Date().toISOString();
+      }),
+
+    lockMapArea: (viewport) =>
+      set((state) => {
+        state.project.viewport = viewport;
+        state.project.mode = 'editing';
+        state.project.lockedMapView = {
+          viewport,
+          exportFrame: { ...state.project.exportFrame },
+          basemap: state.project.basemap,
+          lockedAt: new Date().toISOString(),
+        };
+        state.project.meta.updatedAt = new Date().toISOString();
+      }),
+
+    unlockMapArea: () =>
+      set((state) => {
+        state.project.mode = 'mapSetup';
+        state.selectedAnnotationId = null;
+        state.selectedFeature = null;
+        state.project.meta.updatedAt = new Date().toISOString();
+      }),
+
     addLayer: (layer) =>
       set((state) => {
+        if (state.project.mode !== 'editing') return;
         state.project.layers.push(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.selectedLayerId = layer.id;
@@ -115,6 +155,7 @@ export const useDocumentStore = create<DocumentState>()(
 
     addAnnotation: (annotation) =>
       set((state) => {
+        if (state.project.mode !== 'editing') return;
         state.project.annotations.push(annotation);
         state.project.meta.updatedAt = new Date().toISOString();
         state.selectedAnnotationId = annotation.id;

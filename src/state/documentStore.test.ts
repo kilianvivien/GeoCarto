@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useDocumentStore } from './documentStore';
+import { DEFAULT_VIEWPORT } from './viewportStore';
 import {
   createEmptyProject,
   DEFAULT_ANNOTATION_STYLE,
@@ -55,9 +56,29 @@ describe('documentStore', () => {
 
   it('creates empty projects with an annotation collection', () => {
     expect(useDocumentStore.getState().project.annotations).toEqual([]);
+    expect(useDocumentStore.getState().project.mode).toBe('mapSetup');
+    expect(useDocumentStore.getState().project.lockedMapView).toBeNull();
+    expect(useDocumentStore.getState().project.basemap.kind).toBe('builtin');
+  });
+
+  it('locks and unlocks the map area', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    expect(useDocumentStore.getState().project.mode).toBe('editing');
+    expect(useDocumentStore.getState().project.lockedMapView?.viewport).toEqual(DEFAULT_VIEWPORT);
+
+    useDocumentStore.getState().unlockMapArea();
+    expect(useDocumentStore.getState().project.mode).toBe('mapSetup');
+  });
+
+  it('does not add layers or annotations before map setup is locked', () => {
+    useDocumentStore.getState().addLayer(makeLayer('Roads'));
+    useDocumentStore.getState().addAnnotation(makeAnnotation('Note'));
+    expect(useDocumentStore.getState().project.layers).toEqual([]);
+    expect(useDocumentStore.getState().project.annotations).toEqual([]);
   });
 
   it('adds layers and selects the newest', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Roads');
     useDocumentStore.getState().addLayer(layer);
     expect(ids()).toEqual(['Roads']);
@@ -65,6 +86,7 @@ describe('documentStore', () => {
   });
 
   it('reorders layers within the stack', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const a = makeLayer('A');
     const b = makeLayer('B');
     useDocumentStore.getState().addLayer(a);
@@ -82,6 +104,7 @@ describe('documentStore', () => {
   });
 
   it('renames and toggles visibility / lock', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Old');
     useDocumentStore.getState().addLayer(layer);
     useDocumentStore.getState().renameLayer(layer.id, 'New');
@@ -94,6 +117,7 @@ describe('documentStore', () => {
   });
 
   it('removing a selected layer clears its selection', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Temp');
     useDocumentStore.getState().addLayer(layer);
     useDocumentStore.getState().selectFeature({ layerId: layer.id, properties: {} });
@@ -104,6 +128,7 @@ describe('documentStore', () => {
   });
 
   it('adds, selects, updates, reorders, hides, and deletes annotations', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const a = makeAnnotation('A');
     const b = makeAnnotation('B');
     useDocumentStore.getState().addAnnotation(a);
@@ -126,6 +151,7 @@ describe('documentStore', () => {
   });
 
   it('does not edit or delete locked annotations', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const annotation = makeAnnotation('Locked');
     useDocumentStore.getState().addAnnotation(annotation);
     useDocumentStore.getState().setAnnotationLocked(annotation.id, true);
@@ -140,6 +166,7 @@ describe('documentStore', () => {
   });
 
   it('keeps layer and annotation ordering independent', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Roads');
     const annotation = makeAnnotation('Note');
     useDocumentStore.getState().addLayer(layer);

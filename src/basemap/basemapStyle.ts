@@ -1,30 +1,54 @@
 import type { StyleSpecification } from 'maplibre-gl';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-
-export type BasemapTheme = 'light' | 'dark';
+import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
 
 /** Remote Protomaps demo PMTiles archive (v4 schema, planet-wide). */
 const PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
 const SOURCE = 'protomaps';
 const ASSETS = 'https://protomaps.github.io/basemaps-assets';
 
+const PRESET_TO_FLAVOR: Record<BuiltInBasemapPreset, string> = {
+  'editorial-light': 'light',
+  'editorial-dark': 'dark',
+  'minimal-grey': 'grayscale',
+  'print-bw': 'black',
+};
+
+const PRESET_TO_SPRITE: Record<BuiltInBasemapPreset, 'light' | 'dark'> = {
+  'editorial-light': 'light',
+  'editorial-dark': 'dark',
+  'minimal-grey': 'light',
+  'print-bw': 'light',
+};
+
+function asPmtilesUrl(url: string) {
+  return url.startsWith('pmtiles://') ? url : `pmtiles://${url}`;
+}
+
 /**
  * Build a MapLibre style for the editorial basemap from a Protomaps flavor.
  * Phase 1 uses the hosted demo archive; a bundled local sample comes later.
  */
-export function buildBasemapStyle(theme: BasemapTheme): StyleSpecification {
+export function buildBasemapStyle(config: BasemapConfig): StyleSpecification | string {
+  if (config.kind === 'style-url') return config.url;
+
+  const preset = config.kind === 'pmtiles-url' ? config.preset : config.kind === 'builtin' ? config.preset : 'editorial-light';
+  const sourceUrl = config.kind === 'pmtiles-url' ? config.url : PMTILES_URL;
+  const spriteTheme = PRESET_TO_SPRITE[preset];
+
   return {
     version: 8,
     glyphs: `${ASSETS}/fonts/{fontstack}/{range}.pbf`,
-    sprite: `${ASSETS}/sprites/v4/${theme}`,
+    sprite: `${ASSETS}/sprites/v4/${spriteTheme}`,
     sources: {
       [SOURCE]: {
         type: 'vector',
-        url: `pmtiles://${PMTILES_URL}`,
+        url: asPmtilesUrl(sourceUrl),
         attribution:
+          config.attribution ||
           '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
       },
     },
-    layers: layers(SOURCE, namedFlavor(theme), { lang: 'en' }),
+    layers: layers(SOURCE, namedFlavor(PRESET_TO_FLAVOR[preset]), { lang: 'en' }),
   };
 }

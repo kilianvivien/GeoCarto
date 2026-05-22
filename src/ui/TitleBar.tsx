@@ -1,5 +1,7 @@
-import { Undo2, Redo2, Magnet, Sun, Moon, Share, Download, FileText } from 'lucide-react';
+import { Undo2, Redo2, Magnet, Sun, Moon, Share, Download, FileText, LockKeyhole, UnlockKeyhole } from 'lucide-react';
 import { useTheme } from './useTheme';
+import { useDocumentStore } from '@/state/documentStore';
+import { useViewportStore } from '@/state/viewportStore';
 
 function IconButton({
   label,
@@ -33,6 +35,9 @@ function IconButton({
 export function TitleBar() {
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggleTheme);
+  const mode = useDocumentStore((s) => s.project.mode);
+  const { lockMapArea, unlockMapArea } = useDocumentStore.getState();
+  const viewport = useViewportStore((s) => s.viewport);
 
   return (
     <div className="flex h-11 items-center gap-3 border-b border-[var(--divider)] px-3">
@@ -68,6 +73,14 @@ export function TitleBar() {
         <IconButton label="Share">
           <Share size={16} />
         </IconButton>
+        <button
+          type="button"
+          onClick={() => (mode === 'editing' ? unlockMapArea() : lockMapArea(viewport))}
+          className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--glass-thin)] px-3 text-[12px] font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
+        >
+          {mode === 'editing' ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
+          {mode === 'editing' ? 'Unlock Map' : 'Lock Map'}
+        </button>
         <button
           type="button"
           className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-[12px] font-medium text-[var(--text-on-accent)] transition-[filter] hover:brightness-105"

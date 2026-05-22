@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
-import { useTheme } from '@/ui/useTheme';
+import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { useMapInstance } from './mapInstance';
 
@@ -13,7 +13,9 @@ import { useMapInstance } from './mapInstance';
 export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const theme = useTheme((s) => s.theme);
+  const basemap = useDocumentStore((s) => s.project.basemap);
+  const mode = useDocumentStore((s) => s.project.mode);
+  const isStaticBasemap = basemap.kind === 'static';
 
   useEffect(() => {
     const container = containerRef.current;
@@ -22,7 +24,7 @@ export function MapView() {
     const { center, zoom, bearing, pitch } = useViewportStore.getState().viewport;
     const map = new maplibregl.Map({
       container,
-      style: buildBasemapStyle(useTheme.getState().theme),
+      style: buildBasemapStyle(useDocumentStore.getState().project.basemap),
       center,
       zoom,
       bearing,
@@ -63,8 +65,33 @@ export function MapView() {
       didMount.current = true;
       return;
     }
-    mapRef.current?.setStyle(buildBasemapStyle(theme));
-  }, [theme]);
+    if (!isStaticBasemap) mapRef.current?.setStyle(buildBasemapStyle(basemap));
+  }, [basemap, isStaticBasemap]);
 
-  return <div ref={containerRef} data-testid="map-view" className="h-full w-full" />;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const enabled = mode === 'mapSetup' && !isStaticBasemap;
+    const controls = [
+      map.dragPan,
+      map.scrollZoom,
+      map.boxZoom,
+      map.dragRotate,
+      map.keyboard,
+      map.doubleClickZoom,
+      map.touchZoomRotate,
+    ];
+    for (const control of controls) {
+      if (enabled) control.enable();
+      else control.disable();
+    }
+  }, [mode, isStaticBasemap]);
+
+  return (
+    <div
+      ref={containerRef}
+      data-testid="map-view"
+      className={`h-full w-full ${isStaticBasemap ? 'opacity-0' : ''}`}
+    />
+  );
 }

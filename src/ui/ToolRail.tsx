@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNotices } from './notices';
 import { useToolStore, type ToolKey } from '@/state/toolStore';
+import { useDocumentStore } from '@/state/documentStore';
 
 interface Tool {
   key: ToolKey;
@@ -58,9 +59,15 @@ const TOOL_GROUPS: Tool[][] = [
 export function ToolRail() {
   const active = useToolStore((s) => s.activeTool);
   const setActiveTool = useToolStore((s) => s.setActiveTool);
+  const mode = useDocumentStore((s) => s.project.mode);
   const push = useNotices((s) => s.push);
+  const disabled = mode !== 'editing';
 
   const activate = (tool: Tool) => {
+    if (disabled) {
+      push('Lock the map area before using annotation tools', 'error');
+      return;
+    }
     if (active === tool.key) return;
     setActiveTool(tool.key);
     push(`${tool.name} tool selected`);
@@ -86,10 +93,13 @@ export function ToolRail() {
                 data-tool={tool.key}
                 aria-label={`${tool.name} (${tool.shortcut})`}
                 aria-pressed={isActive}
+                disabled={disabled}
                 title={`${tool.name} — ${tool.shortcut}`}
                 onClick={() => activate(tool)}
                 className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
-                  isActive
+                  disabled
+                    ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+                    : isActive
                     ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
                     : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
                 }`}

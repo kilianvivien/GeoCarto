@@ -1,5 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 
+// jsdom lacks ResizeObserver — canvas components observe their container size.
+if (typeof globalThis.ResizeObserver !== 'function') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // jsdom lacks URL.createObjectURL — maplibre-gl touches it at module init.
 if (typeof URL.createObjectURL !== 'function') {
   URL.createObjectURL = () => 'blob:geocarto-test';

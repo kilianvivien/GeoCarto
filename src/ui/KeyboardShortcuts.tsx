@@ -13,6 +13,7 @@ export function KeyboardShortcuts() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isTypingTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (useDocumentStore.getState().project.mode !== 'editing') return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         const { selectedAnnotationId, removeAnnotation } = useDocumentStore.getState();
