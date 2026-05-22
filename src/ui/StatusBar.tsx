@@ -1,4 +1,5 @@
 import { useViewportStore } from '@/state/viewportStore';
+import { useDocumentStore } from '@/state/documentStore';
 
 /** Approximate map scale denominator (1:N) at the given zoom and latitude. */
 function scaleDenominator(zoom: number, latitude: number): number {
@@ -10,6 +11,9 @@ function scaleDenominator(zoom: number, latitude: number): number {
 export function StatusBar() {
   const viewport = useViewportStore((s) => s.viewport);
   const cursor = useViewportStore((s) => s.cursor);
+  const featureCount = useDocumentStore((s) =>
+    s.project.layers.reduce((sum, l) => sum + l.featureCount, 0),
+  );
 
   const [lng, lat] = cursor ?? viewport.center;
   const scale = scaleDenominator(viewport.zoom, viewport.center[1]);
@@ -22,7 +26,9 @@ export function StatusBar() {
           Saved
         </span>
         <span>Web Mercator</span>
-        <span>0 features</span>
+        <span data-testid="feature-count">
+          {featureCount.toLocaleString('en-US')} features
+        </span>
       </div>
       <div className="flex items-center gap-3">
         <span>

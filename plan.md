@@ -31,13 +31,14 @@ project, and export a high-DPI raster from a fixed composition frame.
   inner inspector panes are stubs
 - ✅ Light/dark theme with basemap restyle
 
-### Milestone 3 — Document Model and Layers ⬜
+### Milestone 3 — Document Model and Layers ✅
 
-- ⬜ `.cartoproj` schema (metadata, viewport, export frame, layers, annotations, styles)
-- ⬜ Document store actions: create, update, reorder, lock, hide, delete, select
-- ⬜ GeoJSON import (file picker + drag-drop)
-- ⬜ Render imported GeoJSON as MapLibre sources/layers
-- ⬜ Layer panel + basic attribute inspector
+- ✅ `.cartoproj` schema (metadata, viewport, export frame, layers, styles)
+- ✅ Document store actions: add, rename, reorder, lock, hide, delete, select
+- ✅ GeoJSON import (file picker + drag-drop), with toast feedback
+- ✅ Render imported GeoJSON as MapLibre sources/layers
+- ✅ Layer panel + attribute inspector
+- Note: annotation objects join the `.cartoproj` schema in Milestone 4.
 
 ### Milestone 4 — Annotation Tools ⬜
 

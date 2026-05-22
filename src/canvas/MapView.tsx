@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { useTheme } from '@/ui/useTheme';
 import { useViewportStore } from '@/state/viewportStore';
+import { useMapInstance } from './mapInstance';
 
 /**
  * Owns the MapLibre map instance. The map is a disposable projection of the
@@ -29,6 +30,7 @@ export function MapView() {
       attributionControl: { compact: true },
     });
     mapRef.current = map;
+    useMapInstance.getState().setMap(map);
 
     const syncViewport = () => {
       const c = map.getCenter();
@@ -48,6 +50,7 @@ export function MapView() {
     map.on('mouseout', clearCursor);
 
     return () => {
+      useMapInstance.getState().setMap(null);
       map.remove();
       mapRef.current = null;
     };

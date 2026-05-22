@@ -1,0 +1,177 @@
+import { useState } from 'react';
+import {
+  Plus,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+  MapPin,
+  Spline,
+  Hexagon,
+  Shapes,
+  type LucideIcon,
+} from 'lucide-react';
+import type { GeometryKind } from '@/project/cartoproj';
+import { useDocumentStore } from '@/state/documentStore';
+import { pickAndImportGeoJson } from '@/import/importLayers';
+
+const GEOMETRY_ICON: Record<GeometryKind, LucideIcon> = {
+  point: MapPin,
+  line: Spline,
+  polygon: Hexagon,
+  mixed: Shapes,
+};
+
+function LayerRow({ layerId }: { layerId: string }) {
+  const layer = useDocumentStore((s) => s.project.layers.find((l) => l.id === layerId));
+  const selected = useDocumentStore((s) => s.selectedLayerId === layerId);
+  const layerCount = useDocumentStore((s) => s.project.layers.length);
+  const index = useDocumentStore((s) => s.project.layers.findIndex((l) => l.id === layerId));
+  const { selectLayer, renameLayer, setLayerVisible, setLayerLocked, moveLayer, removeLayer } =
+    useDocumentStore.getState();
+
+  const [editing, setEditing] = useState(false);
+
+  if (!layer) return null;
+  const Icon = GEOMETRY_ICON[layer.geometry];
+
+  return (
+    <div
+      role="treeitem"
+      aria-selected={selected}
+      onClick={() => selectLayer(layer.id)}
+      className={`group flex h-7 items-center gap-1.5 rounded-[6px] px-1.5 ${
+        selected ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--hover)]'
+      }`}
+    >
+      <Icon
+        size={14}
+        className={selected ? 'text-[var(--accent)]' : 'text-[var(--text-3)]'}
+      />
+      {editing ? (
+        <input
+          autoFocus
+          defaultValue={layer.name}
+          onBlur={(e) => {
+            renameLayer(layer.id, e.target.value.trim() || layer.name);
+            setEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 rounded-[4px] bg-[var(--glass-thin)] px-1 text-[12px] text-[var(--text)] outline outline-1 outline-[var(--accent-ring)]"
+        />
+      ) : (
+        <span
+          onDoubleClick={() => setEditing(true)}
+          className="min-w-0 flex-1 truncate text-[12px] text-[var(--text)]"
+        >
+          {layer.name}
+        </span>
+      )}
+      <span className="mono text-[10px] text-[var(--text-3)]">{layer.featureCount}</span>
+      <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-aria-[selected=true]:opacity-100">
+        <RowButton
+          label={layer.visible ? 'Hide layer' : 'Show layer'}
+          onClick={() => setLayerVisible(layer.id, !layer.visible)}
+        >
+          {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+        </RowButton>
+        <RowButton
+          label={layer.locked ? 'Unlock layer' : 'Lock layer'}
+          onClick={() => setLayerLocked(layer.id, !layer.locked)}
+        >
+          {layer.locked ? <Lock size={13} /> : <LockOpen size={13} />}
+        </RowButton>
+        <RowButton
+          label="Move up"
+          disabled={index === layerCount - 1}
+          onClick={() => moveLayer(layer.id, 'up')}
+        >
+          <ChevronUp size={13} />
+        </RowButton>
+        <RowButton label="Move down" disabled={index === 0} onClick={() => moveLayer(layer.id, 'down')}>
+          <ChevronDown size={13} />
+        </RowButton>
+        <RowButton label="Delete layer" onClick={() => removeLayer(layer.id)}>
+          <Trash2 size={13} />
+        </RowButton>
+      </div>
+    </div>
+  );
+}
+
+function RowButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="flex h-5 w-5 items-center justify-center rounded-[4px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Layer panel — the Figma-style tree of imported layers (design.md §4.4.2). */
+export function LayerPanel() {
+  const layers = useDocumentStore((s) => s.project.layers);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
+          Layers
+        </span>
+        <button
+          type="button"
+          aria-label="Import GeoJSON"
+          title="Import GeoJSON"
+          onClick={pickAndImportGeoJson}
+          className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+
+      {layers.length === 0 ? (
+        <button
+          type="button"
+          onClick={pickAndImportGeoJson}
+          className="rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-6 text-center text-[11.5px] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)]"
+        >
+          No layers yet.
+          <br />
+          Drop a GeoJSON file on the map, or click to import.
+        </button>
+      ) : (
+        <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
+          {[...layers].reverse().map((layer) => (
+            <LayerRow key={layer.id} layerId={layer.id} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

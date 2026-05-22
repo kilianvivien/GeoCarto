@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { SlidersHorizontal, Layers, Palette, type LucideIcon } from 'lucide-react';
+import { LayerPanel } from '@/layers/LayerPanel';
+import { AttributeInspector } from '@/layers/AttributeInspector';
 
 type PaneKey = 'properties' | 'layers' | 'style';
 
@@ -9,18 +11,12 @@ const TABS: { key: PaneKey; label: string; icon: LucideIcon }[] = [
   { key: 'style', label: 'Style', icon: Palette },
 ];
 
-const PANE_STUBS: Record<PaneKey, string> = {
-  properties: 'Select a tool or object to see its properties.',
-  layers: 'Imported layers and annotations will appear here.',
-  style: 'Basemap, map layers, and page settings will appear here.',
-};
-
 /**
- * Right-hand inspector (design.md §4.4). Tab chrome is wired; pane bodies are
- * placeholders until Milestones 3–4 add real selection/layer/style controls.
+ * Right-hand inspector (design.md §4.4). Properties and Layers panes are live;
+ * the Style pane is a placeholder until later milestones.
  */
 export function Inspector() {
-  const [pane, setPane] = useState<PaneKey>('properties');
+  const [pane, setPane] = useState<PaneKey>('layers');
 
   return (
     <aside className="glass m-1.5 flex w-[300px] flex-col overflow-hidden">
@@ -47,8 +43,14 @@ export function Inspector() {
           );
         })}
       </div>
-      <div role="tabpanel" className="flex-1 overflow-y-auto p-4 text-[12px] text-[var(--text-3)]">
-        {PANE_STUBS[pane]}
+      <div role="tabpanel" className="flex-1 overflow-y-auto p-4">
+        {pane === 'properties' && <AttributeInspector />}
+        {pane === 'layers' && <LayerPanel />}
+        {pane === 'style' && (
+          <div className="text-[12px] text-[var(--text-3)]">
+            Basemap, map layers, and page settings will appear here.
+          </div>
+        )}
       </div>
     </aside>
   );

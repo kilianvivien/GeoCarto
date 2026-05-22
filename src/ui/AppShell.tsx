@@ -1,6 +1,7 @@
 import { TitleBar } from './TitleBar';
 import { Workspace } from './Workspace';
 import { StatusBar } from './StatusBar';
+import { ToastHost } from './ToastHost';
 
 /**
  * Top-level layout: a rounded glass window with titlebar / workspace / statusbar
@@ -13,7 +14,7 @@ export function AppShell() {
       <div
         role="application"
         aria-label="GeoCarto"
-        className="window-anim glass grid h-full grid-rows-[44px_1fr_28px] overflow-hidden"
+        className="window-anim glass relative grid h-full grid-rows-[44px_1fr_28px] overflow-hidden"
         style={{
           borderRadius: 'var(--radius-window)',
           backdropFilter: 'blur(40px) saturate(180%)',
@@ -23,6 +24,7 @@ export function AppShell() {
         <TitleBar />
         <Workspace />
         <StatusBar />
+        <ToastHost />
       </div>
     </div>
   );
