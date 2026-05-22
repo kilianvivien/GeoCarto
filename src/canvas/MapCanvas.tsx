@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { MapView } from './MapView';
 import { ExportFrame } from './ExportFrame';
 import { GeoJsonLayers } from './GeoJsonLayers';
+import { AnnotationStage } from './AnnotationStage';
 import { importGeoJsonFiles } from '@/import/importLayers';
 
 /**
@@ -37,6 +38,7 @@ export function MapCanvas() {
       <MapView />
       <GeoJsonLayers />
       <ExportFrame />
+      <AnnotationStage />
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[var(--accent-soft)]">
           <div className="glass rounded-[var(--radius-md)] px-4 py-3 text-[13px] font-medium text-[var(--accent)]">

@@ -2,6 +2,7 @@ import { TitleBar } from './TitleBar';
 import { Workspace } from './Workspace';
 import { StatusBar } from './StatusBar';
 import { ToastHost } from './ToastHost';
+import { KeyboardShortcuts } from './KeyboardShortcuts';
 
 /**
  * Top-level layout: a rounded glass window with titlebar / workspace / statusbar
@@ -25,6 +26,7 @@ export function AppShell() {
         <Workspace />
         <StatusBar />
         <ToastHost />
+        <KeyboardShortcuts />
       </div>
     </div>
   );

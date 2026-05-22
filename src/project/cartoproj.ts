@@ -37,6 +37,109 @@ export interface GeoJsonLayer {
   style: GeoJsonStyle;
 }
 
+export type AnnotationKind =
+  | 'text'
+  | 'rectangle'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'polygon'
+  | 'pin';
+
+export type AnnotationAnchorMode = 'map' | 'canvas';
+export type PinIcon =
+  | 'dot'
+  | 'ring'
+  | 'flag'
+  | 'star'
+  | 'triangle'
+  | 'square'
+  | 'diamond'
+  | 'cross'
+  | 'target';
+
+export interface AnnotationStyle {
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  textColor: string;
+  textSize: number;
+  fontFamily: string;
+  pinColor: string;
+  pinIcon: PinIcon;
+}
+
+export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
+  fillColor: '#007aff',
+  strokeColor: '#0f172a',
+  strokeWidth: 2,
+  textColor: '#111827',
+  textSize: 18,
+  fontFamily: 'Inter',
+  pinColor: '#ff3b30',
+  pinIcon: 'dot',
+};
+
+export interface AnnotationBase {
+  id: string;
+  kind: AnnotationKind;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  anchorMode: AnnotationAnchorMode;
+  /** Canvas-space origin for canvas-pinned annotations. */
+  position: { x: number; y: number };
+  /** Geographic origin for map-pinned annotations. */
+  geoAnchor: [number, number] | null;
+  rotation: number;
+  opacity: number;
+  style: AnnotationStyle;
+}
+
+export type TextAnnotation = AnnotationBase & {
+  kind: 'text';
+  text: string;
+  width: number;
+};
+
+export type RectAnnotation = AnnotationBase & {
+  kind: 'rectangle';
+  width: number;
+  height: number;
+  cornerRadius: number;
+};
+
+export type EllipseAnnotation = AnnotationBase & {
+  kind: 'ellipse';
+  radiusX: number;
+  radiusY: number;
+};
+
+export type LineAnnotation = AnnotationBase & {
+  kind: 'line' | 'arrow';
+  points: number[];
+};
+
+export type PolygonAnnotation = AnnotationBase & {
+  kind: 'polygon';
+  points: number[];
+  closed: true;
+};
+
+export type PinAnnotation = AnnotationBase & {
+  kind: 'pin';
+  label: string;
+  size: number;
+};
+
+export type Annotation =
+  | TextAnnotation
+  | RectAnnotation
+  | EllipseAnnotation
+  | LineAnnotation
+  | PolygonAnnotation
+  | PinAnnotation;
+
 /** The canonical project document — source of truth for all renderers (PRD §3). */
 export interface CartoProject {
   version: 1;
@@ -50,6 +153,8 @@ export interface CartoProject {
   exportFrame: { width: number; height: number };
   /** Ordered bottom → top. `layers[0]` draws beneath the rest. */
   layers: GeoJsonLayer[];
+  /** Ordered bottom → top editable annotation objects. */
+  annotations: Annotation[];
 }
 
 /** Create a blank project document. */
@@ -61,5 +166,6 @@ export function createEmptyProject(name = 'Untitled'): CartoProject {
     viewport: DEFAULT_VIEWPORT,
     exportFrame: { width: 1600, height: 1200 },
     layers: [],
+    annotations: [],
   };
 }

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   MousePointer2,
   SquareDashed,
@@ -17,9 +16,11 @@ import {
   MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
+import { useNotices } from './notices';
+import { useToolStore, type ToolKey } from '@/state/toolStore';
 
 interface Tool {
-  key: string;
+  key: ToolKey;
   name: string;
   shortcut: string;
   icon: LucideIcon;
@@ -51,11 +52,19 @@ const TOOL_GROUPS: Tool[][] = [
 ];
 
 /**
- * Vertical tool rail (design.md §4.2). Tools are inert this pass — selecting one
- * only updates local active state; annotation behaviour lands in Milestone 4.
+ * Vertical tool rail (design.md §4.2). Active tool is shared by the canvas,
+ * inspector, and keyboard shortcuts.
  */
 export function ToolRail() {
-  const [active, setActive] = useState('move');
+  const active = useToolStore((s) => s.activeTool);
+  const setActiveTool = useToolStore((s) => s.setActiveTool);
+  const push = useNotices((s) => s.push);
+
+  const activate = (tool: Tool) => {
+    if (active === tool.key) return;
+    setActiveTool(tool.key);
+    push(`${tool.name} tool selected`);
+  };
 
   return (
     <div
@@ -78,7 +87,7 @@ export function ToolRail() {
                 aria-label={`${tool.name} (${tool.shortcut})`}
                 aria-pressed={isActive}
                 title={`${tool.name} — ${tool.shortcut}`}
-                onClick={() => setActive(tool.key)}
+                onClick={() => activate(tool)}
                 className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
                   isActive
                     ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'

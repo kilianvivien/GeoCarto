@@ -40,15 +40,16 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Layer panel + attribute inspector
 - Note: annotation objects join the `.cartoproj` schema in Milestone 4.
 
-### Milestone 4 — Annotation Tools ⬜
+### Milestone 4 — Annotation Tools ✅
 
-- ⬜ Konva annotation stage, camera-synced to MapView
-- ⬜ Selection/move tool with Figma-style transformer handles
-- ⬜ Text, rectangle, ellipse, line/arrow, polygon, point pin tools
-- ⬜ Inspector controls: fill, stroke, opacity, text size/color, pin color/icon
-- ⬜ Font choice from a small bundled set
-- ⬜ Object lock/hide; geo vs canvas anchoring ("Pin to map" / "Pin to canvas")
-- ⬜ Keyboard shortcuts (V/M/H/K/P/R/O/G/T/B/I/A…), delete selected
+- ✅ Konva annotation stage, camera-synced to MapView
+- ✅ Selection/move tool with Figma-style transformer handles
+- ✅ Text, rectangle, ellipse, line/arrow, polygon, point pin tools
+- ✅ Inspector controls: fill, stroke, opacity, text size/color, pin color/icon
+- ✅ Font choice from a small bundled set
+- ✅ Object lock/hide; geo vs canvas anchoring ("Pin to map" / "Pin to canvas")
+- ✅ Keyboard shortcuts (V/M/H/K/P/R/O/G/T/B/I/A…), delete selected
+- Note: annotations are serializable in `.cartoproj`; save/autosave/export lands in Milestone 5.
 
 ### Milestone 5 — Save, Autosave, and Export ⬜
 

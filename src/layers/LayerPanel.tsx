@@ -12,9 +12,13 @@ import {
   Spline,
   Hexagon,
   Shapes,
+  Type,
+  Square,
+  Circle,
+  ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
-import type { GeometryKind } from '@/project/cartoproj';
+import type { AnnotationKind, GeometryKind } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { pickAndImportGeoJson } from '@/import/importLayers';
 
@@ -23,6 +27,16 @@ const GEOMETRY_ICON: Record<GeometryKind, LucideIcon> = {
   line: Spline,
   polygon: Hexagon,
   mixed: Shapes,
+};
+
+const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
+  text: Type,
+  rectangle: Square,
+  ellipse: Circle,
+  line: Spline,
+  arrow: ArrowUpRight,
+  polygon: Hexagon,
+  pin: MapPin,
 };
 
 function LayerRow({ layerId }: { layerId: string }) {
@@ -106,6 +120,104 @@ function LayerRow({ layerId }: { layerId: string }) {
   );
 }
 
+function AnnotationRow({ annotationId }: { annotationId: string }) {
+  const annotation = useDocumentStore((s) =>
+    s.project.annotations.find((item) => item.id === annotationId),
+  );
+  const selected = useDocumentStore((s) => s.selectedAnnotationId === annotationId);
+  const annotationCount = useDocumentStore((s) => s.project.annotations.length);
+  const index = useDocumentStore((s) =>
+    s.project.annotations.findIndex((item) => item.id === annotationId),
+  );
+  const {
+    selectAnnotation,
+    renameAnnotation,
+    setAnnotationVisible,
+    setAnnotationLocked,
+    moveAnnotation,
+    removeAnnotation,
+  } = useDocumentStore.getState();
+  const [editing, setEditing] = useState(false);
+
+  if (!annotation) return null;
+  const Icon = ANNOTATION_ICON[annotation.kind];
+
+  return (
+    <div
+      role="treeitem"
+      aria-selected={selected}
+      onClick={() => selectAnnotation(annotation.id)}
+      className={`group flex h-7 items-center gap-1.5 rounded-[6px] px-1.5 ${
+        selected ? 'bg-[var(--accent-soft)]' : 'hover:bg-[var(--hover)]'
+      }`}
+    >
+      <Icon
+        size={14}
+        className={selected ? 'text-[var(--accent)]' : 'text-[var(--text-3)]'}
+      />
+      {editing ? (
+        <input
+          autoFocus
+          defaultValue={annotation.name}
+          onBlur={(e) => {
+            renameAnnotation(annotation.id, e.target.value.trim() || annotation.name);
+            setEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 rounded-[4px] bg-[var(--glass-thin)] px-1 text-[12px] text-[var(--text)] outline outline-1 outline-[var(--accent-ring)]"
+        />
+      ) : (
+        <span
+          onDoubleClick={() => setEditing(true)}
+          className="min-w-0 flex-1 truncate text-[12px] text-[var(--text)]"
+        >
+          {annotation.name}
+        </span>
+      )}
+      <span className="mono text-[10px] capitalize text-[var(--text-3)]">{annotation.kind}</span>
+      <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-aria-[selected=true]:opacity-100">
+        <RowButton
+          label={annotation.visible ? 'Hide annotation' : 'Show annotation'}
+          onClick={() => setAnnotationVisible(annotation.id, !annotation.visible)}
+        >
+          {annotation.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+        </RowButton>
+        <RowButton
+          label={annotation.locked ? 'Unlock annotation' : 'Lock annotation'}
+          onClick={() => setAnnotationLocked(annotation.id, !annotation.locked)}
+        >
+          {annotation.locked ? <Lock size={13} /> : <LockOpen size={13} />}
+        </RowButton>
+        <RowButton
+          label="Move up"
+          disabled={index === annotationCount - 1}
+          onClick={() => moveAnnotation(annotation.id, 'up')}
+        >
+          <ChevronUp size={13} />
+        </RowButton>
+        <RowButton
+          label="Move down"
+          disabled={index === 0}
+          onClick={() => moveAnnotation(annotation.id, 'down')}
+        >
+          <ChevronDown size={13} />
+        </RowButton>
+        <RowButton
+          label="Delete annotation"
+          disabled={annotation.locked}
+          onClick={() => removeAnnotation(annotation.id)}
+        >
+          <Trash2 size={13} />
+        </RowButton>
+      </div>
+    </div>
+  );
+}
+
 function RowButton({
   label,
   onClick,
@@ -137,6 +249,7 @@ function RowButton({
 /** Layer panel — the Figma-style tree of imported layers (design.md §4.4.2). */
 export function LayerPanel() {
   const layers = useDocumentStore((s) => s.project.layers);
+  const annotations = useDocumentStore((s) => s.project.annotations);
 
   return (
     <div className="flex flex-col gap-2">
@@ -155,13 +268,26 @@ export function LayerPanel() {
         </button>
       </div>
 
+      {annotations.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
+            Annotations
+          </span>
+          <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
+            {[...annotations].reverse().map((annotation) => (
+              <AnnotationRow key={annotation.id} annotationId={annotation.id} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {layers.length === 0 ? (
         <button
           type="button"
           onClick={pickAndImportGeoJson}
           className="rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-6 text-center text-[11.5px] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)]"
         >
-          No layers yet.
+          No GeoJSON layers yet.
           <br />
           Drop a GeoJSON file on the map, or click to import.
         </button>

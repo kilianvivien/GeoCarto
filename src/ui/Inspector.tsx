@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SlidersHorizontal, Layers, Palette, type LucideIcon } from 'lucide-react';
 import { LayerPanel } from '@/layers/LayerPanel';
 import { AttributeInspector } from '@/layers/AttributeInspector';
+import { AnnotationInspector } from '@/tools/AnnotationInspector';
+import { useDocumentStore } from '@/state/documentStore';
+import { useToolStore } from '@/state/toolStore';
 
 type PaneKey = 'properties' | 'layers' | 'style';
 
@@ -17,6 +20,13 @@ const TABS: { key: PaneKey; label: string; icon: LucideIcon }[] = [
  */
 export function Inspector() {
   const [pane, setPane] = useState<PaneKey>('layers');
+  const activeTool = useToolStore((s) => s.activeTool);
+  const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
+  const selectedFeature = useDocumentStore((s) => s.selectedFeature);
+
+  useEffect(() => {
+    if (activeTool !== 'move' || selectedAnnotationId) setPane('properties');
+  }, [activeTool, selectedAnnotationId]);
 
   return (
     <aside className="glass m-1.5 flex w-[300px] flex-col overflow-hidden">
@@ -44,7 +54,7 @@ export function Inspector() {
         })}
       </div>
       <div role="tabpanel" className="flex-1 overflow-y-auto p-4">
-        {pane === 'properties' && <AttributeInspector />}
+        {pane === 'properties' && (selectedFeature && !selectedAnnotationId ? <AttributeInspector /> : <AnnotationInspector />)}
         {pane === 'layers' && <LayerPanel />}
         {pane === 'style' && (
           <div className="text-[12px] text-[var(--text-3)]">
