@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react';
 import { Lock, MapPinned, MousePointer2, Palette } from 'lucide-react';
+import { ColorPickerPopover } from '@/ui/ColorPickerPopover';
 import type {
   Annotation,
   AnnotationAnchorMode,
@@ -10,7 +12,7 @@ import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 
-const SWATCHES = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#111827'];
+const SWATCHES = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#111827', '#ffffff'];
 const FONTS = ['Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia'];
 const PIN_ICONS: { value: PinIcon; label: string }[] = [
   { value: 'dot', label: 'Dot' },
@@ -70,22 +72,79 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   );
 }
 
+function normalizeHex(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function Swatches({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  const normalizedValue = normalizeHex(value);
+  const isPreset = SWATCHES.some((c) => normalizeHex(c) === normalizedValue);
   return (
-    <div className="grid grid-cols-6 gap-1">
-      {SWATCHES.map((color) => (
-        <button
-          key={color}
-          type="button"
-          aria-label={`Use ${color}`}
-          onClick={() => onChange(color)}
-          className={`h-6 rounded-[7px] border transition-transform hover:scale-110 ${
-            value === color ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]' : 'border-white/50'
-          }`}
-          style={{ background: color }}
-        />
-      ))}
+    <div className="grid grid-cols-8 gap-1">
+      {SWATCHES.map((color) => {
+        const selected = normalizeHex(color) === normalizedValue;
+        return (
+          <button
+            key={color}
+            type="button"
+            aria-label={`Use ${color}`}
+            onClick={() => onChange(color)}
+            className={`h-6 rounded-[7px] border transition-transform hover:scale-110 ${
+              selected ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]' : 'border-[var(--divider)]'
+            }`}
+            style={{ background: color }}
+          />
+        );
+      })}
+      <CustomColorPicker value={value} active={!isPreset} onChange={onChange} />
     </div>
+  );
+}
+
+function CustomColorPicker({
+  value,
+  active,
+  onChange,
+}: {
+  value: string;
+  active: boolean;
+  onChange: (color: string) => void;
+}) {
+  // Conic rainbow used both as the idle glyph and as a halo behind the current
+  // custom color so the picker stays visually distinct from the presets.
+  const rainbow =
+    'conic-gradient(from 0deg, #ff3b30, #ff9500, #ffcc00, #34c759, #5ac8fa, #007aff, #5856d6, #af52de, #ff2d55, #ff3b30)';
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="Pick a custom color"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={`relative flex h-6 items-center justify-center rounded-[7px] border transition-transform hover:scale-110 ${
+          active ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]' : 'border-[var(--divider)]'
+        }`}
+        style={{ background: active ? value : rainbow }}
+      >
+        {active && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0.5 rounded-[5px] border border-white/40"
+          />
+        )}
+      </button>
+      <ColorPickerPopover
+        open={open}
+        anchorRef={buttonRef}
+        value={value}
+        onChange={onChange}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }
 

@@ -17,10 +17,14 @@ test('first run: shell, basemap, and navigation', async ({ page }) => {
   const mapCanvas = page.locator('.maplibregl-canvas');
   await expect(mapCanvas).toBeVisible();
 
+  await page.getByRole('button', { name: 'Minimize map setup' }).click();
+
   // Navigating the map updates the viewport store / status bar.
   const zoomReadout = page.getByTestId('zoom-readout');
   const before = await zoomReadout.textContent();
-  await mapCanvas.dblclick();
+  const box = await mapCanvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.dblclick(box!.x + box!.width / 2, box!.y + box!.height - 120);
   await expect(zoomReadout).not.toHaveText(before ?? '');
 
   expect(consoleErrors, `console errors: ${consoleErrors.join('\n')}`).toEqual([]);

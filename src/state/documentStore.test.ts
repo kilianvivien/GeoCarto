@@ -51,7 +51,31 @@ describe('documentStore', () => {
       selectedLayerId: null,
       selectedAnnotationId: null,
       selectedFeature: null,
+      dirty: false,
+      file: null,
     });
+  });
+
+  it('marks the document dirty on mutation and clean on save', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    expect(useDocumentStore.getState().dirty).toBe(true);
+    useDocumentStore.getState().markSaved({ handle: null, name: 'demo.cartoproj' });
+    expect(useDocumentStore.getState().dirty).toBe(false);
+    expect(useDocumentStore.getState().file?.name).toBe('demo.cartoproj');
+
+    useDocumentStore.getState().addLayer(makeLayer('Roads'));
+    expect(useDocumentStore.getState().dirty).toBe(true);
+  });
+
+  it('replaces the project and resets dirty/selection', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    useDocumentStore.getState().addLayer(makeLayer('Roads'));
+    const replacement = createEmptyProject('Other');
+    useDocumentStore.getState().replaceProject(replacement, { handle: null, name: 'other.cartoproj' });
+    expect(useDocumentStore.getState().project).toEqual(replacement);
+    expect(useDocumentStore.getState().dirty).toBe(false);
+    expect(useDocumentStore.getState().selectedLayerId).toBeNull();
+    expect(useDocumentStore.getState().file?.name).toBe('other.cartoproj');
   });
 
   it('creates empty projects with an annotation collection', () => {

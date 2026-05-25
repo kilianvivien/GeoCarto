@@ -1,8 +1,10 @@
+import { useAutosave } from '@/project/autosave';
 import { TitleBar } from './TitleBar';
 import { Workspace } from './Workspace';
 import { StatusBar } from './StatusBar';
 import { ToastHost } from './ToastHost';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
+import { RecoveryPrompt } from './RecoveryPrompt';
 
 /**
  * Top-level layout: a rounded glass window with titlebar / workspace / statusbar
@@ -10,6 +12,7 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
  * web build has no use for it, and the Tauri build will use a native one.
  */
 export function AppShell() {
+  useAutosave();
   return (
     <div className="h-full p-2">
       <div
@@ -26,6 +29,7 @@ export function AppShell() {
         <Workspace />
         <StatusBar />
         <ToastHost />
+        <RecoveryPrompt />
         <KeyboardShortcuts />
       </div>
     </div>

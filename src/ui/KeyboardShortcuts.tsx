@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { useDocumentStore } from '@/state/documentStore';
 import { SHORTCUT_TO_TOOL, useToolStore } from '@/state/toolStore';
+import { useNotices } from './notices';
+import { useUiStore } from './uiStore';
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -8,11 +11,55 @@ function isTypingTarget(target: EventTarget | null) {
   return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }
 
-/** App-scoped keyboard shortcuts for tool switching and annotation deletion. */
+/** App-scoped keyboard shortcuts: tools, deletion, save/open/export. */
 export function KeyboardShortcuts() {
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
+    const onKeyDown = async (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) return;
+      const cmd = event.metaKey || event.ctrlKey;
+
+      if (cmd && !event.altKey) {
+        const key = event.key.toLowerCase();
+        if (key === 's') {
+          event.preventDefault();
+          const { project, file, markSaved } = useDocumentStore.getState();
+          const push = useNotices.getState().push;
+          try {
+            const next = event.shiftKey
+              ? await saveProjectAs(project)
+              : await saveProjectToDisk(project, file);
+            markSaved(next);
+            push(`Saved ${next.name}`);
+          } catch (error) {
+            if (error instanceof UserCancelledError) return;
+            push(error instanceof Error ? error.message : 'Save failed.', 'error');
+          }
+          return;
+        }
+        if (key === 'o') {
+          event.preventDefault();
+          const push = useNotices.getState().push;
+          try {
+            const { project, file: opened } = await openProjectFromDisk();
+            useDocumentStore.getState().replaceProject(project, opened);
+            push(`Opened ${opened.name}`);
+          } catch (error) {
+            if (error instanceof UserCancelledError) return;
+            push(error instanceof Error ? error.message : 'Open failed.', 'error');
+          }
+          return;
+        }
+        if (key === 'e') {
+          event.preventDefault();
+          if (useDocumentStore.getState().project.mode === 'editing') {
+            useUiStore.getState().openExportDialog();
+          }
+          return;
+        }
+        return;
+      }
+
+      if (event.altKey) return;
       if (useDocumentStore.getState().project.mode !== 'editing') return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {

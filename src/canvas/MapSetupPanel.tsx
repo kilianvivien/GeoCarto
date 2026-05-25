@@ -313,11 +313,6 @@ export function MapSetupPanel() {
             })}
           </div>
 
-          <div className="rounded-[9px] bg-[var(--hover)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
-            Current basemap: <span className="font-semibold text-[var(--text)]">{basemap.name}</span>. Pan and zoom
-            the map until the composition frame contains the area you want, then lock — the locked view matches the
-            frame.
-          </div>
         </div>
       </div>
 

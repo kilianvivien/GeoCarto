@@ -52,13 +52,13 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Keyboard shortcuts (V/M/H/K/P/R/O/G/T/B/I/A…), delete selected
 - Note: annotations are serializable in `.cartoproj`; save/autosave/export lands in Milestone 5.
 
-### Milestone 5 — Save, Autosave, and Export ⬜
+### Milestone 5 — Save, Autosave, and Export ✅
 
-- ⬜ Save/open plain `.cartoproj` JSON
-- ⬜ Browser autosave every 10s + recovery prompt for autosaved drafts
-- ⬜ PNG/JPEG export from the export frame at 1x / 2x / custom scale
-- ⬜ White or transparent background; JPEG quality slider
-- ⬜ Basemap + GeoJSON + annotations composited into the raster export
+- ✅ Save/open plain `.cartoproj` JSON (File System Access API + download/upload fallback)
+- ✅ Browser autosave every 10s (IndexedDB) + recovery prompt for autosaved drafts
+- ✅ PNG/JPEG export from the export frame at 1x / 2x / custom scale
+- ✅ White or transparent background; JPEG quality slider
+- ✅ Basemap + GeoJSON + annotations composited into the raster export
 
 ### Milestone 6 — Verification and Stabilization ⬜
 
@@ -131,8 +131,8 @@ base — this is a core editorial requirement.
 
 | Format | Phase | Status |
 |---|---|---|
-| PNG  | Phase 1   | ⬜ Milestone 5 |
-| JPEG | Phase 1   | ⬜ Milestone 5 |
+| PNG  | Phase 1   | ✅ Milestone 5 |
+| JPEG | Phase 1   | ✅ Milestone 5 |
 | SVG  | v1 (after spike) | ⬜ |
 | PDF  | Post-v1   | ⬜ |
 | Interactive HTML | Post-v1 | ⬜ |

@@ -30,6 +30,7 @@ const sample = {
 test('import a GeoJSON file via the picker', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Lock Map Area' }).click();
 
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),

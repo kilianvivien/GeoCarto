@@ -16,6 +16,12 @@ export interface SelectedFeature {
   properties: Record<string, unknown>;
 }
 
+export interface DocumentFileBinding {
+  /** File System Access handle (Chromium); null on the download-fallback path. */
+  handle: FileSystemFileHandle | null;
+  name: string;
+}
+
 interface DocumentState {
   project: CartoProject;
   /** Layer selected in the layer panel. */
@@ -23,6 +29,13 @@ interface DocumentState {
   selectedAnnotationId: string | null;
   /** Feature clicked on the map. */
   selectedFeature: SelectedFeature | null;
+  /** True when the in-memory project has unsaved changes. */
+  dirty: boolean;
+  /** The on-disk file the project is bound to, if any. */
+  file: DocumentFileBinding | null;
+
+  replaceProject: (project: CartoProject, file?: DocumentFileBinding | null) => void;
+  markSaved: (file: DocumentFileBinding) => void;
 
   setBasemap: (basemap: BasemapConfig) => void;
   setExportFrame: (frame: { width: number; height: number }) => void;
@@ -58,17 +71,37 @@ export const useDocumentStore = create<DocumentState>()(
     selectedLayerId: null,
     selectedAnnotationId: null,
     selectedFeature: null,
+    dirty: false,
+    file: null,
+
+    replaceProject: (project, file) =>
+      set((state) => {
+        state.project = project;
+        state.selectedLayerId = null;
+        state.selectedAnnotationId = null;
+        state.selectedFeature = null;
+        state.dirty = false;
+        if (file !== undefined) state.file = file;
+      }),
+
+    markSaved: (file) =>
+      set((state) => {
+        state.file = file;
+        state.dirty = false;
+      }),
 
     setBasemap: (basemap) =>
       set((state) => {
         state.project.basemap = basemap;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     setExportFrame: (frame) =>
       set((state) => {
         state.project.exportFrame = frame;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     lockMapArea: (viewport) =>
@@ -82,6 +115,7 @@ export const useDocumentStore = create<DocumentState>()(
           lockedAt: new Date().toISOString(),
         };
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     unlockMapArea: () =>
@@ -90,6 +124,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.selectedAnnotationId = null;
         state.selectedFeature = null;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     addLayer: (layer) =>
@@ -97,6 +132,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (state.project.mode !== 'editing') return;
         state.project.layers.push(layer);
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
         state.selectedLayerId = layer.id;
         state.selectedAnnotationId = null;
       }),
@@ -105,6 +141,7 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.project.layers = state.project.layers.filter((l) => l.id !== id);
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
         if (state.selectedLayerId === id) state.selectedLayerId = null;
         if (state.selectedFeature?.layerId === id) state.selectedFeature = null;
       }),
@@ -115,6 +152,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (layer) {
           layer.name = name;
           state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
         }
       }),
 
@@ -139,6 +177,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (target < 0 || target >= layers.length) return;
         [layers[index], layers[target]] = [layers[target], layers[index]];
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     selectLayer: (id) =>
@@ -158,6 +197,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (state.project.mode !== 'editing') return;
         state.project.annotations.push(annotation);
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
         state.selectedAnnotationId = annotation.id;
         state.selectedLayerId = null;
         state.selectedFeature = null;
@@ -169,6 +209,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (annotation?.locked) return;
         state.project.annotations = state.project.annotations.filter((item) => item.id !== id);
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
         if (state.selectedAnnotationId === id) state.selectedAnnotationId = null;
       }),
 
@@ -178,6 +219,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!annotation || annotation.locked) return;
         annotation.name = name;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     selectAnnotation: (id) =>
@@ -195,6 +237,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!annotation || annotation.locked) return;
         Object.assign(annotation, patch);
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     updateAnnotationStyle: (id, patch) =>
@@ -203,6 +246,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!annotation || annotation.locked) return;
         annotation.style = { ...annotation.style, ...patch };
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     moveAnnotation: (id, direction) =>
@@ -214,6 +258,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (target < 0 || target >= annotations.length) return;
         [annotations[index], annotations[target]] = [annotations[target], annotations[index]];
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     setAnnotationVisible: (id, visible) =>
@@ -222,6 +267,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!annotation) return;
         annotation.visible = visible;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     setAnnotationLocked: (id, locked) =>
@@ -230,6 +276,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!annotation) return;
         annotation.locked = locked;
         state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
   })),
 );

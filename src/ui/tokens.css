@@ -48,6 +48,9 @@ html[data-theme='light'] {
   --glass-strong: rgba(255, 255, 255, 0.78);
   --glass-thin: rgba(255, 255, 255, 0.35);
   --glass-border: rgba(255, 255, 255, 0.85);
+  /* Opaque-enough surface for modals/popovers that must read above busy backdrops. */
+  --surface-modal: rgba(248, 249, 252, 0.72);
+  --scrim: rgba(20, 30, 60, 0.18);
 
   --divider: rgba(0, 0, 0, 0.07);
   --hover: rgba(0, 0, 0, 0.04);
@@ -78,6 +81,8 @@ html[data-theme='dark'] {
   --glass-strong: rgba(40, 42, 52, 0.78);
   --glass-thin: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.12);
+  --surface-modal: rgba(28, 30, 38, 0.72);
+  --scrim: rgba(0, 0, 0, 0.45);
 
   --divider: rgba(255, 255, 255, 0.08);
   --hover: rgba(255, 255, 255, 0.05);
