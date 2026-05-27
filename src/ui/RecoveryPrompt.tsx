@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { History, X } from 'lucide-react';
 import { clearAutosave, readAutosave, type AutosaveEntry } from '@/project/autosave';
+import { confirmDiscardDirtyProject, replaceCurrentProject } from '@/project/documentFlow';
 import { useDocumentStore } from '@/state/documentStore';
 import { useNotices } from './notices';
 
@@ -22,7 +23,6 @@ function formatTimestamp(iso: string): string {
 export function RecoveryPrompt() {
   const [entry, setEntry] = useState<AutosaveEntry | null>(null);
   const [hidden, setHidden] = useState(false);
-  const replaceProject = useDocumentStore((s) => s.replaceProject);
   const push = useNotices((s) => s.push);
 
   useEffect(() => {
@@ -42,11 +42,11 @@ export function RecoveryPrompt() {
   if (!entry || hidden) return null;
 
   const restore = () => {
-    replaceProject(
+    if (!confirmDiscardDirtyProject()) return;
+    replaceCurrentProject(
       entry.project,
       entry.fileName ? { handle: null, name: entry.fileName } : null,
     );
-    void clearAutosave();
     push('Restored autosaved draft');
     setHidden(true);
   };

@@ -51,6 +51,7 @@ function LayerRow({ layerId }: { layerId: string }) {
 
   if (!layer) return null;
   const Icon = GEOMETRY_ICON[layer.geometry];
+  const canMutate = !layer.locked;
 
   return (
     <div
@@ -83,7 +84,9 @@ function LayerRow({ layerId }: { layerId: string }) {
         />
       ) : (
         <span
-          onDoubleClick={() => setEditing(true)}
+          onDoubleClick={() => {
+            if (canMutate) setEditing(true);
+          }}
           className="min-w-0 flex-1 truncate text-[12px] text-[var(--text)]"
         >
           {layer.name}
@@ -105,15 +108,15 @@ function LayerRow({ layerId }: { layerId: string }) {
         </RowButton>
         <RowButton
           label="Move up"
-          disabled={index === layerCount - 1}
+          disabled={!canMutate || index === layerCount - 1}
           onClick={() => moveLayer(layer.id, 'up')}
         >
           <ChevronUp size={13} />
         </RowButton>
-        <RowButton label="Move down" disabled={index === 0} onClick={() => moveLayer(layer.id, 'down')}>
+        <RowButton label="Move down" disabled={!canMutate || index === 0} onClick={() => moveLayer(layer.id, 'down')}>
           <ChevronDown size={13} />
         </RowButton>
-        <RowButton label="Delete layer" onClick={() => removeLayer(layer.id)}>
+        <RowButton label="Delete layer" disabled={!canMutate} onClick={() => removeLayer(layer.id)}>
           <Trash2 size={13} />
         </RowButton>
       </div>

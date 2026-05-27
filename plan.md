@@ -5,11 +5,12 @@ Status legend: ✅ done · 🟡 in progress · ⬜ not started.
 
 GeoCarto is a "Figma for maps" — an open-canvas cartography editor that runs in
 the browser (Phase 1) and as a native macOS app (v1). Three delivery phases:
-**Phase 1 / MVP**, **Phase 2 / v1 Editorial**, and **Post-v1 Roadmap**.
+**Phase 1 / MVP exit hardening**, **Phase 2 / v1 Editorial**, and
+**Post-v1 Roadmap**.
 
 ---
 
-## Phase 1 / MVP — browser-based core loop
+## Phase 1 / MVP — browser core loop 🟡 Exit hardening
 
 Goal: open a basemap, import GeoJSON, annotate, save/reopen a project, and export
 a high-DPI raster from a fixed composition frame.
@@ -41,7 +42,7 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Layer panel + attribute inspector
 - Note: annotation objects join the `.cartoproj` schema in Milestone 4.
 
-### Milestone 4 — Annotation Tools ✅
+### Milestone 4 — Annotation Tools 🟡
 
 - ✅ Konva annotation stage, camera-synced to MapView
 - ✅ Selection/move tool with Figma-style transformer handles
@@ -49,42 +50,87 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Inspector controls: fill, stroke, opacity, text size/color, pin color/icon
 - ✅ Font choice from a small bundled set
 - ✅ Object lock/hide; geo vs canvas anchoring ("Pin to map" / "Pin to canvas")
-- ✅ Keyboard shortcuts (V/M/H/K/P/R/O/G/T/B/I/A…), delete selected
+- 🟡 Phase 1 tool gate: enabled tools are Move, Line/Pen, Rectangle, Ellipse,
+      Polygon, Text, Pin, Arrow; Phase 2 tools are disabled/marked.
+- 🟡 Keyboard shortcuts: `P` Line/Pen, `G` Polygon, delete selected; Phase 2
+      shortcuts must not activate inert tools.
 - Note: annotations are serializable in `.cartoproj`; save/autosave/export lands in Milestone 5.
 
-### Milestone 5 — Save, Autosave, and Export ✅
+### Milestone 5 — Save, Autosave, and Export 🟡
 
 - ✅ Save/open plain `.cartoproj` JSON (File System Access API + download/upload fallback)
 - ✅ Browser autosave every 10s (IndexedDB) + recovery prompt for autosaved drafts
 - ✅ PNG/JPEG export from the export frame at 1x / 2x / custom scale
 - ✅ White or transparent background; JPEG quality slider
 - ✅ Basemap + GeoJSON + annotations composited into the raster export
+- 🟡 Single-document New/Open/Restore now require dirty-document safety prompts.
+- 🟡 Local PMTiles file basemaps are disabled for Phase 1 web because `blob:`
+      URLs cannot survive save/reopen.
+- 🟡 Static PDF basemap export remains unsupported until Phase 2 export hardening.
 
-### Milestone 6 — Verification and Stabilization ✅
+### Milestone 6 — Verification and Stabilization 🟡
 
 - ✅ Playwright flows: first run, import, annotation, round-trip, autosave, export
 - ✅ Unit tests: schema migration/defaulting, layer ordering, annotation updates
-- ✅ Reference + medium performance datasets
-- ✅ Performance measurement (cold start, import, export, memory smoke output)
-- ✅ Fix usability blockers
+- 🟡 Export tests cover PNG/JPEG/custom scale/transparent options and basic
+      output signatures; visual fidelity/pixel diff still needs a stronger harness.
+- 🟡 Performance smoke records cold start/import/export and enforces broad PRD
+      thresholds; dataset realism still needs a true 10 MB fixture.
+- 🟡 Production build passes but emits a large initial JS chunk warning; bundle
+      splitting remains a Phase 1 exit-hardening task.
+
+---
+
+## Phase 1 Exit Audit & Hardening 🟡
+
+Acceptance before moving fully into Phase 2:
+
+- ✅ No enabled UI control is inert. Ruler, locked-canvas Pan, Marquee, Paint,
+      Image, Legend, Comment, Undo, Redo, Snap, and Share are disabled/marked
+      as Phase 2 until implemented.
+- ✅ GeoJSON layer style controls are exposed in the inspector and persisted in
+      `.cartoproj`.
+- ✅ Locked layers cannot be renamed, deleted, reordered, or restyled.
+- ✅ New/Open/Autosave Restore prompt before discarding dirty work.
+- ✅ Local PMTiles file selection is blocked in Phase 1 web; use remote PMTiles
+      URLs or built-in basemaps for persisted projects.
+- 🟡 Export acceptance should add visual/pixel comparisons against the visible
+      composition frame for basemap + GeoJSON + annotations.
+- 🟡 Performance acceptance should use a realistic 10 MB GeoJSON fixture and
+      enforce cold start, import, pan/zoom, drag, export, and memory thresholds.
+- 🟡 Bundle hardening should code-split heavy MapLibre/Konva/export paths or set
+      an explicit accepted bundle budget.
 
 ---
 
 ## Phase 2 / v1 Editorial — production-grade editorial tool
 
-### Basemap sources & styling ⬜
+### Project & Document Workflow ⬜
+
+- ⬜ Multi-project sessions/tabs:
+  - ⬜ `ProjectSession { id, project, file, dirty, autosaveKey, title, lastActiveAt }`
+  - ⬜ `activeSessionId`
+  - ⬜ New/Open creates or switches tabs; Close prompts on unsaved changes
+  - ⬜ Autosave is per-project/per-tab rather than one global current draft
+- ⬜ Recent projects where browser/native capabilities allow it
+- ⬜ Undo/redo with ≥100 meaningful document steps
+- ⬜ Pixel/grid snap, ruler/measurement tool, and locked-canvas pan tool
+- ⬜ Share, comments, image placement, and legend builder workflows
+
+### Basemap sources & styling 🟡
 
 The basemap must be **user-selectable**, from either an online source or a custom
 base — this is a core editorial requirement.
 
-- ⬜ Built-in style presets: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
-- ⬜ **Basemap source picker** — choose the active basemap:
-  - ⬜ Online: hosted Protomaps PMTiles / standard tile or style URLs
-  - ⬜ Custom: user-supplied MapLibre **style JSON import**
-  - ⬜ Custom: user-supplied PMTiles archive (URL or local file)
+- ✅ Built-in style presets: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
+- 🟡 **Basemap source picker** — partial Phase 1 prototype:
+  - ✅ Online: hosted Protomaps PMTiles / standard tile or style URLs
+  - ✅ Custom: user-supplied MapLibre style URL
+  - 🟡 Custom: PMTiles URL supported; local PMTiles file deferred because
+        persisted `blob:` URLs break save/reopen
   - ⬜ Offline: bundled / downloaded regional basemap packs (desktop)
 - ⬜ Toggle basemap sub-layers: roads, labels, water, landuse, buildings, boundaries
-- ⬜ Persist the chosen basemap source + style in the `.cartoproj` document
+- 🟡 Persist the chosen basemap source + style in the `.cartoproj` document
 
 ### Richer annotation & styling ⬜
 
@@ -93,7 +139,6 @@ base — this is a core editorial requirement.
 - ⬜ Grouped objects; smart guides (edge/center) and pixel/grid snap
 - ⬜ Title block, source credit, scale bar, north arrow
 - ⬜ Manually editable legend builder
-- ⬜ Undo/redo with ≥100 meaningful document steps
 
 ### Import & export ⬜
 
@@ -132,7 +177,7 @@ base — this is a core editorial requirement.
 | Format | Phase | Status |
 |---|---|---|
 | PNG  | Phase 1   | ✅ Milestone 5 |
-| JPEG | Phase 1   | ✅ Milestone 5 |
+| JPEG | Phase 1   | 🟡 Milestone 5; broader acceptance coverage added |
 | SVG  | v1 (after spike) | ⬜ |
 | PDF  | Post-v1   | ⬜ |
 | Interactive HTML | Post-v1 | ⬜ |

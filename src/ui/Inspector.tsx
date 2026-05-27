@@ -22,6 +22,7 @@ export function Inspector() {
   const [pane, setPane] = useState<PaneKey>('layers');
   const activeTool = useToolStore((s) => s.activeTool);
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
+  const selectedLayerId = useDocumentStore((s) => s.selectedLayerId);
   const selectedFeature = useDocumentStore((s) => s.selectedFeature);
 
   useEffect(() => {
@@ -54,7 +55,12 @@ export function Inspector() {
         })}
       </div>
       <div role="tabpanel" className="flex-1 overflow-y-auto p-4">
-        {pane === 'properties' && (selectedFeature && !selectedAnnotationId ? <AttributeInspector /> : <AnnotationInspector />)}
+        {pane === 'properties' &&
+          ((selectedFeature || selectedLayerId) && !selectedAnnotationId ? (
+            <AttributeInspector />
+          ) : (
+            <AnnotationInspector />
+          ))}
         {pane === 'layers' && <LayerPanel />}
         {pane === 'style' && (
           <div className="text-[12px] text-[var(--text-3)]">

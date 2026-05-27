@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
+import { confirmDiscardDirtyProject, createNewProject, replaceCurrentProject } from '@/project/documentFlow';
 import { useDocumentStore } from '@/state/documentStore';
-import { SHORTCUT_TO_TOOL, useToolStore } from '@/state/toolStore';
+import { isToolEnabled, SHORTCUT_TO_TOOL, useToolStore } from '@/state/toolStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
 
@@ -38,15 +39,23 @@ export function KeyboardShortcuts() {
         }
         if (key === 'o') {
           event.preventDefault();
+          if (!confirmDiscardDirtyProject()) return;
           const push = useNotices.getState().push;
           try {
             const { project, file: opened } = await openProjectFromDisk();
-            useDocumentStore.getState().replaceProject(project, opened);
+            replaceCurrentProject(project, opened);
             push(`Opened ${opened.name}`);
           } catch (error) {
             if (error instanceof UserCancelledError) return;
             push(error instanceof Error ? error.message : 'Open failed.', 'error');
           }
+          return;
+        }
+        if (key === 'n') {
+          event.preventDefault();
+          if (!confirmDiscardDirtyProject()) return;
+          createNewProject();
+          useNotices.getState().push('Created new project');
           return;
         }
         if (key === 'e') {
@@ -79,6 +88,11 @@ export function KeyboardShortcuts() {
       const tool = SHORTCUT_TO_TOOL[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();
+        if (!isToolEnabled(tool)) {
+          const push = useNotices.getState().push;
+          push('That tool is planned for Phase 2', 'error');
+          return;
+        }
         useToolStore.getState().setActiveTool(tool);
       }
     };

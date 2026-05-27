@@ -142,6 +142,41 @@ describe('documentStore', () => {
     expect(useDocumentStore.getState().dirty).toBe(true);
   });
 
+  it('updates GeoJSON layer style and blocks locked layer mutations', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    const a = makeLayer('A');
+    const b = makeLayer('B');
+    useDocumentStore.getState().addLayer(a);
+    useDocumentStore.getState().addLayer(b);
+    useDocumentStore.setState({ dirty: false });
+
+    useDocumentStore.getState().updateLayerStyle(a.id, {
+      fillColor: '#34c759',
+      fillOpacity: 0.5,
+      strokeWidth: 3,
+      pointRadius: 9,
+    });
+    let stored = useDocumentStore.getState().project.layers[0];
+    expect(stored.style.fillColor).toBe('#34c759');
+    expect(stored.style.fillOpacity).toBe(0.5);
+    expect(stored.style.strokeWidth).toBe(3);
+    expect(stored.style.pointRadius).toBe(9);
+    expect(useDocumentStore.getState().dirty).toBe(true);
+
+    useDocumentStore.getState().setLayerLocked(a.id, true);
+    useDocumentStore.setState({ dirty: false });
+    useDocumentStore.getState().renameLayer(a.id, 'Locked rename');
+    useDocumentStore.getState().updateLayerStyle(a.id, { fillColor: '#ff3b30' });
+    useDocumentStore.getState().moveLayer(a.id, 'up');
+    useDocumentStore.getState().removeLayer(a.id);
+
+    stored = useDocumentStore.getState().project.layers.find((layer) => layer.id === a.id)!;
+    expect(stored.name).toBe('A');
+    expect(stored.style.fillColor).toBe('#34c759');
+    expect(useDocumentStore.getState().project.layers.map((layer) => layer.name)).toEqual(['A', 'B']);
+    expect(useDocumentStore.getState().dirty).toBe(false);
+  });
+
   it('removing a selected layer clears its selection', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Temp');

@@ -17,39 +17,32 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useNotices } from './notices';
-import { useToolStore, type ToolKey } from '@/state/toolStore';
+import { TOOL_DEFINITIONS, useToolStore, type ToolDefinition } from '@/state/toolStore';
 import { useDocumentStore } from '@/state/documentStore';
 
-interface Tool {
-  key: ToolKey;
-  name: string;
-  shortcut: string;
-  icon: LucideIcon;
-}
-
 /** Tool groups from design.md §4.2. */
-const TOOL_GROUPS: Tool[][] = [
-  [
-    { key: 'move', name: 'Move', shortcut: 'V', icon: MousePointer2 },
-    { key: 'marquee', name: 'Marquee', shortcut: 'M', icon: SquareDashed },
-    { key: 'pan', name: 'Pan', shortcut: 'H', icon: Hand },
-    { key: 'ruler', name: 'Ruler', shortcut: 'K', icon: Ruler },
-  ],
-  [
-    { key: 'pen', name: 'Pen', shortcut: 'P', icon: PenTool },
-    { key: 'rectangle', name: 'Rectangle', shortcut: 'R', icon: Square },
-    { key: 'ellipse', name: 'Ellipse', shortcut: 'O', icon: Circle },
-    { key: 'polygon', name: 'Polygon', shortcut: 'G', icon: Hexagon },
-    { key: 'text', name: 'Text', shortcut: 'T', icon: Type },
-    { key: 'paint', name: 'Paint area', shortcut: 'B', icon: PaintBucket },
-    { key: 'pin', name: 'Pin', shortcut: 'I', icon: MapPin },
-    { key: 'arrow', name: 'Arrow', shortcut: 'A', icon: ArrowUpRight },
-    { key: 'image', name: 'Image', shortcut: 'J', icon: Image },
-  ],
-  [
-    { key: 'legend', name: 'Legend', shortcut: 'L', icon: List },
-    { key: 'comment', name: 'Comment', shortcut: 'C', icon: MessageSquare },
-  ],
+const ICONS: Record<ToolDefinition['key'], LucideIcon> = {
+  move: MousePointer2,
+  marquee: SquareDashed,
+  pan: Hand,
+  ruler: Ruler,
+  pen: PenTool,
+  rectangle: Square,
+  ellipse: Circle,
+  polygon: Hexagon,
+  text: Type,
+  paint: PaintBucket,
+  pin: MapPin,
+  arrow: ArrowUpRight,
+  image: Image,
+  legend: List,
+  comment: MessageSquare,
+};
+
+const TOOL_GROUPS: ToolDefinition[][] = [
+  TOOL_DEFINITIONS.slice(0, 4),
+  TOOL_DEFINITIONS.slice(4, 13),
+  TOOL_DEFINITIONS.slice(13),
 ];
 
 /**
@@ -61,10 +54,14 @@ export function ToolRail() {
   const setActiveTool = useToolStore((s) => s.setActiveTool);
   const mode = useDocumentStore((s) => s.project.mode);
   const push = useNotices((s) => s.push);
-  const disabled = mode !== 'editing';
+  const setupDisabled = mode !== 'editing';
 
-  const activate = (tool: Tool) => {
-    if (disabled) {
+  const activate = (tool: ToolDefinition) => {
+    if (!tool.enabled) {
+      push(tool.disabledReason ?? `${tool.name} is planned for Phase 2`, 'error');
+      return;
+    }
+    if (setupDisabled) {
       push('Lock the map area before using annotation tools', 'error');
       return;
     }
@@ -84,8 +81,12 @@ export function ToolRail() {
         <div key={groupIndex} className="flex flex-col items-center gap-1">
           {groupIndex > 0 && <span className="my-1 h-px w-6 bg-[var(--divider)]" />}
           {group.map((tool) => {
-            const Icon = tool.icon;
+            const Icon = ICONS[tool.key];
             const isActive = active === tool.key;
+            const disabled = setupDisabled || !tool.enabled;
+            const title = tool.enabled
+              ? `${tool.name} — ${tool.shortcut}`
+              : `${tool.name} — ${tool.disabledReason ?? 'Phase 2'}`;
             return (
               <button
                 key={tool.key}
@@ -94,7 +95,8 @@ export function ToolRail() {
                 aria-label={`${tool.name} (${tool.shortcut})`}
                 aria-pressed={isActive}
                 disabled={disabled}
-                title={`${tool.name} — ${tool.shortcut}`}
+                aria-disabled={disabled}
+                title={title}
                 onClick={() => activate(tool)}
                 className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
                   disabled
@@ -105,6 +107,9 @@ export function ToolRail() {
                 }`}
               >
                 <Icon size={18} />
+                {!tool.enabled && (
+                  <span className="sr-only">Phase 2</span>
+                )}
               </button>
             );
           })}

@@ -23,12 +23,92 @@ export type ToolKey =
   | 'legend'
   | 'comment';
 
+export interface ToolDefinition {
+  key: ToolKey;
+  name: string;
+  shortcut: string;
+  phase: 'phase1' | 'phase2';
+  enabled: boolean;
+  disabledReason?: string;
+}
+
+export const TOOL_DEFINITIONS: ToolDefinition[] = [
+  { key: 'move', name: 'Move', shortcut: 'V', phase: 'phase1', enabled: true },
+  {
+    key: 'marquee',
+    name: 'Marquee',
+    shortcut: 'M',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: multi-select marquee',
+  },
+  {
+    key: 'pan',
+    name: 'Pan',
+    shortcut: 'H',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: locked-canvas pan tool',
+  },
+  {
+    key: 'ruler',
+    name: 'Ruler',
+    shortcut: 'K',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: measurements',
+  },
+  { key: 'pen', name: 'Line', shortcut: 'P', phase: 'phase1', enabled: true },
+  { key: 'rectangle', name: 'Rectangle', shortcut: 'R', phase: 'phase1', enabled: true },
+  { key: 'ellipse', name: 'Ellipse', shortcut: 'O', phase: 'phase1', enabled: true },
+  { key: 'polygon', name: 'Polygon', shortcut: 'G', phase: 'phase1', enabled: true },
+  { key: 'text', name: 'Text', shortcut: 'T', phase: 'phase1', enabled: true },
+  {
+    key: 'paint',
+    name: 'Paint area',
+    shortcut: 'B',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: paint area tool',
+  },
+  { key: 'pin', name: 'Pin', shortcut: 'I', phase: 'phase1', enabled: true },
+  { key: 'arrow', name: 'Arrow', shortcut: 'A', phase: 'phase1', enabled: true },
+  {
+    key: 'image',
+    name: 'Image',
+    shortcut: 'J',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: image placement',
+  },
+  {
+    key: 'legend',
+    name: 'Legend',
+    shortcut: 'L',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: legend builder',
+  },
+  {
+    key: 'comment',
+    name: 'Comment',
+    shortcut: 'C',
+    phase: 'phase2',
+    enabled: false,
+    disabledReason: 'Phase 2: comments',
+  },
+];
+
+export const TOOL_BY_KEY = Object.fromEntries(
+  TOOL_DEFINITIONS.map((tool) => [tool.key, tool]),
+) as Record<ToolKey, ToolDefinition>;
+
 export const SHORTCUT_TO_TOOL: Record<string, ToolKey> = {
   v: 'move',
   m: 'marquee',
   h: 'pan',
   k: 'ruler',
-  p: 'polygon',
+  p: 'pen',
   r: 'rectangle',
   o: 'ellipse',
   g: 'polygon',
@@ -40,6 +120,10 @@ export const SHORTCUT_TO_TOOL: Record<string, ToolKey> = {
   l: 'legend',
   c: 'comment',
 };
+
+export function isToolEnabled(tool: ToolKey): boolean {
+  return TOOL_BY_KEY[tool].enabled;
+}
 
 export const DRAWABLE_TOOLS = new Set<ToolKey>([
   'rectangle',

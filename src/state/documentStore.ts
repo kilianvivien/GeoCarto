@@ -7,6 +7,7 @@ import {
   type BasemapConfig,
   type CartoProject,
   type GeoJsonLayer,
+  type GeoJsonStyle,
 } from '@/project/cartoproj';
 import type { Viewport } from './viewportStore';
 
@@ -44,6 +45,7 @@ interface DocumentState {
   addLayer: (layer: GeoJsonLayer) => void;
   removeLayer: (id: string) => void;
   renameLayer: (id: string, name: string) => void;
+  updateLayerStyle: (id: string, patch: Partial<GeoJsonStyle>) => void;
   setLayerVisible: (id: string, visible: boolean) => void;
   setLayerLocked: (id: string, locked: boolean) => void;
   /** Reorder within the stack. `up` moves toward the front (drawn on top). */
@@ -139,6 +141,8 @@ export const useDocumentStore = create<DocumentState>()(
 
     removeLayer: (id) =>
       set((state) => {
+        const layer = state.project.layers.find((l) => l.id === id);
+        if (layer?.locked) return;
         state.project.layers = state.project.layers.filter((l) => l.id !== id);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
@@ -149,11 +153,20 @@ export const useDocumentStore = create<DocumentState>()(
     renameLayer: (id, name) =>
       set((state) => {
         const layer = state.project.layers.find((l) => l.id === id);
-        if (layer) {
+        if (layer && !layer.locked) {
           layer.name = name;
           state.project.meta.updatedAt = new Date().toISOString();
-        state.dirty = true;
+          state.dirty = true;
         }
+      }),
+
+    updateLayerStyle: (id, patch) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === id);
+        if (!layer || layer.locked) return;
+        layer.style = { ...layer.style, ...patch };
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     setLayerVisible: (id, visible) =>
@@ -181,8 +194,10 @@ export const useDocumentStore = create<DocumentState>()(
         const layers = state.project.layers;
         const index = layers.findIndex((l) => l.id === id);
         if (index === -1) return;
+        if (layers[index].locked) return;
         const target = direction === 'up' ? index + 1 : index - 1;
         if (target < 0 || target >= layers.length) return;
+        if (layers[target].locked) return;
         [layers[index], layers[target]] = [layers[target], layers[index]];
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;

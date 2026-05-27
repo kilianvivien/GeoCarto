@@ -70,14 +70,18 @@ export function MapSetupPanel() {
   const selectStaticFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf';
+    input.accept = 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp';
     input.addEventListener('change', async () => {
       const file = input.files?.[0];
       if (!file) return;
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       const isImage = file.type.startsWith('image/');
-      if (!isPdf && !isImage) {
-        push('Choose a PNG, JPEG, WebP, or PDF basemap file.', 'error');
+      if (isPdf) {
+        push('PDF basemaps are planned for Phase 2 export hardening.', 'error');
+        return;
+      }
+      if (!isImage) {
+        push('Choose a PNG, JPEG, or WebP basemap file.', 'error');
         return;
       }
       const dataUrl = await fileToDataUrl(file);
@@ -115,19 +119,7 @@ export function MapSetupPanel() {
   };
 
   const selectLocalPmtiles = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pmtiles,application/octet-stream';
-    input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      chooseBasemap(
-        { kind: 'pmtiles-url', name: file.name, url, preset: 'editorial-light', attribution: file.name },
-        `Using local PMTiles "${file.name}"`,
-      );
-    });
-    input.click();
+    push('Local PMTiles files are Phase 2 because blob URLs cannot survive save/reopen.', 'error');
   };
 
   /** Zoom the map so the composition box fills the canvas, then lock that view. */
@@ -258,8 +250,14 @@ export function MapSetupPanel() {
                 Use PMTiles
               </button>
               <span className="mx-2 text-[var(--text-3)]">·</span>
-              <button type="button" onClick={selectLocalPmtiles} className={linkButton}>
-                Choose file
+              <button
+                type="button"
+                onClick={selectLocalPmtiles}
+                disabled
+                title="Phase 2: local PMTiles file persistence"
+                className={`${linkButton} disabled:cursor-not-allowed disabled:opacity-45`}
+              >
+                File in Phase 2
               </button>
             </div>
 
@@ -273,7 +271,7 @@ export function MapSetupPanel() {
                 Image or PDF
               </div>
               <div className="text-[11px] leading-snug text-[var(--text-2)]">
-                Use a PNG, JPEG, WebP, or first-page PDF as a visual static basemap.
+                Use a PNG, JPEG, or WebP as a visual static basemap.
               </div>
             </button>
           </div>

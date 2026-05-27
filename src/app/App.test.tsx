@@ -66,6 +66,30 @@ describe('App', () => {
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
   });
 
+  it('keeps Phase 2 tools and titlebar actions disabled', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /ruler/i }));
+    expect(useToolStore.getState().activeTool).toBe('move');
+    expect(screen.getByRole('button', { name: /undo/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /redo/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /snap/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /share/i })).toBeDisabled();
+  });
+
+  it('prompts before creating a new project over dirty work', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    useDocumentStore.getState().addAnnotation(makeAnnotation());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /new project/i }));
+
+    expect(confirm).toHaveBeenCalled();
+    expect(useDocumentStore.getState().project.annotations).toHaveLength(1);
+  });
+
   it('shows selected annotation properties and deletes editable annotations', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     useDocumentStore.getState().addAnnotation(makeAnnotation());

@@ -1,5 +1,6 @@
 import {
   Download,
+  FilePlus2,
   FileText,
   FolderOpen,
   LockKeyhole,
@@ -16,6 +17,7 @@ import { useTheme } from './useTheme';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
+import { confirmDiscardDirtyProject, createNewProject, replaceCurrentProject } from '@/project/documentFlow';
 import { ExportDialog } from './ExportDialog';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
@@ -80,14 +82,21 @@ export function TitleBar() {
   };
 
   const handleOpen = async () => {
+    if (!confirmDiscardDirtyProject()) return;
     try {
       const { project, file: opened } = await openProjectFromDisk();
-      useDocumentStore.getState().replaceProject(project, opened);
+      replaceCurrentProject(project, opened);
       push(`Opened ${opened.name}`);
     } catch (error) {
       if (error instanceof UserCancelledError) return;
       push(error instanceof Error ? error.message : 'Open failed.', 'error');
     }
+  };
+
+  const handleNew = () => {
+    if (!confirmDiscardDirtyProject()) return;
+    createNewProject();
+    push('Created new project');
   };
 
   const displayName = file?.name ?? `${projectName || 'Untitled'}.cartoproj`;
@@ -107,6 +116,9 @@ export function TitleBar() {
       </div>
 
       <div className="flex items-center gap-1">
+        <IconButton label="New project" onClick={handleNew}>
+          <FilePlus2 size={16} />
+        </IconButton>
         <IconButton label="Open project (⌘O)" onClick={handleOpen}>
           <FolderOpen size={16} />
         </IconButton>
@@ -114,13 +126,13 @@ export function TitleBar() {
           <Save size={16} />
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
-        <IconButton label="Undo">
+        <IconButton label="Undo (Phase 2)" disabled>
           <Undo2 size={16} />
         </IconButton>
-        <IconButton label="Redo">
+        <IconButton label="Redo (Phase 2)" disabled>
           <Redo2 size={16} />
         </IconButton>
-        <IconButton label="Snap">
+        <IconButton label="Snap (Phase 2)" disabled>
           <Magnet size={16} />
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
@@ -130,7 +142,7 @@ export function TitleBar() {
         >
           {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
         </IconButton>
-        <IconButton label="Share">
+        <IconButton label="Share (Phase 2)" disabled>
           <Share size={16} />
         </IconButton>
         <button
