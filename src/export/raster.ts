@@ -43,12 +43,12 @@ async function renderMapCanvas(
   const liveH = liveContainer.clientHeight;
   if (liveW === 0 || liveH === 0) throw new ExportError('Map container has no size.');
 
-  const aspect = project.exportFrame.width / project.exportFrame.height;
-  const box = computeFrameBox(liveW, liveH, aspect);
-  const zoomDelta = Math.log2(outW / box.width);
+  const renderW = liveW;
+  const renderH = liveH;
+  const pixelRatio = Math.max(1, Math.min(4, outW / renderW, outH / renderH));
 
   const offscreen = document.createElement('div');
-  offscreen.style.cssText = `position:fixed;left:-99999px;top:0;width:${outW}px;height:${outH}px;pointer-events:none;`;
+  offscreen.style.cssText = `position:fixed;left:-99999px;top:0;width:${renderW}px;height:${renderH}px;pointer-events:none;`;
   document.body.appendChild(offscreen);
 
   try {
@@ -56,9 +56,10 @@ async function renderMapCanvas(
       container: offscreen,
       style: buildBasemapStyle(project.basemap),
       center: project.viewport.center,
-      zoom: project.viewport.zoom + zoomDelta,
+      zoom: project.viewport.zoom,
       bearing: project.viewport.bearing,
       pitch: project.viewport.pitch,
+      pixelRatio,
       interactive: false,
       attributionControl: false,
       canvasContextAttributes: { preserveDrawingBuffer: true },
@@ -92,7 +93,7 @@ async function renderMapCanvas(
       annotations: project.annotations.filter((annotation) => annotation.anchorMode === 'map'),
       map,
       frameOffset: { x: 0, y: 0 },
-      scale: 1,
+      scale: outW / renderW,
     });
 
     map.remove();

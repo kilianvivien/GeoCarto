@@ -46,9 +46,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     key: 'pan',
     name: 'Pan',
     shortcut: 'H',
-    phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: locked-canvas pan tool',
+    phase: 'phase1',
+    enabled: true,
   },
   {
     key: 'ruler',
