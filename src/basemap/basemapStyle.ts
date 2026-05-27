@@ -3,7 +3,9 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
 
 /** Remote Protomaps demo PMTiles archive (v4 schema, planet-wide). */
-const PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
+const REMOTE_PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
+const DEV_PMTILES_PROXY_URL = '/__geocarto_basemap/v4.pmtiles';
+const PMTILES_URL = import.meta.env.DEV ? DEV_PMTILES_PROXY_URL : REMOTE_PMTILES_URL;
 const SOURCE = 'protomaps';
 const ASSETS = 'https://protomaps.github.io/basemaps-assets';
 

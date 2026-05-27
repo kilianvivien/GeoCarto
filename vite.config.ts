@@ -5,6 +5,15 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/__geocarto_basemap/v4.pmtiles': {
+        target: 'https://demo-bucket.protomaps.com',
+        changeOrigin: true,
+        rewrite: () => '/v4.pmtiles',
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
