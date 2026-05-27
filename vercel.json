@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/__geocarto_basemap/v4.pmtiles",
+      "destination": "https://demo-bucket.protomaps.com/v4.pmtiles"
+    }
+  ]
+}

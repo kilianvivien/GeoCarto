@@ -2,10 +2,9 @@ import type { StyleSpecification } from 'maplibre-gl';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
 
-/** Remote Protomaps demo PMTiles archive (v4 schema, planet-wide). */
-const REMOTE_PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
-const DEV_PMTILES_PROXY_URL = '/__geocarto_basemap/v4.pmtiles';
-const PMTILES_URL = import.meta.env.DEV ? DEV_PMTILES_PROXY_URL : REMOTE_PMTILES_URL;
+/** Same-origin PMTiles path; Vite dev and Vercel both proxy this to the demo archive. */
+const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
+const DEFAULT_PMTILES_URL = import.meta.env.VITE_GEOCARTO_PMTILES_URL || DEFAULT_PMTILES_PATH;
 const SOURCE = 'protomaps';
 const ASSETS = 'https://protomaps.github.io/basemaps-assets';
 
@@ -35,7 +34,7 @@ export function buildBasemapStyle(config: BasemapConfig): StyleSpecification | s
   if (config.kind === 'style-url') return config.url;
 
   const preset = config.kind === 'pmtiles-url' ? config.preset : config.kind === 'builtin' ? config.preset : 'editorial-light';
-  const sourceUrl = config.kind === 'pmtiles-url' ? config.url : PMTILES_URL;
+  const sourceUrl = config.kind === 'pmtiles-url' ? config.url : DEFAULT_PMTILES_URL;
   const spriteTheme = PRESET_TO_SPRITE[preset];
 
   return {
