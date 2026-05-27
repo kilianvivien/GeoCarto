@@ -51,6 +51,36 @@ export function RecoveryPrompt() {
 
   if (entries.length === 0 || hidden) return null;
 
+  const restoreOne = async (entry: AutosaveEntry) => {
+    const binding = entry.fileName ? { handle: null, name: entry.fileName } : null;
+    // First entry replaces the blank startup tab; the rest open as new tabs
+    // so the user can switch between recovered drafts.
+    if (entries[0] === entry) {
+      replaceCurrentProject(entry.project, binding);
+    } else {
+      openProjectInNewTab(entry.project, binding);
+    }
+    if (entry.sessionId) await clearAutosave(entry.sessionId);
+    else await clearLegacyAutosave();
+    setEntries((current) => current.filter((e) => e !== entry));
+    push(`Restored ${entry.fileName ?? 'autosaved draft'}`);
+  };
+
+  const restoreAll = async () => {
+    for (const entry of entries) {
+      await restoreOne(entry);
+    }
+    setHidden(true);
+  };
+
+  const discardAll = async () => {
+    for (const entry of entries) {
+      if (entry.sessionId) await clearAutosave(entry.sessionId);
+      else await clearLegacyAutosave();
+    }
+    setHidden(true);
+  };
+
   // Single-draft case mirrors the Phase 1 compact pill — no per-entry list,
   // no duplicate Restore button.
   if (entries.length === 1) {
@@ -87,36 +117,6 @@ export function RecoveryPrompt() {
       </div>
     );
   }
-
-  const restoreOne = async (entry: AutosaveEntry) => {
-    const binding = entry.fileName ? { handle: null, name: entry.fileName } : null;
-    // First entry replaces the blank startup tab; the rest open as new tabs
-    // so the user can switch between recovered drafts.
-    if (entries[0] === entry) {
-      replaceCurrentProject(entry.project, binding);
-    } else {
-      openProjectInNewTab(entry.project, binding);
-    }
-    if (entry.sessionId) await clearAutosave(entry.sessionId);
-    else await clearLegacyAutosave();
-    setEntries((current) => current.filter((e) => e !== entry));
-    push(`Restored ${entry.fileName ?? 'autosaved draft'}`);
-  };
-
-  const restoreAll = async () => {
-    for (const entry of entries) {
-      await restoreOne(entry);
-    }
-    setHidden(true);
-  };
-
-  const discardAll = async () => {
-    for (const entry of entries) {
-      if (entry.sessionId) await clearAutosave(entry.sessionId);
-      else await clearLegacyAutosave();
-    }
-    setHidden(true);
-  };
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center">

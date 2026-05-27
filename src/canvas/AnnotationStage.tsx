@@ -97,28 +97,34 @@ function FillShape({
       return <Ellipse {...common} radiusX={annotation.radiusX} radiusY={annotation.radiusY} />;
     case 'line':
       return (
-        <Line
-          points={annotation.points}
-          opacity={annotation.opacity}
-          stroke={annotation.style.strokeColor}
-          strokeWidth={annotation.style.strokeWidth}
-          lineCap="round"
-          lineJoin="round"
-        />
+        <>
+          <LineSelectionBounds points={annotation.points} strokeWidth={annotation.style.strokeWidth} />
+          <Line
+            points={annotation.points}
+            opacity={annotation.opacity}
+            stroke={annotation.style.strokeColor}
+            strokeWidth={annotation.style.strokeWidth}
+            lineCap="round"
+            lineJoin="round"
+          />
+        </>
       );
     case 'arrow':
       return (
-        <Arrow
-          points={annotation.points}
-          opacity={annotation.opacity}
-          stroke={annotation.style.strokeColor}
-          fill={annotation.style.strokeColor}
-          strokeWidth={annotation.style.strokeWidth}
-          pointerLength={12}
-          pointerWidth={12}
-          lineCap="round"
-          lineJoin="round"
-        />
+        <>
+          <LineSelectionBounds points={annotation.points} strokeWidth={annotation.style.strokeWidth} />
+          <Arrow
+            points={annotation.points}
+            opacity={annotation.opacity}
+            stroke={annotation.style.strokeColor}
+            fill={annotation.style.strokeColor}
+            strokeWidth={annotation.style.strokeWidth}
+            pointerLength={12}
+            pointerWidth={12}
+            lineCap="round"
+            lineJoin="round"
+          />
+        </>
       );
     case 'polygon':
       return <Line {...common} points={annotation.points} closed={annotation.closed} lineJoin="round" />;
@@ -142,6 +148,26 @@ function FillShape({
         </>
       );
   }
+}
+
+function LineSelectionBounds({ points, strokeWidth }: { points: number[]; strokeWidth: number }) {
+  const xs = points.filter((_, index) => index % 2 === 0);
+  const ys = points.filter((_, index) => index % 2 === 1);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const padding = Math.max(10, strokeWidth / 2 + 8);
+
+  return (
+    <Rect
+      x={minX}
+      y={minY - padding}
+      width={Math.max(1, maxX - minX)}
+      height={Math.max(1, maxY - minY) + padding * 2}
+      fill="rgba(0,0,0,0.001)"
+    />
+  );
 }
 
 function starPoints(radius: number) {
@@ -247,6 +273,10 @@ function isStageTarget(event: KonvaEventObject<MouseEvent>) {
   return event.target === event.target.getStage();
 }
 
+function isLineLike(annotation: Annotation | undefined) {
+  return annotation?.kind === 'line' || annotation?.kind === 'arrow';
+}
+
 /**
  * Editable Konva annotation layer. It renders the canonical document annotations
  * and writes edits back to the document store.
@@ -281,6 +311,10 @@ export function AnnotationStage() {
           (annotation.kind === 'text' || annotation.kind === 'pin') &&
           annotation.id === selectedAnnotationId,
       ) ?? null,
+    [annotations, selectedAnnotationId],
+  );
+  const selectedAnnotation = useMemo(
+    () => annotations.find((annotation) => annotation.id === selectedAnnotationId),
     [annotations, selectedAnnotationId],
   );
   const editingAnnotation =
@@ -332,14 +366,13 @@ export function AnnotationStage() {
   useEffect(() => {
     const transformer = transformerRef.current;
     if (!transformer) return;
-    const selectedAnnotation = annotations.find((annotation) => annotation.id === selectedAnnotationId);
     const selectedNode =
       selectedAnnotation && selectedAnnotation.visible && !selectedAnnotation.locked
         ? nodeRefs.current.get(selectedAnnotation.id)
         : null;
     transformer.nodes(selectedNode ? [selectedNode] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedAnnotationId, annotations]);
+  }, [selectedAnnotation]);
 
   const editingTextId = editingText?.id ?? null;
   useEffect(() => {
@@ -562,22 +595,29 @@ export function AnnotationStage() {
           <Transformer
             ref={transformerRef}
             rotateEnabled
-            enabledAnchors={[
-              'top-left',
-              'top-center',
-              'top-right',
-              'middle-left',
-              'middle-right',
-              'bottom-left',
-              'bottom-center',
-              'bottom-right',
-            ]}
+            enabledAnchors={
+              isLineLike(selectedAnnotation)
+                ? ['middle-left', 'middle-right']
+                : [
+                    'top-left',
+                    'top-center',
+                    'top-right',
+                    'middle-left',
+                    'middle-right',
+                    'bottom-left',
+                    'bottom-center',
+                    'bottom-right',
+                  ]
+            }
             borderStroke="#007aff"
             anchorStroke="#007aff"
             anchorFill="#ffffff"
             ignoreStroke
             boundBoxFunc={(_oldBox, newBox) => {
-              if (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4) return _oldBox;
+              const minDimension = isLineLike(selectedAnnotation)
+                ? Math.max(Math.abs(newBox.width), Math.abs(newBox.height))
+                : Math.min(Math.abs(newBox.width), Math.abs(newBox.height));
+              if (minDimension < 4) return _oldBox;
               return newBox;
             }}
           />

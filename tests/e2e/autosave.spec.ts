@@ -36,3 +36,16 @@ test('restore an autosaved draft from IndexedDB', async ({ page }) => {
   await expect(page.getByTestId('annotation-row')).toHaveCount(3);
   await expect(page.getByTestId('layer-row')).toContainText('Reference');
 });
+
+test('dismiss an autosaved draft from IndexedDB', async ({ page }) => {
+  await page.goto('/');
+  await seedAutosave(page);
+  await page.reload();
+
+  await expect(page.getByTestId('recovery-prompt')).toBeVisible();
+  await page.getByRole('button', { name: 'Discard draft' }).click();
+  await expect(page.getByTestId('recovery-prompt')).toBeHidden();
+
+  await page.reload();
+  await expect(page.getByTestId('recovery-prompt')).toBeHidden();
+});
