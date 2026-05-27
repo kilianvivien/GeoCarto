@@ -44,7 +44,8 @@ export type AnnotationKind =
   | 'line'
   | 'arrow'
   | 'polygon'
-  | 'pin';
+  | 'pin'
+  | 'measurement';
 
 export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
@@ -104,10 +105,17 @@ export type PinIcon =
   | 'cross'
   | 'target';
 
+export type FillPattern = 'none' | 'diagonal' | 'crosshatch' | 'horizontal' | 'vertical' | 'dots';
+export type StrokePattern = 'solid' | 'dotted' | 'dashed';
+
 export interface AnnotationStyle {
   fillColor: string;
+  fillPattern: FillPattern;
+  hatchColor: string;
+  hatchSpacing: number;
   strokeColor: string;
   strokeWidth: number;
+  strokePattern: StrokePattern;
   textColor: string;
   textSize: number;
   fontFamily: string;
@@ -117,8 +125,12 @@ export interface AnnotationStyle {
 
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   fillColor: '#007aff',
+  fillPattern: 'none',
+  hatchColor: '#0f172a',
+  hatchSpacing: 10,
   strokeColor: '#0f172a',
   strokeWidth: 2,
+  strokePattern: 'solid',
   textColor: '#111827',
   textSize: 18,
   fontFamily: 'Inter',
@@ -140,6 +152,7 @@ export interface AnnotationBase {
   rotation: number;
   opacity: number;
   style: AnnotationStyle;
+  groupId?: string | null;
 }
 
 export type TextAnnotation = AnnotationBase & {
@@ -178,13 +191,30 @@ export type PinAnnotation = AnnotationBase & {
   size: number;
 };
 
+export type MeasurementUnitSystem = 'metric' | 'imperial';
+
+export type MeasurementAnnotation = AnnotationBase & {
+  kind: 'measurement';
+  points: number[];
+  geoPoints: [number, number][];
+  unitSystem: MeasurementUnitSystem;
+};
+
 export type Annotation =
   | TextAnnotation
   | RectAnnotation
   | EllipseAnnotation
   | LineAnnotation
   | PolygonAnnotation
-  | PinAnnotation;
+  | PinAnnotation
+  | MeasurementAnnotation;
+
+export interface AnnotationGroup {
+  id: string;
+  name: string;
+  locked: boolean;
+  annotationIds: string[];
+}
 
 /** The canonical project document — source of truth for all renderers (PRD §3). */
 export interface CartoProject {
@@ -204,6 +234,7 @@ export interface CartoProject {
   layers: GeoJsonLayer[];
   /** Ordered bottom → top editable annotation objects. */
   annotations: Annotation[];
+  annotationGroups: AnnotationGroup[];
 }
 
 /** Create a blank project document. */
@@ -219,5 +250,6 @@ export function createEmptyProject(name = 'Untitled'): CartoProject {
     lockedMapView: null,
     layers: [],
     annotations: [],
+    annotationGroups: [],
   };
 }

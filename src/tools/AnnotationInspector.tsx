@@ -6,7 +6,9 @@ import type {
   AnnotationAnchorMode,
   AnnotationKind,
   AnnotationStyle,
+  FillPattern,
   PinIcon,
+  StrokePattern,
 } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
@@ -14,6 +16,19 @@ import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 
 const SWATCHES = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#111827', '#ffffff'];
 const FONTS = ['Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia'];
+const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
+  { value: 'none', label: 'Solid' },
+  { value: 'diagonal', label: 'Diagonal hatch' },
+  { value: 'crosshatch', label: 'Crosshatch' },
+  { value: 'horizontal', label: 'Horizontal hatch' },
+  { value: 'vertical', label: 'Vertical hatch' },
+  { value: 'dots', label: 'Dot hatch' },
+];
+const STROKE_PATTERNS: { value: StrokePattern; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'dotted', label: 'Dotted' },
+  { value: 'dashed', label: 'Dashed' },
+];
 const PIN_ICONS: { value: PinIcon; label: string }[] = [
   { value: 'dot', label: 'Dot' },
   { value: 'ring', label: 'Ring' },
@@ -183,6 +198,34 @@ function FillControls({
   return (
     <Section title="Fill">
       <Swatches value={style.fillColor} onChange={(fillColor) => onChange({ fillColor })} />
+      <Row label="Hatch">
+        <Select
+          value={style.fillPattern}
+          onChange={(e) => onChange({ fillPattern: e.target.value as FillPattern })}
+        >
+          {FILL_PATTERNS.map((pattern) => (
+            <option key={pattern.value} value={pattern.value}>
+              {pattern.label}
+            </option>
+          ))}
+        </Select>
+      </Row>
+      {style.fillPattern !== 'none' && (
+        <>
+          <Row label="Hatch color">
+            <Swatches value={style.hatchColor} onChange={(hatchColor) => onChange({ hatchColor })} />
+          </Row>
+          <Row label="Density">
+            <Input
+              type="number"
+              min={4}
+              max={40}
+              value={style.hatchSpacing}
+              onChange={(e) => onChange({ hatchSpacing: Number(e.target.value) })}
+            />
+          </Row>
+        </>
+      )}
     </Section>
   );
 }
@@ -207,6 +250,18 @@ function StrokeControls({
           value={style.strokeWidth}
           onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
         />
+      </Row>
+      <Row label="Pattern">
+        <Select
+          value={style.strokePattern}
+          onChange={(e) => onChange({ strokePattern: e.target.value as StrokePattern })}
+        >
+          {STROKE_PATTERNS.map((pattern) => (
+            <option key={pattern.value} value={pattern.value}>
+              {pattern.label}
+            </option>
+          ))}
+        </Select>
       </Row>
     </Section>
   );
@@ -286,6 +341,7 @@ function StyleControls({
       return <TextStyleControls style={style} onChange={onChange} />;
     case 'line':
     case 'arrow':
+    case 'measurement':
       return <StrokeControls style={style} onChange={onChange} />;
     case 'pin':
       return (
@@ -419,6 +475,24 @@ function GeometryControls({
       return (
         <Section title={annotation.kind === 'arrow' ? 'Arrow' : 'Line'}>
           <Hint>Drag the canvas handles to adjust endpoints and length.</Hint>
+        </Section>
+      );
+    case 'measurement':
+      return (
+        <Section title="Measurement">
+          <Row label="Units">
+            <Select
+              value={annotation.unitSystem}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange({ unitSystem: e.target.value as 'metric' | 'imperial' } as Partial<Annotation>)
+              }
+            >
+              <option value="metric">Metric</option>
+              <option value="imperial">Imperial</option>
+            </Select>
+          </Row>
+          <Hint>Use the ruler tool to place two or more anchored measurement points.</Hint>
         </Section>
       );
     case 'polygon':

@@ -1,5 +1,6 @@
 import { useViewportStore } from '@/state/viewportStore';
 import { useDocumentStore } from '@/state/documentStore';
+import { useToolStore } from '@/state/toolStore';
 
 /** Approximate map scale denominator (1:N) at the given zoom and latitude. */
 function scaleDenominator(zoom: number, latitude: number): number {
@@ -11,6 +12,9 @@ function scaleDenominator(zoom: number, latitude: number): number {
 export function StatusBar() {
   const viewport = useViewportStore((s) => s.viewport);
   const cursor = useViewportStore((s) => s.cursor);
+  const gridSnapEnabled = useToolStore((s) => s.gridSnapEnabled);
+  const gridSpacing = useToolStore((s) => s.gridSpacing);
+  const { setGridSnapEnabled, setGridSpacing } = useToolStore.getState();
   const featureCount = useDocumentStore((s) =>
     s.project.layers.reduce((sum, l) => sum + l.featureCount, 0),
   );
@@ -26,6 +30,24 @@ export function StatusBar() {
           Saved
         </span>
         <span>Web Mercator</span>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={gridSnapEnabled}
+            onChange={(event) => setGridSnapEnabled(event.target.checked)}
+            className="h-3 w-3 accent-[var(--accent)]"
+          />
+          Grid snap
+        </label>
+        <input
+          aria-label="Grid spacing"
+          type="number"
+          min={4}
+          max={200}
+          value={gridSpacing}
+          onChange={(event) => setGridSpacing(Number(event.target.value))}
+          className="h-5 w-12 rounded-[5px] border border-[var(--divider)] bg-[var(--glass-thin)] px-1 text-[10.5px] text-[var(--text-2)] outline-none"
+        />
         <span data-testid="feature-count">
           {featureCount.toLocaleString('en-US')} features
         </span>

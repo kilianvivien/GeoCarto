@@ -50,6 +50,7 @@ describe('documentStore', () => {
       project: createEmptyProject(),
       selectedLayerId: null,
       selectedAnnotationId: null,
+      selectedAnnotationIds: [],
       selectedFeature: null,
       dirty: false,
       file: null,
@@ -195,6 +196,7 @@ describe('documentStore', () => {
     useDocumentStore.getState().addAnnotation(a);
     useDocumentStore.getState().addAnnotation(b);
     expect(useDocumentStore.getState().selectedAnnotationId).toBe(b.id);
+    expect(useDocumentStore.getState().selectedAnnotationIds).toEqual([b.id]);
 
     useDocumentStore.getState().updateAnnotation(a.id, { position: { x: 22, y: 33 } });
     useDocumentStore.getState().updateAnnotationStyle(a.id, { fillColor: '#34c759' });
@@ -209,6 +211,39 @@ describe('documentStore', () => {
 
     useDocumentStore.getState().removeAnnotation(a.id);
     expect(useDocumentStore.getState().project.annotations.map((item) => item.name)).toEqual(['B']);
+  });
+
+  it('groups, moves, and ungroups selected annotations', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    const a = makeAnnotation('A');
+    const b = makeAnnotation('B');
+    useDocumentStore.getState().addAnnotation(a);
+    useDocumentStore.getState().addAnnotation(b);
+    useDocumentStore.getState().setSelectedAnnotations([a.id, b.id]);
+    useDocumentStore.getState().groupSelectedAnnotations();
+
+    const group = useDocumentStore.getState().project.annotationGroups[0];
+    expect(group.annotationIds).toEqual([a.id, b.id]);
+    expect(useDocumentStore.getState().project.annotations.map((item) => item.groupId)).toEqual([
+      group.id,
+      group.id,
+    ]);
+
+    useDocumentStore.getState().moveAnnotations([
+      { id: a.id, position: { x: 30, y: 40 } },
+      { id: b.id, position: { x: 50, y: 60 } },
+    ]);
+    expect(useDocumentStore.getState().project.annotations.map((item) => item.position)).toEqual([
+      { x: 30, y: 40 },
+      { x: 50, y: 60 },
+    ]);
+
+    useDocumentStore.getState().ungroupSelectedAnnotations();
+    expect(useDocumentStore.getState().project.annotationGroups).toEqual([]);
+    expect(useDocumentStore.getState().project.annotations.map((item) => item.groupId)).toEqual([
+      null,
+      null,
+    ]);
   });
 
   it('updates annotation text, pin labels, and map anchors through patches', () => {

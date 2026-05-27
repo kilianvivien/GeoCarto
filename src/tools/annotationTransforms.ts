@@ -53,6 +53,7 @@ export function applyAnnotationTransform(
       } as Partial<Annotation>;
     case 'line':
     case 'arrow':
+    case 'measurement':
       return {
         ...base,
         points: scalePoints(annotation.points, transform.scaleX, transform.scaleY),

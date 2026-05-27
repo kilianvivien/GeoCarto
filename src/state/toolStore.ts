@@ -39,8 +39,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'Marquee',
     shortcut: 'M',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: multi-select marquee',
+    enabled: true,
   },
   {
     key: 'pan',
@@ -54,8 +53,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'Ruler',
     shortcut: 'K',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: measurements',
+    enabled: true,
   },
   { key: 'pen', name: 'Line', shortcut: 'P', phase: 'phase1', enabled: true },
   { key: 'rectangle', name: 'Rectangle', shortcut: 'R', phase: 'phase1', enabled: true },
@@ -137,6 +135,7 @@ export function toolToAnnotationKind(tool: ToolKey): AnnotationKind | null {
   if (tool === 'rectangle' || tool === 'ellipse' || tool === 'polygon') return tool;
   if (tool === 'text' || tool === 'pin' || tool === 'arrow') return tool;
   if (tool === 'pen') return 'line';
+  if (tool === 'ruler') return 'measurement';
   return null;
 }
 
@@ -144,17 +143,29 @@ interface ToolState {
   activeTool: ToolKey;
   defaultAnchorMode: AnnotationAnchorMode;
   defaultStyle: AnnotationStyle;
+  gridSnapEnabled: boolean;
+  gridSpacing: number;
+  smartGuidesEnabled: boolean;
   setActiveTool: (tool: ToolKey) => void;
   setDefaultAnchorMode: (mode: AnnotationAnchorMode) => void;
   updateDefaultStyle: (patch: Partial<AnnotationStyle>) => void;
+  setGridSnapEnabled: (enabled: boolean) => void;
+  setGridSpacing: (spacing: number) => void;
+  setSmartGuidesEnabled: (enabled: boolean) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
   activeTool: 'move',
   defaultAnchorMode: 'canvas',
   defaultStyle: { ...DEFAULT_ANNOTATION_STYLE },
+  gridSnapEnabled: false,
+  gridSpacing: 20,
+  smartGuidesEnabled: true,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setDefaultAnchorMode: (mode) => set({ defaultAnchorMode: mode }),
   updateDefaultStyle: (patch) =>
     set((state) => ({ defaultStyle: { ...state.defaultStyle, ...patch } })),
+  setGridSnapEnabled: (gridSnapEnabled) => set({ gridSnapEnabled }),
+  setGridSpacing: (spacing) => set({ gridSpacing: Math.max(4, Math.min(200, spacing)) }),
+  setSmartGuidesEnabled: (smartGuidesEnabled) => set({ smartGuidesEnabled }),
 }));

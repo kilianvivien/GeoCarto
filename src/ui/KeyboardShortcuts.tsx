@@ -92,6 +92,13 @@ export function KeyboardShortcuts() {
           }
           return;
         }
+        if (key === 'g') {
+          event.preventDefault();
+          const store = useDocumentStore.getState();
+          if (event.shiftKey) store.ungroupSelectedAnnotations();
+          else store.groupSelectedAnnotations();
+          return;
+        }
         return;
       }
 

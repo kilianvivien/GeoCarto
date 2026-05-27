@@ -28,6 +28,7 @@ interface DocumentState {
   /** Layer selected in the layer panel. */
   selectedLayerId: string | null;
   selectedAnnotationId: string | null;
+  selectedAnnotationIds: string[];
   /** Feature clicked on the map. */
   selectedFeature: SelectedFeature | null;
   /** True when the in-memory project has unsaved changes. */
@@ -57,11 +58,16 @@ interface DocumentState {
   removeAnnotation: (id: string) => void;
   renameAnnotation: (id: string, name: string) => void;
   selectAnnotation: (id: string | null) => void;
+  setSelectedAnnotations: (ids: string[]) => void;
+  toggleAnnotationSelection: (id: string) => void;
   updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+  moveAnnotations: (moves: { id: string; position: { x: number; y: number }; geoAnchor?: [number, number] | null }[]) => void;
   updateAnnotationStyle: (id: string, patch: Partial<AnnotationStyle>) => void;
   moveAnnotation: (id: string, direction: 'up' | 'down') => void;
   setAnnotationVisible: (id: string, visible: boolean) => void;
   setAnnotationLocked: (id: string, locked: boolean) => void;
+  groupSelectedAnnotations: () => void;
+  ungroupSelectedAnnotations: () => void;
 }
 
 /**
@@ -73,6 +79,7 @@ export const useDocumentStore = create<DocumentState>()(
     project: createEmptyProject(),
     selectedLayerId: null,
     selectedAnnotationId: null,
+    selectedAnnotationIds: [],
     selectedFeature: null,
     dirty: false,
     file: null,
@@ -82,6 +89,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.project = project;
         state.selectedLayerId = null;
         state.selectedAnnotationId = null;
+        state.selectedAnnotationIds = [];
         state.selectedFeature = null;
         state.dirty = false;
         if (file !== undefined) state.file = file;
@@ -134,6 +142,7 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.project.mode = 'mapSetup';
         state.selectedAnnotationId = null;
+        state.selectedAnnotationIds = [];
         state.selectedFeature = null;
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
@@ -147,6 +156,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.dirty = true;
         state.selectedLayerId = layer.id;
         state.selectedAnnotationId = null;
+        state.selectedAnnotationIds = [];
       }),
 
     removeLayer: (id) =>
@@ -216,13 +226,19 @@ export const useDocumentStore = create<DocumentState>()(
     selectLayer: (id) =>
       set((state) => {
         state.selectedLayerId = id;
-        if (id) state.selectedAnnotationId = null;
+        if (id) {
+          state.selectedAnnotationId = null;
+          state.selectedAnnotationIds = [];
+        }
       }),
 
     selectFeature: (feature) =>
       set((state) => {
         state.selectedFeature = feature;
-        if (feature) state.selectedAnnotationId = null;
+        if (feature) {
+          state.selectedAnnotationId = null;
+          state.selectedAnnotationIds = [];
+        }
       }),
 
     addAnnotation: (annotation) =>
@@ -232,6 +248,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
         state.selectedAnnotationId = annotation.id;
+        state.selectedAnnotationIds = [annotation.id];
         state.selectedLayerId = null;
         state.selectedFeature = null;
       }),
@@ -241,9 +258,16 @@ export const useDocumentStore = create<DocumentState>()(
         const annotation = state.project.annotations.find((item) => item.id === id);
         if (annotation?.locked) return;
         state.project.annotations = state.project.annotations.filter((item) => item.id !== id);
+        state.project.annotationGroups = state.project.annotationGroups
+          .map((group) => ({
+            ...group,
+            annotationIds: group.annotationIds.filter((annotationId) => annotationId !== id),
+          }))
+          .filter((group) => group.annotationIds.length > 1);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
         if (state.selectedAnnotationId === id) state.selectedAnnotationId = null;
+        state.selectedAnnotationIds = state.selectedAnnotationIds.filter((item) => item !== id);
       }),
 
     renameAnnotation: (id, name) =>
@@ -258,17 +282,66 @@ export const useDocumentStore = create<DocumentState>()(
     selectAnnotation: (id) =>
       set((state) => {
         state.selectedAnnotationId = id;
+        state.selectedAnnotationIds = id ? [id] : [];
         if (id) {
           state.selectedLayerId = null;
           state.selectedFeature = null;
         }
       }),
 
+    setSelectedAnnotations: (ids) =>
+      set((state) => {
+        const existing = new Set(state.project.annotations.map((item) => item.id));
+        const next = [...new Set(ids)].filter((id) => existing.has(id));
+        state.selectedAnnotationIds = next;
+        state.selectedAnnotationId = next.at(-1) ?? null;
+        if (next.length) {
+          state.selectedLayerId = null;
+          state.selectedFeature = null;
+        }
+      }),
+
+    toggleAnnotationSelection: (id) =>
+      set((state) => {
+        if (!state.project.annotations.some((item) => item.id === id)) return;
+        const selected = new Set(state.selectedAnnotationIds);
+        if (selected.has(id)) selected.delete(id);
+        else selected.add(id);
+        const next = [...selected];
+        state.selectedAnnotationIds = next;
+        state.selectedAnnotationId = next.at(-1) ?? null;
+        state.selectedLayerId = null;
+        state.selectedFeature = null;
+      }),
+
     updateAnnotation: (id, patch) =>
       set((state) => {
         const annotation = state.project.annotations.find((item) => item.id === id);
         if (!annotation || annotation.locked) return;
+        const group = annotation.groupId
+          ? state.project.annotationGroups.find((item) => item.id === annotation.groupId)
+          : null;
+        if (group?.locked) return;
         Object.assign(annotation, patch);
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    moveAnnotations: (moves) =>
+      set((state) => {
+        let changed = false;
+        for (const move of moves) {
+          const annotation = state.project.annotations.find((item) => item.id === move.id);
+          if (!annotation || annotation.locked) continue;
+          const group = annotation.groupId
+            ? state.project.annotationGroups.find((item) => item.id === annotation.groupId)
+            : null;
+          if (group?.locked) continue;
+          annotation.position = move.position;
+          if (move.geoAnchor !== undefined) annotation.geoAnchor = move.geoAnchor;
+          changed = true;
+        }
+        if (!changed) return;
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -277,6 +350,10 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         const annotation = state.project.annotations.find((item) => item.id === id);
         if (!annotation || annotation.locked) return;
+        const group = annotation.groupId
+          ? state.project.annotationGroups.find((item) => item.id === annotation.groupId)
+          : null;
+        if (group?.locked) return;
         annotation.style = { ...annotation.style, ...patch };
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
@@ -308,6 +385,46 @@ export const useDocumentStore = create<DocumentState>()(
         const annotation = state.project.annotations.find((item) => item.id === id);
         if (!annotation) return;
         annotation.locked = locked;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    groupSelectedAnnotations: () =>
+      set((state) => {
+        const selected = state.selectedAnnotationIds.filter((id) =>
+          state.project.annotations.some((annotation) => annotation.id === id && !annotation.locked),
+        );
+        if (selected.length < 2) return;
+        const groupId = crypto.randomUUID();
+        state.project.annotationGroups.push({
+          id: groupId,
+          name: `Group ${state.project.annotationGroups.length + 1}`,
+          locked: false,
+          annotationIds: selected,
+        });
+        for (const annotation of state.project.annotations) {
+          if (selected.includes(annotation.id)) annotation.groupId = groupId;
+        }
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    ungroupSelectedAnnotations: () =>
+      set((state) => {
+        const selectedGroupIds = new Set(
+          state.project.annotations
+            .filter((annotation) => state.selectedAnnotationIds.includes(annotation.id) && annotation.groupId)
+            .map((annotation) => annotation.groupId as string),
+        );
+        if (selectedGroupIds.size === 0) return;
+        state.project.annotationGroups = state.project.annotationGroups.filter(
+          (group) => !selectedGroupIds.has(group.id),
+        );
+        for (const annotation of state.project.annotations) {
+          if (annotation.groupId && selectedGroupIds.has(annotation.groupId)) {
+            annotation.groupId = null;
+          }
+        }
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),

@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
 import type { Annotation, PinIcon } from '@/project/cartoproj';
+import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 
 interface RenderOptions {
   width: number;
@@ -126,6 +127,31 @@ function pinGlyph(group: Konva.Group, color: string, icon: PinIcon, size: number
   }
 }
 
+function haversineMeters(a: [number, number], b: [number, number]) {
+  const radius = 6_371_000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const lat1 = toRad(a[1]);
+  const lat2 = toRad(b[1]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * radius * Math.asin(Math.sqrt(h));
+}
+
+function formatMeasurement(annotation: Extract<Annotation, { kind: 'measurement' }>) {
+  const length = annotation.geoPoints.slice(1).reduce((sum, point, index) => {
+    const previous = annotation.geoPoints[index];
+    return sum + haversineMeters(previous, point);
+  }, 0);
+  if (annotation.unitSystem === 'imperial') {
+    const feet = length * 3.28084;
+    return feet >= 5280 ? `${(feet / 5280).toFixed(2)} mi` : `${Math.round(feet)} ft`;
+  }
+  return length >= 1000 ? `${(length / 1000).toFixed(2)} km` : `${Math.round(length)} m`;
+}
+
 function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x: number; y: number }): void {
   if (!annotation.visible) return;
 
@@ -137,7 +163,12 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
   });
 
   const { style } = annotation;
-  const commonFill = { fill: style.fillColor, stroke: style.strokeColor, strokeWidth: style.strokeWidth };
+  const commonFill = {
+    fill: style.fillColor,
+    stroke: style.strokeColor,
+    strokeWidth: style.strokeWidth,
+    dash: strokeDash(style),
+  };
 
   switch (annotation.kind) {
     case 'text':
@@ -161,9 +192,16 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           cornerRadius: annotation.cornerRadius,
         }),
       );
+      addHatch(group, annotation, 'rectangle', { width: annotation.width, height: annotation.height });
       break;
     case 'ellipse':
       group.add(new Konva.Ellipse({ ...commonFill, radiusX: annotation.radiusX, radiusY: annotation.radiusY }));
+      addHatch(group, annotation, 'ellipse', {
+        x: -annotation.radiusX,
+        y: -annotation.radiusY,
+        width: annotation.radiusX * 2,
+        height: annotation.radiusY * 2,
+      });
       break;
     case 'line':
       group.add(
@@ -171,6 +209,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           points: annotation.points,
           stroke: style.strokeColor,
           strokeWidth: style.strokeWidth,
+          dash: strokeDash(style),
           lineCap: 'round',
           lineJoin: 'round',
         }),
@@ -183,6 +222,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           stroke: style.strokeColor,
           fill: style.strokeColor,
           strokeWidth: style.strokeWidth,
+          dash: strokeDash(style),
           pointerLength: 12,
           pointerWidth: 12,
           lineCap: 'round',
@@ -192,6 +232,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       break;
     case 'polygon':
       group.add(new Konva.Line({ ...commonFill, points: annotation.points, closed: annotation.closed, lineJoin: 'round' }));
+      addHatch(group, annotation, 'polygon', polygonLocalBounds(annotation.points), annotation.points);
       break;
     case 'pin': {
       pinGlyph(group, style.pinColor, style.pinIcon, annotation.size);
@@ -208,9 +249,97 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       );
       break;
     }
+    case 'measurement':
+      group.add(
+        new Konva.Line({
+          points: annotation.points,
+          stroke: style.strokeColor,
+          strokeWidth: style.strokeWidth,
+          dash: strokeDash(style) ?? [6, 5],
+          lineCap: 'round',
+          lineJoin: 'round',
+        }),
+      );
+      for (let index = 0; index < annotation.points.length; index += 2) {
+        group.add(
+          new Konva.Circle({
+            x: annotation.points[index],
+            y: annotation.points[index + 1],
+            radius: 4,
+            fill: '#ffffff',
+            stroke: style.strokeColor,
+            strokeWidth: 1.5,
+          }),
+        );
+      }
+      group.add(
+        new Konva.Text({
+          text: formatMeasurement(annotation),
+          x: annotation.points.at(-2) ?? 0,
+          y: (annotation.points.at(-1) ?? 0) + 10,
+          fill: style.textColor,
+          fontSize: style.textSize,
+          fontFamily: style.fontFamily,
+          padding: 5,
+        }),
+      );
+      break;
   }
 
   layer.add(group);
+}
+
+function addHatch(
+  group: Konva.Group,
+  annotation: Annotation,
+  kind: 'rectangle' | 'ellipse' | 'polygon',
+  bounds: { x?: number; y?: number; width: number; height: number },
+  points?: number[],
+): void {
+  if (annotation.style.fillPattern === 'none') return;
+  const x = bounds.x ?? 0;
+  const y = bounds.y ?? 0;
+  const hatch = new Konva.Group({
+    x,
+    y,
+    clipFunc: (ctx) => {
+      if (kind === 'ellipse') {
+        ctx.beginPath();
+        ctx.ellipse(bounds.width / 2, bounds.height / 2, bounds.width / 2, bounds.height / 2, 0, 0, Math.PI * 2);
+        ctx.closePath();
+        return;
+      }
+      if (kind === 'polygon' && points) {
+        ctx.beginPath();
+        ctx.moveTo(points[0] - x, points[1] - y);
+        for (let index = 2; index < points.length; index += 2) {
+          ctx.lineTo(points[index] - x, points[index + 1] - y);
+        }
+        ctx.closePath();
+        return;
+      }
+      ctx.rect(0, 0, bounds.width, bounds.height);
+    },
+  });
+  for (const line of hatchLines(bounds.width, bounds.height, annotation.style.fillPattern, annotation.style.hatchSpacing)) {
+    hatch.add(
+      new Konva.Line({
+        points: line.points,
+        stroke: annotation.style.hatchColor,
+        strokeWidth: 1.25,
+        lineCap: annotation.style.fillPattern === 'dots' ? 'round' : 'butt',
+      }),
+    );
+  }
+  group.add(hatch);
+}
+
+function polygonLocalBounds(points: number[]) {
+  const xs = points.filter((_, index) => index % 2 === 0);
+  const ys = points.filter((_, index) => index % 2 === 1);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(1, Math.max(...xs) - x), height: Math.max(1, Math.max(...ys) - y) };
 }
 
 /**

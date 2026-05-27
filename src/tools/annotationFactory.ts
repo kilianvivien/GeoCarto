@@ -21,6 +21,7 @@ const TITLE: Record<AnnotationKind, string> = {
   arrow: 'Arrow',
   polygon: 'Polygon',
   pin: 'Pin',
+  measurement: 'Measurement',
 };
 
 function base({ kind, anchorMode, position, geoAnchor, style }: CreateAnnotationInput) {
@@ -56,5 +57,13 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
       return { ...seed, kind: 'polygon', points: [0, -58, 55, 40, -55, 40], closed: true };
     case 'pin':
       return { ...seed, kind: 'pin', label: 'Place', size: 28 };
+    case 'measurement':
+      return {
+        ...seed,
+        kind: 'measurement',
+        points: [0, 0, 120, 0],
+        geoPoints: input.geoAnchor ? [input.geoAnchor] : [],
+        unitSystem: 'metric',
+      };
   }
 }

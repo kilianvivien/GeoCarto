@@ -16,6 +16,7 @@ import {
   Square,
   Circle,
   ArrowUpRight,
+  Ruler,
   type LucideIcon,
 } from 'lucide-react';
 import type { AnnotationKind, GeometryKind } from '@/project/cartoproj';
@@ -37,6 +38,7 @@ const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
   arrow: ArrowUpRight,
   polygon: Hexagon,
   pin: MapPin,
+  measurement: Ruler,
 };
 
 function LayerRow({ layerId }: { layerId: string }) {

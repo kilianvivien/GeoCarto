@@ -46,6 +46,29 @@ function pinAnnotation(): Annotation {
   };
 }
 
+function measurementAnnotation(): Annotation {
+  return {
+    id: 'a3',
+    kind: 'measurement',
+    name: 'Distance',
+    visible: true,
+    locked: false,
+    anchorMode: 'map',
+    position: { x: 100, y: 120 },
+    geoAnchor: [2.35, 48.85],
+    rotation: 0,
+    opacity: 1,
+    style: { ...DEFAULT_ANNOTATION_STYLE },
+    groupId: 'g1',
+    points: [0, 0, 90, 30],
+    geoPoints: [
+      [2.35, 48.85],
+      [2.36, 48.86],
+    ],
+    unitSystem: 'metric',
+  };
+}
+
 function geoLayer(): GeoJsonLayer {
   return {
     id: 'l1',
@@ -79,7 +102,13 @@ describe('serializeProject / deserializeProject', () => {
   it('round-trips a project with layers and mixed annotations', () => {
     const original = createEmptyProject('Cities');
     original.layers.push(geoLayer());
-    original.annotations.push(rectAnnotation(), pinAnnotation());
+    original.annotations.push(rectAnnotation(), pinAnnotation(), measurementAnnotation());
+    original.annotationGroups.push({
+      id: 'g1',
+      name: 'Inset labels',
+      locked: false,
+      annotationIds: ['a1', 'a3'],
+    });
     original.mode = 'editing';
     original.lockedMapView = {
       viewport: { center: [2, 48], zoom: 6, bearing: 0, pitch: 0 },
@@ -89,7 +118,8 @@ describe('serializeProject / deserializeProject', () => {
     };
     const restored = deserializeProject(serializeProject(original));
     expect(restored).toEqual(original);
-    expect(restored.annotations).toHaveLength(2);
+    expect(restored.annotations).toHaveLength(3);
+    expect(restored.annotationGroups[0].annotationIds).toEqual(['a1', 'a3']);
     expect(restored.layers[0].data.features).toHaveLength(1);
   });
 
@@ -118,17 +148,36 @@ describe('serializeProject / deserializeProject', () => {
   it('defaults optional Phase 1 fields from older v1 project files', () => {
     const project = createEmptyProject('Legacy') as unknown as {
       annotations?: unknown;
+      annotationGroups?: unknown;
       basemap?: unknown;
       lockedMapView?: unknown;
     };
     delete project.annotations;
+    delete project.annotationGroups;
     delete project.basemap;
     delete project.lockedMapView;
 
     const restored = deserializeProject(JSON.stringify(project));
     expect(restored.annotations).toEqual([]);
+    expect(restored.annotationGroups).toEqual([]);
     expect(restored.basemap).toEqual(DEFAULT_BASEMAP);
     expect(restored.lockedMapView).toBeNull();
+  });
+
+  it('defaults newer annotation style fields from older v1 project files', () => {
+    const project = createEmptyProject('Legacy styles');
+    const annotation = rectAnnotation();
+    delete (annotation.style as Partial<typeof annotation.style>).fillPattern;
+    delete (annotation.style as Partial<typeof annotation.style>).hatchColor;
+    delete (annotation.style as Partial<typeof annotation.style>).hatchSpacing;
+    delete (annotation.style as Partial<typeof annotation.style>).strokePattern;
+    project.annotations.push(annotation);
+
+    const restored = deserializeProject(JSON.stringify(project));
+    expect(restored.annotations[0].style.fillPattern).toBe('none');
+    expect(restored.annotations[0].style.hatchColor).toBe('#0f172a');
+    expect(restored.annotations[0].style.hatchSpacing).toBe(10);
+    expect(restored.annotations[0].style.strokePattern).toBe('solid');
   });
 
   it('rejects invalid export frame dimensions', () => {

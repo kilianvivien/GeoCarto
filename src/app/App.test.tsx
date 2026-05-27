@@ -41,12 +41,16 @@ describe('App', () => {
       project: createEmptyProject(),
       selectedLayerId: null,
       selectedAnnotationId: null,
+      selectedAnnotationIds: [],
       selectedFeature: null,
     });
     useToolStore.setState({
       activeTool: 'move',
       defaultAnchorMode: 'canvas',
       defaultStyle: { ...DEFAULT_ANNOTATION_STYLE },
+      gridSnapEnabled: false,
+      gridSpacing: 20,
+      smartGuidesEnabled: true,
     });
     // Reset the per-test sessions registry so the title bar and tab bar start
     // fresh — otherwise previous tests leak tabs into later assertions.
@@ -78,12 +82,14 @@ describe('App', () => {
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
   });
 
-  it('keeps Phase 2 placeholders disabled and enables Undo only after a mutation', () => {
+  it('enables Milestone 10 tools while keeping future Phase 2 placeholders disabled', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /ruler/i }));
-    expect(useToolStore.getState().activeTool).toBe('move');
+    expect(useToolStore.getState().activeTool).toBe('ruler');
+    fireEvent.click(screen.getByRole('button', { name: /marquee/i }));
+    expect(useToolStore.getState().activeTool).toBe('marquee');
     // Snap and Share are still Phase 2 placeholders.
     expect(screen.getByRole('button', { name: /snap/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /share/i })).toBeDisabled();

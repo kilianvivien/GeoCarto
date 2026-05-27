@@ -1,4 +1,4 @@
-import { DEFAULT_BASEMAP, type CartoProject } from './cartoproj';
+import { DEFAULT_ANNOTATION_STYLE, DEFAULT_BASEMAP, type CartoProject } from './cartoproj';
 
 export class ProjectLoadError extends Error {
   constructor(message: string) {
@@ -62,12 +62,19 @@ function validateProject(value: unknown): asserts value is CartoProject {
   expect(isObject(value.basemap), 'Project basemap missing.');
   if (!('lockedMapView' in value)) value.lockedMapView = null;
   if (!('annotations' in value)) value.annotations = [];
+  if (!('annotationGroups' in value)) value.annotationGroups = [];
   expect(Array.isArray(value.layers), 'Project layers must be an array.');
   expect(Array.isArray(value.annotations), 'Project annotations must be an array.');
+  expect(Array.isArray(value.annotationGroups), 'Project annotationGroups must be an array.');
   expect(
     value.lockedMapView === null || isObject(value.lockedMapView),
     'Project lockedMapView must be null or an object.',
   );
+  for (const annotation of value.annotations) {
+    if (isObject(annotation) && isObject(annotation.style)) {
+      annotation.style = { ...DEFAULT_ANNOTATION_STYLE, ...annotation.style };
+    }
+  }
 }
 
 export function deserializeProject(json: string): CartoProject {

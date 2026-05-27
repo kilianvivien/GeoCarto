@@ -88,7 +88,7 @@ reference dataset.
 
 ---
 
-### Milestone 7 — Phase 1 Exit Hardening
+### Milestone 7 — Phase 1 Exit Hardening - Done
 
 Close out the remaining Phase 1 🟡 items so Phase 2 starts on a clean base.
 
@@ -110,7 +110,7 @@ Acceptance:
 
 ---
 
-### Milestone 8 — Multi-Project Sessions, Dirty Guards, Recents
+### Milestone 8 — Multi-Project Sessions, Dirty Guards, Recents - Done
 
 - Introduce `ProjectSession { id, project, file, dirty, autosaveKey, title,
   lastActiveAt }` and `activeSessionId` at the top of the state tree.
@@ -134,7 +134,7 @@ Acceptance:
 
 ---
 
-### Milestone 9 — Undo / Redo and History
+### Milestone 9 — Undo / Redo and History - Done
 
 - Add an Immer-patch history middleware on the document store with
   `undo()` / `redo()` actions and configurable depth (default ≥100 steps).
