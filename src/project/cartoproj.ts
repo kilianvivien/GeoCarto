@@ -213,7 +213,7 @@ export function createEmptyProject(name = 'Untitled'): CartoProject {
     version: 1,
     mode: 'mapSetup',
     meta: { name, createdAt: now, updatedAt: now },
-    viewport: DEFAULT_VIEWPORT,
+    viewport: { ...DEFAULT_VIEWPORT, center: [...DEFAULT_VIEWPORT.center] },
     exportFrame: { width: 1600, height: 1200 },
     basemap: { ...DEFAULT_BASEMAP },
     lockedMapView: null,

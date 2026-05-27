@@ -55,6 +55,7 @@ function LayerRow({ layerId }: { layerId: string }) {
   return (
     <div
       role="treeitem"
+      data-testid="layer-row"
       aria-selected={selected}
       onClick={() => selectLayer(layer.id)}
       className={`group flex h-7 items-center gap-1.5 rounded-[6px] px-1.5 ${
@@ -145,6 +146,7 @@ function AnnotationRow({ annotationId }: { annotationId: string }) {
   return (
     <div
       role="treeitem"
+      data-testid="annotation-row"
       aria-selected={selected}
       onClick={() => selectAnnotation(annotation.id)}
       className={`group flex h-7 items-center gap-1.5 rounded-[6px] px-1.5 ${

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createEmptyProject,
   DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_BASEMAP,
   DEFAULT_GEOJSON_STYLE,
   type Annotation,
   type GeoJsonLayer,
@@ -112,5 +113,31 @@ describe('serializeProject / deserializeProject', () => {
     const project = createEmptyProject();
     (project.viewport as unknown as { center: unknown[] }).center = ['x', 'y'];
     expect(() => deserializeProject(JSON.stringify(project))).toThrow(/center/i);
+  });
+
+  it('defaults optional Phase 1 fields from older v1 project files', () => {
+    const project = createEmptyProject('Legacy') as unknown as {
+      annotations?: unknown;
+      basemap?: unknown;
+      lockedMapView?: unknown;
+    };
+    delete project.annotations;
+    delete project.basemap;
+    delete project.lockedMapView;
+
+    const restored = deserializeProject(JSON.stringify(project));
+    expect(restored.annotations).toEqual([]);
+    expect(restored.basemap).toEqual(DEFAULT_BASEMAP);
+    expect(restored.lockedMapView).toBeNull();
+  });
+
+  it('rejects invalid export frame dimensions', () => {
+    const project = createEmptyProject();
+    project.exportFrame.width = 0;
+    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/export frame/i);
+
+    project.exportFrame.width = 1600;
+    project.exportFrame.height = Number.NaN;
+    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/export frame/i);
   });
 });

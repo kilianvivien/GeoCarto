@@ -58,7 +58,10 @@ export function RecoveryPrompt() {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center">
-      <div className="glass pointer-events-auto flex items-center gap-3 rounded-full bg-[var(--glass-strong)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--text)]">
+      <div
+        data-testid="recovery-prompt"
+        className="glass pointer-events-auto flex items-center gap-3 rounded-full bg-[var(--glass-strong)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--text)]"
+      >
         <History size={14} className="text-[var(--accent)]" />
         <span>
           Unsaved draft from {formatTimestamp(entry.savedAt)}

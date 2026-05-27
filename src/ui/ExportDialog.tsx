@@ -162,7 +162,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
         <div className="mt-4 flex items-center justify-between rounded-[9px] bg-[var(--hover)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
           <span>Output</span>
-          <span className="mono font-semibold text-[var(--text)]">
+          <span data-testid="export-output-size" className="mono font-semibold text-[var(--text)]">
             {outW} × {outH} px
           </span>
         </div>

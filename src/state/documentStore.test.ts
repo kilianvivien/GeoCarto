@@ -131,6 +131,7 @@ describe('documentStore', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Old');
     useDocumentStore.getState().addLayer(layer);
+    useDocumentStore.setState({ dirty: false });
     useDocumentStore.getState().renameLayer(layer.id, 'New');
     useDocumentStore.getState().setLayerVisible(layer.id, false);
     useDocumentStore.getState().setLayerLocked(layer.id, true);
@@ -138,6 +139,7 @@ describe('documentStore', () => {
     expect(stored.name).toBe('New');
     expect(stored.visible).toBe(false);
     expect(stored.locked).toBe(true);
+    expect(useDocumentStore.getState().dirty).toBe(true);
   });
 
   it('removing a selected layer clears its selection', () => {
@@ -172,6 +174,39 @@ describe('documentStore', () => {
 
     useDocumentStore.getState().removeAnnotation(a.id);
     expect(useDocumentStore.getState().project.annotations.map((item) => item.name)).toEqual(['B']);
+  });
+
+  it('updates annotation text, pin labels, and map anchors through patches', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    const text: Annotation = {
+      ...makeAnnotation('Text'),
+      kind: 'text',
+      text: 'Old',
+      width: 120,
+    };
+    const pin: Annotation = {
+      ...makeAnnotation('Pin'),
+      kind: 'pin',
+      anchorMode: 'map',
+      geoAnchor: [2.35, 48.85],
+      label: 'Paris',
+      size: 24,
+    };
+    useDocumentStore.getState().addAnnotation(text);
+    useDocumentStore.getState().addAnnotation(pin);
+    useDocumentStore.setState({ dirty: false });
+
+    useDocumentStore.getState().updateAnnotation(text.id, { text: 'Updated' } as Partial<Annotation>);
+    useDocumentStore.getState().updateAnnotation(pin.id, {
+      label: 'Lyon',
+      geoAnchor: [4.83, 45.76],
+    } as Partial<Annotation>);
+
+    const [storedText, storedPin] = useDocumentStore.getState().project.annotations;
+    expect(storedText.kind === 'text' && storedText.text).toBe('Updated');
+    expect(storedPin.kind === 'pin' && storedPin.label).toBe('Lyon');
+    expect(storedPin.geoAnchor).toEqual([4.83, 45.76]);
+    expect(useDocumentStore.getState().dirty).toBe(true);
   });
 
   it('does not edit or delete locked annotations', () => {

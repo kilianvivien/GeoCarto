@@ -1,17 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { expectNoConsoleErrors } from './helpers';
 
 test('first run: shell, basemap, and navigation', async ({ page }) => {
-  const consoleErrors: string[] = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text());
-  });
-  page.on('pageerror', (err) => consoleErrors.push(err.message));
+  const assertNoConsoleErrors = await expectNoConsoleErrors(page);
 
   await page.goto('/');
 
   // App shell chrome is present.
   await expect(page.getByRole('application', { name: /geocarto/i })).toBeVisible();
   await expect(page.getByRole('toolbar', { name: /tools/i })).toBeVisible();
+  await expect(page.getByText('Set up map')).toBeVisible();
 
   // The MapLibre basemap canvas renders.
   const mapCanvas = page.locator('.maplibregl-canvas');
@@ -27,5 +25,9 @@ test('first run: shell, basemap, and navigation', async ({ page }) => {
   await page.mouse.dblclick(box!.x + box!.width / 2, box!.y + box!.height - 120);
   await expect(zoomReadout).not.toHaveText(before ?? '');
 
-  expect(consoleErrors, `console errors: ${consoleErrors.join('\n')}`).toEqual([]);
+  await page.getByRole('button', { name: 'Lock Map Area' }).click();
+  await expect(page.getByRole('button', { name: /Unlock Map/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Rectangle/ })).toBeEnabled();
+
+  assertNoConsoleErrors();
 });

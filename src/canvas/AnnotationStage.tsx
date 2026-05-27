@@ -455,6 +455,7 @@ export function AnnotationStage() {
   return (
     <div
       ref={containerRef}
+      data-testid="annotation-stage"
       className="absolute inset-0 z-20"
       style={{ pointerEvents: capturesPointer ? 'auto' : 'none' }}
     >

@@ -159,13 +159,21 @@ export const useDocumentStore = create<DocumentState>()(
     setLayerVisible: (id, visible) =>
       set((state) => {
         const layer = state.project.layers.find((l) => l.id === id);
-        if (layer) layer.visible = visible;
+        if (layer) {
+          layer.visible = visible;
+          state.project.meta.updatedAt = new Date().toISOString();
+          state.dirty = true;
+        }
       }),
 
     setLayerLocked: (id, locked) =>
       set((state) => {
         const layer = state.project.layers.find((l) => l.id === id);
-        if (layer) layer.locked = locked;
+        if (layer) {
+          layer.locked = locked;
+          state.project.meta.updatedAt = new Date().toISOString();
+          state.dirty = true;
+        }
       }),
 
     moveLayer: (id, direction) =>

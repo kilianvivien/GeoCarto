@@ -1,4 +1,4 @@
-import type { CartoProject } from './cartoproj';
+import { DEFAULT_BASEMAP, type CartoProject } from './cartoproj';
 
 export class ProjectLoadError extends Error {
   constructor(message: string) {
@@ -48,11 +48,20 @@ function validateProject(value: unknown): asserts value is CartoProject {
 
   const frame = value.exportFrame;
   expect(
-    isObject(frame) && typeof frame.width === 'number' && typeof frame.height === 'number',
+    isObject(frame) &&
+      typeof frame.width === 'number' &&
+      Number.isFinite(frame.width) &&
+      frame.width > 0 &&
+      typeof frame.height === 'number' &&
+      Number.isFinite(frame.height) &&
+      frame.height > 0,
     'Export frame must be { width, height }.',
   );
 
+  if (!('basemap' in value)) value.basemap = { ...DEFAULT_BASEMAP };
   expect(isObject(value.basemap), 'Project basemap missing.');
+  if (!('lockedMapView' in value)) value.lockedMapView = null;
+  if (!('annotations' in value)) value.annotations = [];
   expect(Array.isArray(value.layers), 'Project layers must be an array.');
   expect(Array.isArray(value.annotations), 'Project annotations must be an array.');
   expect(

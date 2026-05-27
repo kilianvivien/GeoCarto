@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "mode": "editing",
+  "meta": {
+    "name": "Reference Project",
+    "createdAt": "2026-05-27T00:00:00.000Z",
+    "updatedAt": "2026-05-27T00:00:00.000Z"
+  },
+  "viewport": {
+    "center": [2.35, 48.85],
+    "zoom": 10,
+    "bearing": 0,
+    "pitch": 0
+  },
+  "exportFrame": {
+    "width": 800,
+    "height": 600
+  },
+  "basemap": {
+    "kind": "static",
+    "name": "Fixture Basemap",
+    "mediaType": "image",
+    "mimeType": "image/png",
+    "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+    "attribution": "Fixture"
+  },
+  "lockedMapView": {
+    "viewport": {
+      "center": [2.35, 48.85],
+      "zoom": 10,
+      "bearing": 0,
+      "pitch": 0
+    },
+    "exportFrame": {
+      "width": 800,
+      "height": 600
+    },
+    "basemap": {
+      "kind": "static",
+      "name": "Fixture Basemap",
+      "mediaType": "image",
+      "mimeType": "image/png",
+      "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "attribution": "Fixture"
+    },
+    "lockedAt": "2026-05-27T00:00:00.000Z"
+  },
+  "layers": [
+    {
+      "id": "fixture-layer",
+      "kind": "geojson",
+      "name": "Reference",
+      "visible": true,
+      "locked": false,
+      "geometry": "mixed",
+      "featureCount": 3,
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": { "name": "Reference Area", "kind": "polygon" },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [[[2.1, 48.7], [2.6, 48.7], [2.6, 49.0], [2.1, 49.0], [2.1, 48.7]]]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": { "name": "Reference Route", "kind": "line" },
+            "geometry": {
+              "type": "LineString",
+              "coordinates": [[2.15, 48.75], [2.32, 48.84], [2.52, 48.94]]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": { "name": "Reference Point", "kind": "point" },
+            "geometry": { "type": "Point", "coordinates": [2.35, 48.85] }
+          }
+        ]
+      },
+      "style": {
+        "fillColor": "#007aff",
+        "fillOpacity": 0.25,
+        "strokeColor": "#007aff",
+        "strokeWidth": 1.5,
+        "pointColor": "#007aff",
+        "pointRadius": 5
+      }
+    }
+  ],
+  "annotations": [
+    {
+      "id": "fixture-rect",
+      "kind": "rectangle",
+      "name": "Fixture Rectangle",
+      "visible": true,
+      "locked": false,
+      "anchorMode": "canvas",
+      "position": { "x": 260, "y": 180 },
+      "geoAnchor": null,
+      "rotation": 0,
+      "opacity": 1,
+      "style": {
+        "fillColor": "#34c759",
+        "strokeColor": "#111827",
+        "strokeWidth": 2,
+        "textColor": "#111827",
+        "textSize": 18,
+        "fontFamily": "Inter",
+        "pinColor": "#ff3b30",
+        "pinIcon": "dot"
+      },
+      "width": 140,
+      "height": 90,
+      "cornerRadius": 8
+    },
+    {
+      "id": "fixture-label",
+      "kind": "text",
+      "name": "Fixture Label",
+      "visible": true,
+      "locked": false,
+      "anchorMode": "canvas",
+      "position": { "x": 310, "y": 300 },
+      "geoAnchor": null,
+      "rotation": 0,
+      "opacity": 1,
+      "style": {
+        "fillColor": "#007aff",
+        "strokeColor": "#0f172a",
+        "strokeWidth": 2,
+        "textColor": "#111827",
+        "textSize": 20,
+        "fontFamily": "Inter",
+        "pinColor": "#ff3b30",
+        "pinIcon": "dot"
+      },
+      "text": "Reference Label",
+      "width": 180
+    },
+    {
+      "id": "fixture-pin",
+      "kind": "pin",
+      "name": "Fixture Pin",
+      "visible": true,
+      "locked": false,
+      "anchorMode": "map",
+      "position": { "x": 0, "y": 0 },
+      "geoAnchor": [2.35, 48.85],
+      "rotation": 0,
+      "opacity": 1,
+      "style": {
+        "fillColor": "#007aff",
+        "strokeColor": "#0f172a",
+        "strokeWidth": 2,
+        "textColor": "#111827",
+        "textSize": 18,
+        "fontFamily": "Inter",
+        "pinColor": "#ff3b30",
+        "pinIcon": "target"
+      },
+      "label": "Paris",
+      "size": 26
+    }
+  ]
+}

@@ -14,6 +14,7 @@ export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const basemap = useDocumentStore((s) => s.project.basemap);
+  const projectViewport = useDocumentStore((s) => s.project.viewport);
   const mode = useDocumentStore((s) => s.project.mode);
   const isStaticBasemap = basemap.kind === 'static';
 
@@ -86,6 +87,22 @@ export function MapView() {
       else control.disable();
     }
   }, [mode, isStaticBasemap]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const current = useViewportStore.getState().viewport;
+    const sameCenter =
+      current.center[0] === projectViewport.center[0] && current.center[1] === projectViewport.center[1];
+    const sameCamera =
+      sameCenter &&
+      current.zoom === projectViewport.zoom &&
+      current.bearing === projectViewport.bearing &&
+      current.pitch === projectViewport.pitch;
+    if (sameCamera) return;
+    map.jumpTo(projectViewport);
+    useViewportStore.getState().setViewport(projectViewport);
+  }, [projectViewport]);
 
   return (
     <div

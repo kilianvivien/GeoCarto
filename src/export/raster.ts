@@ -35,7 +35,7 @@ async function renderMapCanvas(
   project: CartoProject,
   outW: number,
   outH: number,
-): Promise<HTMLCanvasElement> {
+): Promise<{ basemapCanvas: HTMLCanvasElement; mapAnchoredAnnotations: HTMLCanvasElement }> {
   const liveMap = useMapInstance.getState().map;
   if (!liveMap) throw new ExportError('Map is not ready.');
   const liveContainer = liveMap.getContainer();
@@ -86,8 +86,17 @@ async function renderMapCanvas(
     if (!ctx) throw new ExportError('Could not allocate 2D context.');
     ctx.drawImage(sourceCanvas, 0, 0, outW, outH);
 
+    const mapAnchoredAnnotations = renderAnnotationsToCanvas({
+      width: outW,
+      height: outH,
+      annotations: project.annotations.filter((annotation) => annotation.anchorMode === 'map'),
+      map,
+      frameOffset: { x: 0, y: 0 },
+      scale: 1,
+    });
+
     map.remove();
-    return out;
+    return { basemapCanvas: out, mapAnchoredAnnotations };
   } finally {
     offscreen.remove();
   }
@@ -158,13 +167,18 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
 
   fillBackground(ctx, outW, outH, options.format === 'jpeg' ? 'white' : options.background);
 
-  const basemapCanvas =
+  const mapCanvases =
     project.basemap.kind === 'static'
-      ? await renderStaticBasemapCanvas(project, outW, outH)
+      ? {
+          basemapCanvas: await renderStaticBasemapCanvas(project, outW, outH),
+          mapAnchoredAnnotations: null,
+        }
       : await renderMapCanvas(project, outW, outH);
+  const { basemapCanvas } = mapCanvases;
   ctx.drawImage(basemapCanvas, 0, 0, outW, outH);
+  if (mapCanvases.mapAnchoredAnnotations) ctx.drawImage(mapCanvases.mapAnchoredAnnotations, 0, 0);
 
-  // Annotations from the live editor stage, scaled to output coordinates.
+  // Canvas-pinned annotations from the live editor stage, scaled to output coordinates.
   const liveMap = useMapInstance.getState().map;
   const liveContainer = liveMap?.getContainer();
   if (liveContainer) {
@@ -175,7 +189,9 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
     const annotationCanvas = renderAnnotationsToCanvas({
       width: outW,
       height: outH,
-      annotations: project.annotations,
+      annotations: project.annotations.filter(
+        (annotation) => project.basemap.kind === 'static' || annotation.anchorMode !== 'map',
+      ),
       map: liveMap,
       frameOffset: { x: offsetX, y: offsetY },
       scale: outW / box.width,

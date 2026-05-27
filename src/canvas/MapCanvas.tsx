@@ -20,6 +20,7 @@ export function MapCanvas() {
 
   return (
     <div
+      data-testid="map-canvas"
       className="relative m-1.5 min-h-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--divider)]"
       onDragEnter={(e) => {
         e.preventDefault();

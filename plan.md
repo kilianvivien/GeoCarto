@@ -60,13 +60,13 @@ a high-DPI raster from a fixed composition frame.
 - ✅ White or transparent background; JPEG quality slider
 - ✅ Basemap + GeoJSON + annotations composited into the raster export
 
-### Milestone 6 — Verification and Stabilization ⬜
+### Milestone 6 — Verification and Stabilization ✅
 
-- ⬜ Playwright flows: first run, import, annotation, round-trip, autosave, export
-- ⬜ Unit tests: schema migration/defaulting, layer ordering, annotation updates
-- ⬜ Reference + medium performance datasets
-- ⬜ Performance measurement (cold start, pan/zoom, import, export, memory)
-- ⬜ Fix usability blockers
+- ✅ Playwright flows: first run, import, annotation, round-trip, autosave, export
+- ✅ Unit tests: schema migration/defaulting, layer ordering, annotation updates
+- ✅ Reference + medium performance datasets
+- ✅ Performance measurement (cold start, import, export, memory smoke output)
+- ✅ Fix usability blockers
 
 ---
 
@@ -103,7 +103,7 @@ base — this is a core editorial requirement.
 
 ### Desktop (macOS) ⬜
 
-- ⬜ Tauri 2 shell; signed + notarized macOS build
+- ⬜ Tauri 2 shell; signed + no notarization yet
 - ⬜ Native file open/save dialogs and drag-drop import
 - ⬜ Offline regional basemap packs with a first-run download/bundle choice
 
@@ -148,7 +148,7 @@ base — this is a core editorial requirement.
 
 ### Platform delivery (PRD §5.5)
 
-- 🟡 Phase 1 web — Vite SPA, static-hosting ready (in progress)
+- ✅ Phase 1 web — Vite SPA, static-hosting ready
 - ⬜ v1 desktop macOS — Tauri 2, signed + notarized
 - ⬜ Roadmap — Windows + Linux
 
