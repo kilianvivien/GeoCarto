@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
-import { confirmDiscardDirtyProject, createNewProject, replaceCurrentProject } from '@/project/documentFlow';
+import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
+import { rememberRecentProject } from '@/project/recents';
+import { useSessionsStore } from '@/state/sessionsStore';
 import { useDocumentStore } from '@/state/documentStore';
+import { useHistoryStore } from '@/state/historyStore';
 import { isToolEnabled, SHORTCUT_TO_TOOL, useToolStore } from '@/state/toolStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
@@ -30,6 +33,7 @@ export function KeyboardShortcuts() {
               ? await saveProjectAs(project)
               : await saveProjectToDisk(project, file);
             markSaved(next);
+            void rememberRecentProject(next);
             push(`Saved ${next.name}`);
           } catch (error) {
             if (error instanceof UserCancelledError) return;
@@ -39,11 +43,11 @@ export function KeyboardShortcuts() {
         }
         if (key === 'o') {
           event.preventDefault();
-          if (!confirmDiscardDirtyProject()) return;
           const push = useNotices.getState().push;
           try {
             const { project, file: opened } = await openProjectFromDisk();
-            replaceCurrentProject(project, opened);
+            openProjectInNewTab(project, opened);
+            void rememberRecentProject(opened);
             push(`Opened ${opened.name}`);
           } catch (error) {
             if (error instanceof UserCancelledError) return;
@@ -51,9 +55,21 @@ export function KeyboardShortcuts() {
           }
           return;
         }
+        if (key === 'w') {
+          // ⌘W closes the active tab; matches macOS browser muscle memory.
+          event.preventDefault();
+          const { activeSessionId, closeSession } = useSessionsStore.getState();
+          if (useDocumentStore.getState().dirty) {
+            const ok = window.confirm(
+              'This tab has unsaved changes. Close and discard?',
+            );
+            if (!ok) return;
+          }
+          closeSession(activeSessionId);
+          return;
+        }
         if (key === 'n') {
           event.preventDefault();
-          if (!confirmDiscardDirtyProject()) return;
           createNewProject();
           useNotices.getState().push('Created new project');
           return;
@@ -62,6 +78,17 @@ export function KeyboardShortcuts() {
           event.preventDefault();
           if (useDocumentStore.getState().project.mode === 'editing') {
             useUiStore.getState().openExportDialog();
+          }
+          return;
+        }
+        if (key === 'z') {
+          event.preventDefault();
+          const hist = useHistoryStore.getState();
+          const ok = event.shiftKey ? hist.redo() : hist.undo();
+          if (!ok) {
+            useNotices
+              .getState()
+              .push(event.shiftKey ? 'Nothing to redo' : 'Nothing to undo', 'error');
           }
           return;
         }

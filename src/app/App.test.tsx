@@ -4,6 +4,8 @@ import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
 import { createEmptyProject, DEFAULT_ANNOTATION_STYLE, type Annotation } from '@/project/cartoproj';
 import { useToolStore } from '@/state/toolStore';
+import { useSessionsStore } from '@/state/sessionsStore';
+import { useHistoryStore } from '@/state/historyStore';
 import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
 
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
@@ -46,6 +48,16 @@ describe('App', () => {
       defaultAnchorMode: 'canvas',
       defaultStyle: { ...DEFAULT_ANNOTATION_STYLE },
     });
+    // Reset the per-test sessions registry so the title bar and tab bar start
+    // fresh — otherwise previous tests leak tabs into later assertions.
+    const fresh = {
+      id: 'test-session',
+      autosaveKey: 'test',
+      lastActiveAt: new Date().toISOString(),
+      snapshot: null,
+    };
+    useSessionsStore.setState({ sessions: [fresh], activeSessionId: fresh.id });
+    useHistoryStore.getState().reset();
   });
 
   it('renders the app shell chrome', () => {
@@ -66,28 +78,31 @@ describe('App', () => {
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
   });
 
-  it('keeps Phase 2 tools and titlebar actions disabled', () => {
+  it('keeps Phase 2 placeholders disabled and enables Undo only after a mutation', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /ruler/i }));
     expect(useToolStore.getState().activeTool).toBe('move');
-    expect(screen.getByRole('button', { name: /undo/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /redo/i })).toBeDisabled();
+    // Snap and Share are still Phase 2 placeholders.
     expect(screen.getByRole('button', { name: /snap/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /share/i })).toBeDisabled();
+    // Lock + ruler click recorded one undoable step; Undo enables, Redo stays disabled.
+    expect(screen.getByRole('button', { name: /undo/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /redo/i })).toBeDisabled();
   });
 
-  it('prompts before creating a new project over dirty work', () => {
+  it('opens new project work in a fresh tab rather than discarding the active one', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     useDocumentStore.getState().addAnnotation(makeAnnotation());
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: /new project/i }));
+    // The "New project" button in the title bar always opens a new tab in
+    // M8 — the dirty-prompt guard belongs to Close, not New.
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
 
-    expect(confirm).toHaveBeenCalled();
-    expect(useDocumentStore.getState().project.annotations).toHaveLength(1);
+    // Active tab is the new empty one; the previous session is parked.
+    expect(useDocumentStore.getState().project.annotations).toEqual([]);
   });
 
   it('shows selected annotation properties and deletes editable annotations', () => {

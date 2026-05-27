@@ -38,6 +38,7 @@ interface DocumentState {
   replaceProject: (project: CartoProject, file?: DocumentFileBinding | null) => void;
   markSaved: (file: DocumentFileBinding) => void;
 
+  renameProject: (name: string) => void;
   setBasemap: (basemap: BasemapConfig) => void;
   setExportFrame: (frame: { width: number; height: number }) => void;
   lockMapArea: (viewport: Viewport) => void;
@@ -90,6 +91,15 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.file = file;
         state.dirty = false;
+      }),
+
+    renameProject: (name) =>
+      set((state) => {
+        const trimmed = name.trim() || 'Untitled';
+        if (state.project.meta.name === trimmed) return;
+        state.project.meta.name = trimmed;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     setBasemap: (basemap) =>
@@ -303,3 +313,11 @@ export const useDocumentStore = create<DocumentState>()(
       }),
   })),
 );
+
+// Expose the document store on `window.__documentStore` so Playwright e2e
+// specs can seed mutations directly (visual diff, history coverage, etc.).
+// Production users see nothing — the symbol is undocumented and read-only-ish.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __documentStore: typeof useDocumentStore }).__documentStore =
+    useDocumentStore;
+}

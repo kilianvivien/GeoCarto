@@ -28,11 +28,11 @@ test('restore an autosaved draft from IndexedDB', async ({ page }) => {
   await page.reload();
 
   await expect(page.getByTestId('recovery-prompt')).toBeVisible();
-  await expect(page.getByText('autosaved-reference.cartoproj')).toBeVisible();
-  await page.getByRole('button', { name: 'Restore' }).click();
+  await expect(page.getByText('autosaved-reference.cartoproj').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Restore' }).first().click();
 
   await expect(page.getByTestId('recovery-prompt')).toBeHidden();
-  await expect(page.getByText('autosaved-reference.cartoproj')).toBeVisible();
+  await expect(page.getByText('autosaved-reference.cartoproj').first()).toBeVisible();
   await expect(page.getByTestId('annotation-row')).toHaveCount(3);
   await expect(page.getByTestId('layer-row')).toContainText('Reference');
 });

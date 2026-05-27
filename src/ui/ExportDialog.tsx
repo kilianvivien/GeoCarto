@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, X } from 'lucide-react';
-import { downloadBlob, exportRaster, type ExportBackground, type ExportFormat } from '@/export/raster';
+import type { ExportBackground, ExportFormat } from '@/export/raster';
 import { useDocumentStore } from '@/state/documentStore';
 import { useNotices } from './notices';
+
+// Defer the raster export module (pulls maplibre-gl into the bundle) until the
+// user actually clicks Export — keeps it out of the initial chunk.
+async function loadRaster() {
+  return import('@/export/raster');
+}
 
 type ScalePreset = '1x' | '2x' | 'custom';
 
@@ -53,6 +59,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const handleExport = async () => {
     setBusy(true);
     try {
+      const { exportRaster, downloadBlob } = await loadRaster();
       const result = await exportRaster(project, { format, scale, background, quality });
       downloadBlob(result.blob, result.fileName);
       push(`Exported ${result.fileName} (${result.width}×${result.height})`);

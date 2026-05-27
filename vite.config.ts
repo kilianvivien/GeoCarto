@@ -19,6 +19,30 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    // Bundle budget is enforced separately by scripts/check-bundle-budget.mjs;
+    // raising this just silences the rollup warning since our split chunks
+    // (maplibre, konva) are intentionally large and downloaded in parallel.
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        // Split heavy renderer/exporter packages into their own chunks so the
+        // initial shell parse stays small and the browser can fetch them in
+        // parallel. M7 bundle hardening — keeps cold start headroom for the
+        // PRD §7 < 2 s target.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/maplibre-gl/')) return 'maplibre';
+          if (id.includes('/pmtiles/') || id.includes('@protomaps/')) return 'pmtiles';
+          if (id.includes('/konva/') || id.includes('/react-konva/')) return 'konva';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+            return 'react';
+          }
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

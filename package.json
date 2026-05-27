@@ -12,7 +12,9 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "fixtures:large": "node scripts/generate-large-fixture.mjs",
+    "bundle-budget": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.2",

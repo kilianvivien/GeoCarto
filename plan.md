@@ -10,7 +10,7 @@ the browser (Phase 1) and as a native macOS app (v1). Three delivery phases:
 
 ---
 
-## Phase 1 / MVP — browser core loop 🟡 Exit hardening
+## Phase 1 / MVP — browser core loop ✅ Exit complete
 
 Goal: open a basemap, import GeoJSON, annotate, save/reopen a project, and export
 a high-DPI raster from a fixed composition frame.
@@ -42,7 +42,7 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Layer panel + attribute inspector
 - Note: annotation objects join the `.cartoproj` schema in Milestone 4.
 
-### Milestone 4 — Annotation Tools 🟡
+### Milestone 4 — Annotation Tools ✅
 
 - ✅ Konva annotation stage, camera-synced to MapView
 - ✅ Selection/move tool with Figma-style transformer handles
@@ -50,72 +50,86 @@ a high-DPI raster from a fixed composition frame.
 - ✅ Inspector controls: fill, stroke, opacity, text size/color, pin color/icon
 - ✅ Font choice from a small bundled set
 - ✅ Object lock/hide; geo vs canvas anchoring ("Pin to map" / "Pin to canvas")
-- 🟡 Phase 1 tool gate: enabled tools are Move, Line/Pen, Rectangle, Ellipse,
-      Polygon, Text, Pin, Arrow; Phase 2 tools are disabled/marked.
-- 🟡 Keyboard shortcuts: `P` Line/Pen, `G` Polygon, delete selected; Phase 2
-      shortcuts must not activate inert tools.
+- ✅ Phase 1 tool gate locked by a vitest invariant: any Phase 2-flagged tool
+      must stay disabled until its owning Phase 2 milestone lands.
+- ✅ Keyboard shortcuts gated by `isToolEnabled`; Phase 2 shortcuts no-op.
 - Note: annotations are serializable in `.cartoproj`; save/autosave/export lands in Milestone 5.
 
-### Milestone 5 — Save, Autosave, and Export 🟡
+### Milestone 5 — Save, Autosave, and Export ✅
 
 - ✅ Save/open plain `.cartoproj` JSON (File System Access API + download/upload fallback)
-- ✅ Browser autosave every 10s (IndexedDB) + recovery prompt for autosaved drafts
+- ✅ Browser autosave every 10s (IndexedDB), now keyed per session, with a
+      multi-draft recovery prompt that restores each tab independently (M8).
 - ✅ PNG/JPEG export from the export frame at 1x / 2x / custom scale
 - ✅ White or transparent background; JPEG quality slider
 - ✅ Basemap + GeoJSON + annotations composited into the raster export
-- 🟡 Single-document New/Open/Restore now require dirty-document safety prompts.
-- 🟡 Local PMTiles file basemaps are disabled for Phase 1 web because `blob:`
-      URLs cannot survive save/reopen.
-- 🟡 Static PDF basemap export remains unsupported until Phase 2 export hardening.
+- ✅ New/Close prompts before discarding dirty work; Open now lands the file in
+      a fresh tab instead of replacing the active session.
+- 🟡 Local PMTiles file basemaps remain disabled in Phase 1 web (`blob:` URLs
+      can't survive save/reopen). Revisited in Milestone 11.
+- 🟡 Static PDF basemap export deferred to the SVG/PDF pipeline in Milestone 15.
 
-### Milestone 6 — Verification and Stabilization 🟡
+### Milestone 6 — Verification and Stabilization ✅
 
 - ✅ Playwright flows: first run, import, annotation, round-trip, autosave, export
-- ✅ Unit tests: schema migration/defaulting, layer ordering, annotation updates
-- 🟡 Export tests cover PNG/JPEG/custom scale/transparent options and basic
-      output signatures; visual fidelity/pixel diff still needs a stronger harness.
-- 🟡 Performance smoke records cold start/import/export and enforces broad PRD
-      thresholds; dataset realism still needs a true 10 MB fixture.
-- 🟡 Production build passes but emits a large initial JS chunk warning; bundle
-      splitting remains a Phase 1 exit-hardening task.
+- ✅ Unit tests: schema migration/defaulting, layer ordering, annotation
+      updates, session registry, undo/redo round-trip.
+- ✅ Export visual-diff harness compares the PNG against a committed baseline
+      with a `maxDiffPixelRatio` tolerance; a seeded 8 px pin shift breaks the
+      baseline as proof the harness catches drift.
+- ✅ Performance smoke imports the deterministic 10 MB `large.geojson` fixture
+      (regenerable via `npm run fixtures:large`) and enforces PRD §7 cold
+      start, import, export, and heap thresholds with CI headroom.
+- ✅ MapLibre, Konva, PMTiles, and the raster exporter are each in their own
+      Rollup chunk; `npm run bundle-budget` fails CI on regression.
 
 ---
 
-## Phase 1 Exit Audit & Hardening 🟡
+## Phase 1 Exit Audit & Hardening ✅
 
-Acceptance before moving fully into Phase 2:
+Closed out by Milestone 7. Phase 2 work now sits on a clean Phase 1 base.
 
-- ✅ No enabled UI control is inert. Ruler, locked-canvas Pan, Marquee, Paint,
-      Image, Legend, Comment, Undo, Redo, Snap, and Share are disabled/marked
-      as Phase 2 until implemented.
-- ✅ GeoJSON layer style controls are exposed in the inspector and persisted in
-      `.cartoproj`.
-- ✅ Locked layers cannot be renamed, deleted, reordered, or restyled.
-- ✅ New/Open/Autosave Restore prompt before discarding dirty work.
-- ✅ Local PMTiles file selection is blocked in Phase 1 web; use remote PMTiles
-      URLs or built-in basemaps for persisted projects.
-- 🟡 Export acceptance should add visual/pixel comparisons against the visible
-      composition frame for basemap + GeoJSON + annotations.
-- 🟡 Performance acceptance should use a realistic 10 MB GeoJSON fixture and
-      enforce cold start, import, pan/zoom, drag, export, and memory thresholds.
-- 🟡 Bundle hardening should code-split heavy MapLibre/Konva/export paths or set
-      an explicit accepted bundle budget.
+- ✅ Phase 2 toolbar controls remain inert; the Snap, Share, Ruler, Marquee,
+      Paint, Image, Legend, and Comment buttons keep their disabled state and
+      a vitest invariant fails if anyone flips one on without shipping its
+      milestone. Undo/Redo are no longer Phase 2 placeholders — see M9.
+- ✅ GeoJSON layer style controls in the inspector, persisted in `.cartoproj`.
+- ✅ Locked layers can't be renamed, deleted, reordered, or restyled.
+- ✅ Dirty-document guards on New, Open, Close, and Autosave Restore.
+- ✅ Local PMTiles file selection blocked in Phase 1 web.
+- ✅ Export visual/pixel diff harness against the visible composition frame
+      (`tests/e2e/export-visual-diff.spec.ts`).
+- ✅ Performance acceptance uses the 10 MB `large.geojson` fixture and enforces
+      cold start, import, export, and memory thresholds with CI headroom.
+- ✅ MapLibre/Konva/PMTiles/raster export each ship in their own chunk; the
+      `bundle-budget` script gates regressions.
 
 ---
 
 ## Phase 2 / v1 Editorial — production-grade editorial tool
 
-### Project & Document Workflow ⬜
+### Project & Document Workflow 🟡
 
-- ⬜ Multi-project sessions/tabs:
-  - ⬜ `ProjectSession { id, project, file, dirty, autosaveKey, title, lastActiveAt }`
-  - ⬜ `activeSessionId`
-  - ⬜ New/Open creates or switches tabs; Close prompts on unsaved changes
-  - ⬜ Autosave is per-project/per-tab rather than one global current draft
-- ⬜ Recent projects where browser/native capabilities allow it
-- ⬜ Undo/redo with ≥100 meaningful document steps
-- ⬜ Pixel/grid snap, ruler/measurement tool, and locked-canvas pan tool
-- ⬜ Share, comments, image placement, and legend builder workflows
+- ✅ Multi-project sessions/tabs (M8):
+  - ✅ `ProjectSession { id, autosaveKey, lastActiveAt, snapshot }` and
+        `activeSessionId` in `useSessionsStore`; doc store stays the active-tab
+        view so Phase 1 consumers are unchanged.
+  - ✅ Tab bar with New, Close, drag-to-reorder, and per-tab dirty indicator.
+  - ✅ New opens a fresh blank tab; Open lands the file in a new tab; Close
+        prompts on unsaved changes; ⌘W closes the active tab.
+  - ✅ Autosave is keyed per session; the recovery prompt restores every dirty
+        session (each into its own tab), not just the most recent.
+- ✅ Recent projects menu (M8). Stores File System Access handles where the
+      browser supplies them so reopening is one click; Safari/Firefox get a
+      filename-only history with a graceful "use Open" toast.
+- ✅ Undo/redo with ≥100 meaningful document steps (M9):
+  - Structural-share-friendly snapshot history capped at 100 entries.
+  - `hintHistoryLabel(label)` + 400 ms coalesce window collapses drag bursts
+    into one entry. Selection / viewport / tool state stays out of history by
+    construction (they live in separate stores).
+  - ⌘Z / ⌘⇧Z, plus toolbar Undo/Redo lifted from the Phase 1 gate.
+- ⬜ Pixel/grid snap, ruler/measurement tool, and locked-canvas pan tool (M10)
+- ⬜ Share, comments, image placement, and legend builder workflows (M13/M14)
 
 ### Basemap sources & styling 🟡
 
