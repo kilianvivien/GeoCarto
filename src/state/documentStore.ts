@@ -52,7 +52,7 @@ interface DocumentState {
   setExportFrameMargin: (margin: number) => void;
   setExportFrameBackground: (background: PageBackground) => void;
   setExportFrameDpiScale: (scale: number) => void;
-  lockMapArea: (viewport: Viewport, surfaceSize?: { width: number; height: number }) => void;
+  lockMapArea: (viewport: Viewport) => void;
   unlockMapArea: () => void;
   addLayer: (layer: GeoJsonLayer) => void;
   removeLayer: (id: string) => void;
@@ -188,13 +188,8 @@ export const useDocumentStore = create<DocumentState>()(
         state.dirty = true;
       }),
 
-    lockMapArea: (viewport, surfaceSize) =>
+    lockMapArea: (viewport) =>
       set((state) => {
-        if (surfaceSize && surfaceSize.width > 0 && surfaceSize.height > 0) {
-          state.project.exportFrame.width = Math.round(surfaceSize.width);
-          state.project.exportFrame.height = Math.round(surfaceSize.height);
-          state.project.exportFrame.preset = 'custom';
-        }
         state.project.viewport = viewport;
         state.project.mode = 'editing';
         state.project.lockedMapView = {

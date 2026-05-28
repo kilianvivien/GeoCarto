@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Maximize2, Minus, Plus } from 'lucide-react';
 import { MapView } from './MapView';
 import { ExportFrame } from './ExportFrame';
@@ -15,7 +16,7 @@ function ViewZoomControls() {
   const zoom = useViewTransformStore((s) => s.zoom);
   const { setZoomAt, reset } = useViewTransformStore.getState();
   const anchor = () => {
-    const canvas = document.querySelector('[data-testid="map-canvas"]');
+    const canvas = document.querySelector('[data-testid="map-surface"]');
     const rect = canvas?.getBoundingClientRect();
     return rect ? { x: rect.width / 2, y: rect.height / 2 } : { x: 0, y: 0 };
   };
@@ -56,22 +57,62 @@ function ViewZoomControls() {
   );
 }
 
+function useElementSize(ref: RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const update = () => setSize({ width: node.clientWidth, height: node.clientHeight });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
+}
+
+function containFrame(width: number, height: number, aspect: number) {
+  if (width <= 0 || height <= 0 || aspect <= 0) return { width: 0, height: 0, x: 0, y: 0 };
+  let surfaceWidth = width;
+  let surfaceHeight = surfaceWidth / aspect;
+  if (surfaceHeight > height) {
+    surfaceHeight = height;
+    surfaceWidth = surfaceHeight * aspect;
+  }
+  return {
+    width: surfaceWidth,
+    height: surfaceHeight,
+    x: (width - surfaceWidth) / 2,
+    y: (height - surfaceHeight) / 2,
+  };
+}
+
 /**
  * The canvas cell: the MapLibre viewport, the headless GeoJSON layer renderer,
  * and an overlay layer above the map (design.md §4.3). Accepts file drops to
  * import GeoJSON.
  */
 export function MapCanvas() {
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const panDragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const mode = useDocumentStore((s) => s.project.mode);
+  const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const activeTool = useToolStore((s) => s.activeTool);
   const viewZoom = useViewTransformStore((s) => s.zoom);
   const viewPan = useViewTransformStore((s) => s.pan);
   const { zoomBy, panBy, reset } = useViewTransformStore.getState();
+  const canvasSize = useElementSize(canvasRef);
   const canInspect = mode === 'editing';
   const canPanView = canInspect && activeTool === 'pan';
+  const frameAspect = exportFrame.width / exportFrame.height;
+  const surface =
+    mode === 'editing'
+      ? containFrame(canvasSize.width, canvasSize.height, frameAspect)
+      : { width: canvasSize.width, height: canvasSize.height, x: 0, y: 0 };
 
   useEffect(() => {
     if (mode === 'mapSetup') reset();
@@ -79,15 +120,16 @@ export function MapCanvas() {
 
   return (
     <div
+      ref={canvasRef}
       data-testid="map-canvas"
-      className="relative m-1.5 min-h-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--divider)]"
+      className="relative m-1.5 min-h-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--divider)] bg-[var(--surface)]"
       onWheel={(e) => {
         if (!canInspect) return;
         e.preventDefault();
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = e.currentTarget.querySelector('[data-testid="map-surface"]')?.getBoundingClientRect();
         zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
+          x: rect ? e.clientX - rect.left : 0,
+          y: rect ? e.clientY - rect.top : 0,
         });
       }}
       onPointerDown={(e) => {
@@ -129,8 +171,13 @@ export function MapCanvas() {
       }}
     >
       <div
-        className={`absolute inset-0 ${canPanView ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        data-testid="map-surface"
+        className={`absolute overflow-hidden rounded-[var(--radius-md)] ${canPanView ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{
+          left: surface.x,
+          top: surface.y,
+          width: surface.width,
+          height: surface.height,
           transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewZoom})`,
           transformOrigin: '0 0',
         }}

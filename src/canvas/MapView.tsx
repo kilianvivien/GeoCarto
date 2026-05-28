@@ -52,7 +52,11 @@ export function MapView() {
     map.on('mousemove', setCursor);
     map.on('mouseout', clearCursor);
 
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(container);
+
     return () => {
+      resizeObserver.disconnect();
       useMapInstance.getState().setMap(null);
       map.remove();
       mapRef.current = null;

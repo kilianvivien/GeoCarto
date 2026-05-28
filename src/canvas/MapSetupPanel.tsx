@@ -148,10 +148,7 @@ export function MapSetupPanel() {
       locked = { ...viewport, zoom: viewport.zoom + delta };
       map.jumpTo({ center: locked.center, zoom: locked.zoom, bearing: locked.bearing, pitch: locked.pitch });
     }
-    lockMapArea(
-      locked,
-      container ? { width: container.clientWidth, height: container.clientHeight } : undefined,
-    );
+    lockMapArea(locked);
   };
 
   const lockButton = (

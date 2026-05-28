@@ -19,7 +19,6 @@ import { hintHistoryLabel } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
-import { useMapInstance } from '@/canvas/mapInstance';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
 import { rememberRecentProject } from '@/project/recents';
@@ -102,11 +101,7 @@ export function TitleBar() {
       unlockMapArea();
       return;
     }
-    const container = useMapInstance.getState().map?.getContainer();
-    lockMapArea(
-      viewport,
-      container ? { width: container.clientWidth, height: container.clientHeight } : undefined,
-    );
+    lockMapArea(viewport);
   };
 
   const handleOpen = async () => {

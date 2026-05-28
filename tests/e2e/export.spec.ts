@@ -13,16 +13,28 @@ test('export a PNG from the locked composition frame', async ({ page }) => {
   await disableFileSystemAccess(page);
   await page.goto('/');
   await openProjectFixture(page);
+  let surfaceBox = await page.getByTestId('map-surface').boundingBox();
+  expect(surfaceBox).not.toBeNull();
+  expect(surfaceBox!.width / surfaceBox!.height).toBeCloseTo(4 / 3, 1);
+
+  await page.evaluate(() => {
+    type Store = {
+      getState: () => {
+        setExportFrameSize: (dims: { width: number; height: number }) => void;
+      };
+    };
+    const store = (window as unknown as { __documentStore?: Store }).__documentStore;
+    if (!store) throw new Error('document store not exposed for tests');
+    store.getState().setExportFrameSize({ width: 1920, height: 1080 });
+  });
+  surfaceBox = await page.getByTestId('map-surface').boundingBox();
+  expect(surfaceBox).not.toBeNull();
+  expect(surfaceBox!.width / surfaceBox!.height).toBeCloseTo(16 / 9, 1);
 
   await page.getByTitle('Export (⌘E)').click();
   const dialog = page.getByRole('dialog', { name: 'Export image' });
   await expect(dialog).toBeVisible();
-  const canvasBox = await page.getByTestId('map-view').boundingBox();
-  expect(canvasBox).not.toBeNull();
-  const expectedSize = {
-    width: Math.round(canvasBox!.width),
-    height: Math.round(canvasBox!.height),
-  };
+  const expectedSize = { width: 1920, height: 1080 };
   await expect(page.getByTestId('export-output-size')).toHaveText(`${expectedSize.width} × ${expectedSize.height}`);
 
   const [download] = await Promise.all([
@@ -44,12 +56,7 @@ test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   await disableFileSystemAccess(page);
   await page.goto('/');
   await openProjectFixture(page);
-  const canvasBox = await page.getByTestId('map-view').boundingBox();
-  expect(canvasBox).not.toBeNull();
-  const scaledSize = {
-    width: Math.round(canvasBox!.width * 1.5),
-    height: Math.round(canvasBox!.height * 1.5),
-  };
+  const scaledSize = { width: 1200, height: 900 };
 
   await page.getByTitle('Export (⌘E)').click();
   let dialog = page.getByRole('dialog', { name: 'Export image' });

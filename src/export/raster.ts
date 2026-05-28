@@ -145,13 +145,9 @@ export interface ExportResult {
 }
 
 export function effectiveExportSize(project: CartoProject, scale: number): { width: number; height: number } {
-  const liveContainer = useMapInstance.getState().map?.getContainer();
-  const baseW = project.mode === 'editing' && liveContainer?.clientWidth ? liveContainer.clientWidth : project.exportFrame.width;
-  const baseH =
-    project.mode === 'editing' && liveContainer?.clientHeight ? liveContainer.clientHeight : project.exportFrame.height;
   return {
-    width: Math.round(baseW * scale),
-    height: Math.round(baseH * scale),
+    width: Math.round(project.exportFrame.width * scale),
+    height: Math.round(project.exportFrame.height * scale),
   };
 }
 
