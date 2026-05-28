@@ -1,9 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Konva from 'konva';
-import { Arrow, Circle, Ellipse, Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
+import {
+  Arrow,
+  Circle,
+  Ellipse,
+  Group,
+  Image as KonvaImage,
+  Layer,
+  Line,
+  Rect,
+  Stage,
+  Text,
+  Transformer,
+} from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, AnnotationStyle, PinAnnotation, PinIcon, TextAnnotation } from '@/project/cartoproj';
+import type {
+  Annotation,
+  AnnotationStyle,
+  CommentAnnotation,
+  ImageAnnotation,
+  LegendAnnotation,
+  PinAnnotation,
+  PinIcon,
+  TextAnnotation,
+} from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
@@ -65,6 +86,41 @@ function isTypingTarget(target: EventTarget | null) {
 
 function blurFocusedControl() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+interface PickedImage {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+/** Prompt the user for an image file, read it as a data URL, and return its natural pixel size. */
+function pickImageFile(): Promise<PickedImage | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/webp,image/svg+xml';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result as string);
+        reader.onerror = () => rej(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const img = new window.Image();
+      img.onload = () => resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+    // No cancel signal exists for file pickers — if the user dismisses, resolve never fires;
+    // that's fine because the tool stays active until the next interaction.
+    input.click();
+  });
 }
 
 function shadowProps(style: AnnotationStyle) {
@@ -295,7 +351,140 @@ function FillShape({
           />
         </>
       );
+    case 'image':
+      return <ImageShape annotation={annotation} />;
+    case 'legend':
+      return <LegendShape annotation={annotation} />;
+    case 'comment':
+      return <CommentShape annotation={annotation} />;
   }
+}
+
+function ImageShape({ annotation }: { annotation: ImageAnnotation }) {
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!annotation.src) {
+      setImg(null);
+      return;
+    }
+    const next = new window.Image();
+    next.onload = () => setImg(next);
+    next.src = annotation.src;
+  }, [annotation.src]);
+  const shadow = shadowProps(annotation.style);
+  if (!img) {
+    return (
+      <Rect
+        width={annotation.width}
+        height={annotation.height}
+        fill={annotation.style.fillColor}
+        opacity={0.25}
+        dash={[6, 4]}
+        stroke={annotation.style.strokeColor}
+        strokeWidth={1}
+      />
+    );
+  }
+  return (
+    <KonvaImage
+      image={img}
+      width={annotation.width}
+      height={annotation.height}
+      opacity={annotation.opacity}
+      {...(shadow ?? {})}
+    />
+  );
+}
+
+function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
+  const padding = 10;
+  const rowHeight = annotation.style.textSize + 8;
+  const swatchSize = annotation.style.textSize;
+  const visibleEntries = annotation.entries.filter((entry) => entry.visible);
+  const height = padding * 2 + (annotation.style.textSize + 6) + rowHeight * visibleEntries.length;
+  const shadow = shadowProps(annotation.style);
+  return (
+    <>
+      <Rect
+        width={annotation.width}
+        height={height}
+        fill={annotation.style.fillColor}
+        cornerRadius={10}
+        stroke={annotation.style.strokeColor}
+        strokeWidth={annotation.style.strokeWidth}
+        opacity={annotation.opacity}
+        {...(shadow ?? {})}
+      />
+      <Text
+        text={annotation.title}
+        x={padding}
+        y={padding}
+        fontSize={annotation.style.textSize + 2}
+        fontFamily={annotation.style.fontFamily}
+        fontStyle="bold"
+        fill={annotation.style.textColor}
+      />
+      {visibleEntries.map((entry, index) => {
+        const y = padding + (annotation.style.textSize + 6) + index * rowHeight;
+        return (
+          <Group key={`${entry.label}-${index}`} y={y}>
+            <Rect
+              x={padding}
+              width={swatchSize}
+              height={swatchSize}
+              fill={entry.swatchColor}
+              cornerRadius={3}
+              stroke={annotation.style.strokeColor}
+              strokeWidth={0.5}
+            />
+            <Text
+              text={entry.label}
+              x={padding + swatchSize + 8}
+              y={1}
+              fontSize={annotation.style.textSize}
+              fontFamily={annotation.style.fontFamily}
+              fill={annotation.style.textColor}
+            />
+          </Group>
+        );
+      })}
+    </>
+  );
+}
+
+function CommentShape({ annotation }: { annotation: CommentAnnotation }) {
+  const radius = 14;
+  const shadow = shadowProps(annotation.style);
+  return (
+    <Group>
+      <Circle
+        radius={radius}
+        fill={annotation.style.pinColor}
+        stroke="#ffffff"
+        strokeWidth={2}
+        {...(shadow ?? {})}
+      />
+      <Line
+        points={[radius * 0.4, radius * 0.7, radius * 0.7, radius * 1.2, -radius * 0.4, radius * 1.2]}
+        closed
+        fill={annotation.style.pinColor}
+        stroke="#ffffff"
+        strokeWidth={2}
+        lineJoin="round"
+      />
+      <Text
+        text="…"
+        x={-radius / 2}
+        y={-radius * 0.75}
+        width={radius}
+        align="center"
+        fontSize={radius}
+        fontFamily={annotation.style.fontFamily}
+        fontStyle="bold"
+        fill="#ffffff"
+      />
+    </Group>
+  );
 }
 
 function HatchOverlay({
@@ -518,6 +707,22 @@ function boundsFromAnnotation(annotation: Annotation, origin: { x: number; y: nu
     right += annotation.size / 2 + annotation.label.length * annotation.style.textSize * 0.6;
     top -= annotation.size / 2;
     bottom += annotation.size / 2;
+  } else if (annotation.kind === 'image' || annotation.kind === 'legend') {
+    right += annotation.width;
+    if (annotation.kind === 'image') {
+      bottom += annotation.height;
+    } else {
+      // Estimate legend height the same way LegendShape lays it out.
+      const rowHeight = annotation.style.textSize + 8;
+      const padding = 10;
+      const visibleEntries = annotation.entries.filter((entry) => entry.visible);
+      bottom += padding * 2 + (annotation.style.textSize + 6) + rowHeight * visibleEntries.length;
+    }
+  } else if (annotation.kind === 'comment') {
+    left -= 16;
+    right += 16;
+    top -= 16;
+    bottom += 24;
   } else {
     const xs = annotation.points.filter((_, index) => index % 2 === 0).map((x) => x + origin.x);
     const ys = annotation.points.filter((_, index) => index % 2 === 1).map((y) => y + origin.y);
@@ -588,6 +793,64 @@ function formatMeasurement(annotation: Extract<Annotation, { kind: 'measurement'
     : distance;
 }
 
+function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () => void }) {
+  const annotation = useDocumentStore((s) =>
+    s.project.annotations.find((item): item is CommentAnnotation => item.id === editorId && item.kind === 'comment'),
+  );
+  const map = useMapInstance((s) => s.map);
+  const [draft, setDraft] = useState(annotation?.text ?? '');
+  useEffect(() => setDraft(annotation?.text ?? ''), [annotation?.text]);
+  if (!annotation) return null;
+  const pos = anchorPosition(annotation, map);
+  const commit = () => {
+    useDocumentStore.getState().updateAnnotation(editorId, { text: draft } as Partial<Annotation>);
+    onClose();
+  };
+  return (
+    <div
+      role="dialog"
+      aria-label="Edit comment"
+      className="absolute z-30 flex w-56 flex-col gap-1.5 rounded-[10px] border border-[var(--divider)] bg-[var(--glass-strong)] p-2 shadow-[0_12px_36px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+      style={{ left: pos.x + 20, top: pos.y - 10 }}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <textarea
+        autoFocus
+        value={draft}
+        placeholder="Add a comment…"
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            commit();
+          }
+        }}
+        className="h-20 resize-none rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+      />
+      <div className="flex justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-[6px] px-2 py-1 text-[11px] text-[var(--text-2)] hover:bg-[var(--hover)]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={commit}
+          className="rounded-[6px] bg-[var(--accent)] px-2 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Editable Konva annotation layer. It renders the canonical document annotations
  * and writes edits back to the document store.
@@ -627,6 +890,13 @@ export function AnnotationStage() {
   } | null>(null);
   const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
+  const [paintDraft, setPaintDraft] = useState<{
+    position: { x: number; y: number };
+    geoAnchor: [number, number] | null;
+    points: number[];
+  } | null>(null);
+  const [commentEditor, setCommentEditor] = useState<{ id: string } | null>(null);
+  const paintPointerRef = useRef<number | null>(null);
   const marqueePointerRef = useRef<number | null>(null);
   const dragStartRef = useRef<Record<string, { x: number; y: number; geoAnchor: [number, number] | null }>>({});
   const lastMultiSelectionRef = useRef<string[]>([]);
@@ -922,6 +1192,42 @@ export function AnnotationStage() {
     const kind = toolToAnnotationKind(activeTool);
     if (!kind) return;
 
+    // Paint uses a drag-to-draw flow handled by the dedicated pointer listeners
+    // on the wrapper div — clicks alone don't commit a paint stroke.
+    if (activeTool === 'paint') return;
+
+    // Image tool: open a file picker, then place the loaded bitmap at the click point.
+    if (activeTool === 'image') {
+      const placePoint = pointer;
+      const placeGeo = defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null;
+      pickImageFile().then((picked) => {
+        if (!picked) return;
+        const annotation = createAnnotation({
+          kind: 'image',
+          anchorMode: defaultAnchorMode,
+          position: placePoint,
+          geoAnchor: placeGeo,
+          style: defaultStyle,
+        });
+        if (annotation.kind === 'image') {
+          const maxSide = 320;
+          const aspect = picked.width / picked.height;
+          const width = aspect >= 1 ? maxSide : maxSide * aspect;
+          const height = aspect >= 1 ? maxSide / aspect : maxSide;
+          addAnnotation({
+            ...annotation,
+            src: picked.dataUrl,
+            width,
+            height,
+            naturalWidth: picked.width,
+            naturalHeight: picked.height,
+          });
+        }
+        useToolStore.getState().setActiveTool('move');
+      });
+      return;
+    }
+
     if (kind === 'polygon') {
       setDraftPolygon((draft) => {
         if (!draft) {
@@ -936,6 +1242,20 @@ export function AnnotationStage() {
           points: [...draft.points, pointer.x - draft.position.x, pointer.y - draft.position.y],
         };
       });
+      return;
+    }
+
+    if (activeTool === 'comment') {
+      const annotation = createAnnotation({
+        kind: 'comment',
+        anchorMode: 'map',
+        position: pointer,
+        geoAnchor: pointerGeo(map, pointer),
+        style: defaultStyle,
+      });
+      addAnnotation(annotation);
+      setCommentEditor({ id: annotation.id });
+      useToolStore.getState().setActiveTool('move');
       return;
     }
 
@@ -1073,18 +1393,66 @@ export function AnnotationStage() {
       className="absolute inset-0 z-20"
       style={{ pointerEvents: capturesPointer ? 'auto' : 'none' }}
       onPointerDown={(event) => {
-        if (activeTool !== 'marquee' || event.button !== 0) return;
+        if (event.button !== 0) return;
+        if (activeTool === 'paint') {
+          const point = stagePointFromClient(event.clientX, event.clientY);
+          paintPointerRef.current = event.pointerId;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setPaintDraft({
+            position: point,
+            geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, point) : null,
+            points: [0, 0],
+          });
+          return;
+        }
+        if (activeTool !== 'marquee') return;
         const point = stagePointFromClient(event.clientX, event.clientY);
         marqueePointerRef.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
         setMarquee({ start: point, end: point });
       }}
       onPointerMove={(event) => {
+        if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
+          const point = stagePointFromClient(event.clientX, event.clientY);
+          setPaintDraft((draft) => {
+            if (!draft) return draft;
+            const last = draft.points.length - 2;
+            const dx = point.x - draft.position.x - draft.points[last];
+            const dy = point.y - draft.position.y - draft.points[last + 1];
+            // Skip nearly-stationary samples to keep the stored path light.
+            if (dx * dx + dy * dy < 16) return draft;
+            return {
+              ...draft,
+              points: [...draft.points, point.x - draft.position.x, point.y - draft.position.y],
+            };
+          });
+          return;
+        }
         if (activeTool !== 'marquee' || marqueePointerRef.current !== event.pointerId) return;
         const point = stagePointFromClient(event.clientX, event.clientY);
         setMarquee((draft) => (draft ? { ...draft, end: point } : draft));
       }}
       onPointerUp={(event) => {
+        if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
+          paintPointerRef.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+          const draft = paintDraft;
+          setPaintDraft(null);
+          if (draft && draft.points.length >= 6) {
+            const annotation = createAnnotation({
+              kind: 'polygon',
+              anchorMode: defaultAnchorMode,
+              position: draft.position,
+              geoAnchor: draft.geoAnchor,
+              style: { ...defaultStyle, fillPattern: defaultStyle.fillPattern === 'none' ? 'diagonal' : defaultStyle.fillPattern },
+            });
+            if (annotation.kind === 'polygon') {
+              addAnnotation({ ...annotation, points: draft.points });
+            }
+          }
+          useToolStore.getState().setActiveTool('move');
+          return;
+        }
         if (activeTool !== 'marquee' || marqueePointerRef.current !== event.pointerId) return;
         marqueePointerRef.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
@@ -1092,7 +1460,9 @@ export function AnnotationStage() {
       }}
       onPointerCancel={() => {
         marqueePointerRef.current = null;
+        paintPointerRef.current = null;
         setMarquee(null);
+        setPaintDraft(null);
       }}
     >
       <Stage
@@ -1173,10 +1543,12 @@ export function AnnotationStage() {
                 onDblClick={(event) => {
                   event.cancelBubble = true;
                   if (annotation.kind === 'text' || annotation.kind === 'pin') startTextEditing(annotation);
+                  else if (annotation.kind === 'comment') setCommentEditor({ id: annotation.id });
                 }}
                 onDblTap={(event) => {
                   event.cancelBubble = true;
                   if (annotation.kind === 'text' || annotation.kind === 'pin') startTextEditing(annotation);
+                  else if (annotation.kind === 'comment') setCommentEditor({ id: annotation.id });
                 }}
                 onTap={(event) => {
                   event.cancelBubble = true;
@@ -1290,6 +1662,20 @@ export function AnnotationStage() {
               dash={[6, 5]}
             />
           )}
+          {paintDraft && (
+            <Line
+              x={paintDraft.position.x}
+              y={paintDraft.position.y}
+              points={paintDraft.points}
+              stroke={defaultStyle.strokeColor}
+              strokeWidth={defaultStyle.strokeWidth}
+              fill={defaultStyle.fillColor}
+              closed={paintDraft.points.length >= 6}
+              opacity={0.6}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
           {marquee && (
             <Rect
               x={Math.min(marquee.start.x, marquee.end.x)}
@@ -1383,6 +1769,7 @@ export function AnnotationStage() {
           }}
         />
       )}
+      {commentEditor && <CommentPopover editorId={commentEditor.id} onClose={() => setCommentEditor(null)} />}
       {contextMenu && (
         <div
           role="menu"

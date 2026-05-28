@@ -8,7 +8,6 @@ import { Workspace } from './Workspace';
 import { StatusBar } from './StatusBar';
 import { ToastHost } from './ToastHost';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
-import { RecoveryPrompt } from './RecoveryPrompt';
 import { useDocumentTitle } from './useDocumentTitle';
 
 /**
@@ -43,7 +42,6 @@ export function AppShell() {
         <Workspace />
         <StatusBar />
         <ToastHost />
-        <RecoveryPrompt />
         <KeyboardShortcuts />
       </div>
     </div>

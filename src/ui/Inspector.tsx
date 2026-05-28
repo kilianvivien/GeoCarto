@@ -3,6 +3,7 @@ import { SlidersHorizontal, Layers, Palette, type LucideIcon } from 'lucide-reac
 import { LayerPanel } from '@/layers/LayerPanel';
 import { AttributeInspector } from '@/layers/AttributeInspector';
 import { AnnotationInspector } from '@/tools/AnnotationInspector';
+import { StylePanel } from './StylePanel';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 
@@ -14,10 +15,7 @@ const TABS: { key: PaneKey; label: string; icon: LucideIcon }[] = [
   { key: 'style', label: 'Style', icon: Palette },
 ];
 
-/**
- * Right-hand inspector (design.md §4.4). Properties and Layers panes are live;
- * the Style pane is a placeholder until later milestones.
- */
+/** Right-hand inspector (design.md §4.4). */
 export function Inspector() {
   const [pane, setPane] = useState<PaneKey>('layers');
   const activeTool = useToolStore((s) => s.activeTool);
@@ -62,11 +60,7 @@ export function Inspector() {
             <AnnotationInspector />
           ))}
         {pane === 'layers' && <LayerPanel />}
-        {pane === 'style' && (
-          <div className="text-[12px] text-[var(--text-3)]">
-            Basemap, map layers, and page settings will appear here.
-          </div>
-        )}
+        {pane === 'style' && <StylePanel />}
       </div>
     </aside>
   );

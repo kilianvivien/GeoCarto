@@ -7,8 +7,11 @@ import {
   type BasemapConfig,
   type BasemapSublayerKey,
   type CartoProject,
+  type ExportFrame,
   type GeoJsonLayer,
   type GeoJsonStyle,
+  type PageBackground,
+  type PagePresetKey,
 } from '@/project/cartoproj';
 import type { Viewport } from './viewportStore';
 
@@ -43,7 +46,12 @@ interface DocumentState {
   renameProject: (name: string) => void;
   setBasemap: (basemap: BasemapConfig) => void;
   setBasemapSublayer: (key: BasemapSublayerKey, visible: boolean) => void;
-  setExportFrame: (frame: { width: number; height: number }) => void;
+  setExportFrame: (frame: ExportFrame | { width: number; height: number }) => void;
+  setExportFramePreset: (preset: PagePresetKey, dims?: { width: number; height: number }) => void;
+  setExportFrameSize: (dims: { width: number; height: number }) => void;
+  setExportFrameMargin: (margin: number) => void;
+  setExportFrameBackground: (background: PageBackground) => void;
+  setExportFrameDpiScale: (scale: number) => void;
   lockMapArea: (viewport: Viewport) => void;
   unlockMapArea: () => void;
   addLayer: (layer: GeoJsonLayer) => void;
@@ -131,7 +139,51 @@ export const useDocumentStore = create<DocumentState>()(
 
     setExportFrame: (frame) =>
       set((state) => {
-        state.project.exportFrame = frame;
+        // Preserve existing page-settings extras when callers only pass dimensions.
+        state.project.exportFrame = { ...state.project.exportFrame, ...frame };
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setExportFramePreset: (preset, dims) =>
+      set((state) => {
+        state.project.exportFrame.preset = preset;
+        if (dims) {
+          state.project.exportFrame.width = dims.width;
+          state.project.exportFrame.height = dims.height;
+        }
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setExportFrameSize: (dims) =>
+      set((state) => {
+        if (dims.width <= 0 || dims.height <= 0) return;
+        state.project.exportFrame.width = dims.width;
+        state.project.exportFrame.height = dims.height;
+        state.project.exportFrame.preset = 'custom';
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setExportFrameMargin: (margin) =>
+      set((state) => {
+        state.project.exportFrame.margin = Math.max(0, margin);
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setExportFrameBackground: (background) =>
+      set((state) => {
+        state.project.exportFrame.background = background;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setExportFrameDpiScale: (scale) =>
+      set((state) => {
+        const clamped = Math.min(8, Math.max(0.25, scale));
+        state.project.exportFrame.dpiScale = clamped;
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -142,7 +194,10 @@ export const useDocumentStore = create<DocumentState>()(
         state.project.mode = 'editing';
         state.project.lockedMapView = {
           viewport,
-          exportFrame: { ...state.project.exportFrame },
+          exportFrame: {
+            width: state.project.exportFrame.width,
+            height: state.project.exportFrame.height,
+          },
           basemap: state.project.basemap,
           lockedAt: new Date().toISOString(),
         };

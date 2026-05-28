@@ -41,9 +41,13 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const push = useNotices((s) => s.push);
 
   const [format, setFormat] = useState<ExportFormat>('png');
-  const [scalePreset, setScalePreset] = useState<ScalePreset>('2x');
-  const [customScale, setCustomScale] = useState(2);
-  const [background, setBackground] = useState<ExportBackground>('white');
+  const projectScale = project.exportFrame.dpiScale ?? 1;
+  const initialPreset: ScalePreset = projectScale === 1 ? '1x' : projectScale === 2 ? '2x' : 'custom';
+  const [scalePreset, setScalePreset] = useState<ScalePreset>(initialPreset);
+  const [customScale, setCustomScale] = useState(projectScale);
+  const projectBg = project.exportFrame.background;
+  const initialBackground: ExportBackground = projectBg === 'transparent' ? 'transparent' : 'white';
+  const [background, setBackground] = useState<ExportBackground>(initialBackground);
   const [quality, setQuality] = useState(0.92);
   const [busy, setBusy] = useState(false);
 

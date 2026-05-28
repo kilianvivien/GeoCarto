@@ -92,4 +92,21 @@ describe('buildBasemapStyle', () => {
       buildBasemapStyle({ kind: 'style-url', name: 'Custom', url, attribution: '' }),
     ).toBe(url);
   });
+
+  it('parses inline style JSON for a style-json basemap', () => {
+    const spec = JSON.stringify({
+      version: 8,
+      sources: {},
+      layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#fff' } }],
+    });
+    const result = buildBasemapStyle({
+      kind: 'style-json',
+      name: 'Inline',
+      styleJson: spec,
+      attribution: '',
+    });
+    if (typeof result === 'string') throw new Error('Expected parsed style, not URL');
+    expect(result.version).toBe(8);
+    expect(result.layers[0].id).toBe('background');
+  });
 });

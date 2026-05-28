@@ -70,5 +70,19 @@ export function applyAnnotationTransform(
         size: absScaled(annotation.size, scale),
       } as Partial<Annotation>;
     }
+    case 'image':
+      return {
+        ...base,
+        width: absScaled(annotation.width, transform.scaleX),
+        height: absScaled(annotation.height, transform.scaleY),
+      } as Partial<Annotation>;
+    case 'legend':
+      return {
+        ...base,
+        width: absScaled(annotation.width, transform.scaleX),
+      } as Partial<Annotation>;
+    case 'comment':
+      // Comment pins are uniformly scaled like map pins — they reuse the pin size.
+      return base as Partial<Annotation>;
   }
 }

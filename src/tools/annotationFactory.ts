@@ -22,6 +22,9 @@ const TITLE: Record<AnnotationKind, string> = {
   polygon: 'Polygon',
   pin: 'Pin',
   measurement: 'Measurement',
+  image: 'Image',
+  legend: 'Legend',
+  comment: 'Comment',
 };
 
 function base({ kind, anchorMode, position, geoAnchor, style }: CreateAnnotationInput) {
@@ -64,6 +67,37 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
         points: [0, 0, 120, 0],
         geoPoints: input.geoAnchor ? [input.geoAnchor] : [],
         unitSystem: 'metric',
+      };
+    case 'image':
+      // Image annotations are populated after the user picks a file; defaults
+      // give a visible placeholder if rendered before src is assigned.
+      return {
+        ...seed,
+        kind: 'image',
+        src: '',
+        width: 240,
+        height: 160,
+        naturalWidth: 240,
+        naturalHeight: 160,
+      };
+    case 'legend':
+      return {
+        ...seed,
+        kind: 'legend',
+        title: 'Legend',
+        entries: [
+          { label: 'Sample entry', swatchColor: '#007aff', visible: true },
+          { label: 'Another entry', swatchColor: '#ff9500', visible: true },
+        ],
+        width: 200,
+      };
+    case 'comment':
+      return {
+        ...seed,
+        kind: 'comment',
+        text: '',
+        author: null,
+        createdAt: new Date().toISOString(),
       };
   }
 }

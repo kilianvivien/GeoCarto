@@ -16,6 +16,9 @@ import {
   Square,
   Circle,
   ArrowUpRight,
+  Image as ImageIcon,
+  List,
+  MessageSquare,
   Ruler,
   type LucideIcon,
 } from 'lucide-react';
@@ -39,6 +42,9 @@ const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
   polygon: Hexagon,
   pin: MapPin,
   measurement: Ruler,
+  image: ImageIcon,
+  legend: List,
+  comment: MessageSquare,
 };
 
 function LayerRow({ layerId }: { layerId: string }) {

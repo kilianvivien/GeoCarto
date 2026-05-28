@@ -65,8 +65,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'Paint area',
     shortcut: 'B',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: paint area tool',
+    enabled: true,
   },
   { key: 'pin', name: 'Pin', shortcut: 'I', phase: 'phase1', enabled: true },
   { key: 'arrow', name: 'Arrow', shortcut: 'A', phase: 'phase1', enabled: true },
@@ -75,24 +74,21 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'Image',
     shortcut: 'J',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: image placement',
+    enabled: true,
   },
   {
     key: 'legend',
     name: 'Legend',
     shortcut: 'L',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: legend builder',
+    enabled: true,
   },
   {
     key: 'comment',
     name: 'Comment',
     shortcut: 'C',
     phase: 'phase2',
-    enabled: false,
-    disabledReason: 'Phase 2: comments',
+    enabled: true,
   },
 ];
 
@@ -129,6 +125,10 @@ export const DRAWABLE_TOOLS = new Set<ToolKey>([
   'text',
   'pin',
   'arrow',
+  'paint',
+  'image',
+  'legend',
+  'comment',
 ]);
 
 export function toolToAnnotationKind(tool: ToolKey): AnnotationKind | null {
@@ -136,6 +136,12 @@ export function toolToAnnotationKind(tool: ToolKey): AnnotationKind | null {
   if (tool === 'text' || tool === 'pin' || tool === 'arrow') return tool;
   if (tool === 'pen') return 'line';
   if (tool === 'ruler') return 'measurement';
+  // Paint reuses the polygon kind — the stage's pointer handlers spawn a
+  // freehand drag flow instead of the click-to-place polygon multi-point flow.
+  if (tool === 'paint') return 'polygon';
+  if (tool === 'image') return 'image';
+  if (tool === 'legend') return 'legend';
+  if (tool === 'comment') return 'comment';
   return null;
 }
 
@@ -146,12 +152,18 @@ interface ToolState {
   gridSnapEnabled: boolean;
   gridSpacing: number;
   smartGuidesEnabled: boolean;
+  /**
+   * Snapshot captured before the master snap toggle flips both flags off. Lets a
+   * follow-up toggle restore the user's prior granular preferences.
+   */
+  snapMemory: { grid: boolean; smart: boolean } | null;
   setActiveTool: (tool: ToolKey) => void;
   setDefaultAnchorMode: (mode: AnnotationAnchorMode) => void;
   updateDefaultStyle: (patch: Partial<AnnotationStyle>) => void;
   setGridSnapEnabled: (enabled: boolean) => void;
   setGridSpacing: (spacing: number) => void;
   setSmartGuidesEnabled: (enabled: boolean) => void;
+  toggleMasterSnap: () => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
@@ -161,11 +173,29 @@ export const useToolStore = create<ToolState>((set) => ({
   gridSnapEnabled: false,
   gridSpacing: 20,
   smartGuidesEnabled: true,
+  snapMemory: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setDefaultAnchorMode: (mode) => set({ defaultAnchorMode: mode }),
   updateDefaultStyle: (patch) =>
     set((state) => ({ defaultStyle: { ...state.defaultStyle, ...patch } })),
-  setGridSnapEnabled: (gridSnapEnabled) => set({ gridSnapEnabled }),
+  setGridSnapEnabled: (gridSnapEnabled) => set({ gridSnapEnabled, snapMemory: null }),
   setGridSpacing: (spacing) => set({ gridSpacing: Math.max(4, Math.min(200, spacing)) }),
-  setSmartGuidesEnabled: (smartGuidesEnabled) => set({ smartGuidesEnabled }),
+  setSmartGuidesEnabled: (smartGuidesEnabled) => set({ smartGuidesEnabled, snapMemory: null }),
+  toggleMasterSnap: () =>
+    set((state) => {
+      const anyOn = state.gridSnapEnabled || state.smartGuidesEnabled;
+      if (anyOn) {
+        return {
+          gridSnapEnabled: false,
+          smartGuidesEnabled: false,
+          snapMemory: { grid: state.gridSnapEnabled, smart: state.smartGuidesEnabled },
+        };
+      }
+      const restored = state.snapMemory ?? { grid: true, smart: true };
+      return {
+        gridSnapEnabled: restored.grid,
+        smartGuidesEnabled: restored.smart,
+        snapMemory: null,
+      };
+    }),
 }));

@@ -45,7 +45,10 @@ export type AnnotationKind =
   | 'arrow'
   | 'polygon'
   | 'pin'
-  | 'measurement';
+  | 'measurement'
+  | 'image'
+  | 'legend'
+  | 'comment';
 
 export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
@@ -89,6 +92,13 @@ export type BasemapConfig =
       attribution: string;
     }
   | {
+      kind: 'style-json';
+      name: string;
+      /** Serialized MapLibre StyleSpecification. Stored as a string so the schema stays JSON-friendly. */
+      styleJson: string;
+      attribution: string;
+    }
+  | {
       kind: 'pmtiles-url';
       name: string;
       url: string;
@@ -110,6 +120,11 @@ export interface LockedMapView {
   exportFrame: { width: number; height: number };
   basemap: BasemapConfig;
   lockedAt: string;
+}
+
+/** Strip page-settings extras off an ExportFrame for the LockedMapView snapshot. */
+export function snapshotFrameSize(frame: { width: number; height: number }): { width: number; height: number } {
+  return { width: frame.width, height: frame.height };
 }
 
 export const DEFAULT_BASEMAP: BasemapConfig = {
@@ -244,6 +259,37 @@ export type MeasurementAnnotation = AnnotationBase & {
   unitSystem: MeasurementUnitSystem;
 };
 
+export type ImageAnnotation = AnnotationBase & {
+  kind: 'image';
+  /** Base64 data URL — embedded so the project file round-trips standalone. */
+  src: string;
+  width: number;
+  height: number;
+  /** Natural pixel dimensions, preserved so resizing can restore aspect ratio. */
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
+export interface LegendEntry {
+  label: string;
+  swatchColor: string;
+  visible: boolean;
+}
+
+export type LegendAnnotation = AnnotationBase & {
+  kind: 'legend';
+  title: string;
+  entries: LegendEntry[];
+  width: number;
+};
+
+export type CommentAnnotation = AnnotationBase & {
+  kind: 'comment';
+  text: string;
+  author: string | null;
+  createdAt: string;
+};
+
 export type Annotation =
   | TextAnnotation
   | RectAnnotation
@@ -251,13 +297,48 @@ export type Annotation =
   | LineAnnotation
   | PolygonAnnotation
   | PinAnnotation
-  | MeasurementAnnotation;
+  | MeasurementAnnotation
+  | ImageAnnotation
+  | LegendAnnotation
+  | CommentAnnotation;
 
 export interface AnnotationGroup {
   id: string;
   name: string;
   locked: boolean;
   annotationIds: string[];
+}
+
+export type PagePresetKey =
+  | 'a4-landscape'
+  | 'a4-portrait'
+  | 'a3-landscape'
+  | 'a3-portrait'
+  | 'letter-landscape'
+  | 'letter-portrait'
+  | 'tabloid-landscape'
+  | '16-9'
+  | '4-3'
+  | 'square'
+  | 'custom';
+
+export type PageBackground = 'white' | 'transparent' | string;
+
+/**
+ * Export composition frame. Width/height are the base canvas pixels (at 1× DPI);
+ * the rendered output is `width × dpiScale` pixels wide. `preset` is purely a hint
+ * for the UI dropdown — the canonical size is always `width × height`.
+ */
+export interface ExportFrame {
+  width: number;
+  height: number;
+  preset?: PagePresetKey;
+  /** Symmetric margin in pixels (at 1× DPI) reserved inside the frame for export composition. */
+  margin?: number;
+  /** Page background — `"white"` (default), `"transparent"`, or a hex color. */
+  background?: PageBackground;
+  /** Output multiplier applied to width/height during raster export. */
+  dpiScale?: number;
 }
 
 /** The canonical project document — source of truth for all renderers (PRD §3). */
@@ -270,8 +351,7 @@ export interface CartoProject {
     updatedAt: string;
   };
   viewport: Viewport;
-  /** Export composition frame, in pixels. */
-  exportFrame: { width: number; height: number };
+  exportFrame: ExportFrame;
   basemap: BasemapConfig;
   lockedMapView: LockedMapView | null;
   /** Ordered bottom → top. `layers[0]` draws beneath the rest. */
@@ -289,7 +369,7 @@ export function createEmptyProject(name = 'Untitled'): CartoProject {
     mode: 'mapSetup',
     meta: { name, createdAt: now, updatedAt: now },
     viewport: { ...DEFAULT_VIEWPORT, center: [...DEFAULT_VIEWPORT.center] },
-    exportFrame: { width: 1600, height: 1200 },
+    exportFrame: { width: 1600, height: 1200, preset: '4-3', margin: 0, background: 'white', dpiScale: 1 },
     basemap: { ...DEFAULT_BASEMAP },
     lockedMapView: null,
     layers: [],

@@ -82,7 +82,7 @@ describe('App', () => {
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
   });
 
-  it('enables Milestone 10 tools while keeping future Phase 2 placeholders disabled', () => {
+  it('enables canvas-aid + previously-gated Phase 2 tools, with Snap and Share now interactive', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
 
@@ -90,9 +90,9 @@ describe('App', () => {
     expect(useToolStore.getState().activeTool).toBe('ruler');
     fireEvent.click(screen.getByRole('button', { name: /marquee/i }));
     expect(useToolStore.getState().activeTool).toBe('marquee');
-    // Snap and Share are still Phase 2 placeholders.
-    expect(screen.getByRole('button', { name: /snap/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /share/i })).toBeDisabled();
+    // Snap is a live toggle now; Share is enabled in editing mode.
+    expect(screen.getByRole('button', { name: /snap/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /share/i })).not.toBeDisabled();
     // Lock + ruler click recorded one undoable step; Undo enables, Redo stays disabled.
     expect(screen.getByRole('button', { name: /undo/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /redo/i })).toBeDisabled();

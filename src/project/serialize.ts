@@ -62,6 +62,23 @@ function validateProject(value: unknown): asserts value is CartoProject {
       frame.height > 0,
     'Export frame must be { width, height }.',
   );
+  // Page settings (margin / background / dpiScale / preset) arrived after v1 ship.
+  // Old documents don't have them — default sensibly so the new Style panel works.
+  const frameRecord = frame as Record<string, unknown>;
+  if (typeof frameRecord.margin !== 'number' || frameRecord.margin < 0) frameRecord.margin = 0;
+  if (
+    typeof frameRecord.background !== 'string' ||
+    frameRecord.background.trim() === ''
+  ) {
+    frameRecord.background = 'white';
+  }
+  if (
+    typeof frameRecord.dpiScale !== 'number' ||
+    !Number.isFinite(frameRecord.dpiScale) ||
+    (frameRecord.dpiScale as number) <= 0
+  ) {
+    frameRecord.dpiScale = 1;
+  }
 
   if (!('basemap' in value)) value.basemap = { ...DEFAULT_BASEMAP };
   expect(isObject(value.basemap), 'Project basemap missing.');

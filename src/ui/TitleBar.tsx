@@ -17,6 +17,7 @@ import {
 import { useTheme } from './useTheme';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
+import { useToolStore } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
@@ -77,6 +78,10 @@ export function TitleBar() {
   const canRedo = useHistoryStore((s) => s.future.length > 0);
   const undo = useHistoryStore((s) => s.undo);
   const redo = useHistoryStore((s) => s.redo);
+  const gridSnapEnabled = useToolStore((s) => s.gridSnapEnabled);
+  const smartGuidesEnabled = useToolStore((s) => s.smartGuidesEnabled);
+  const toggleMasterSnap = useToolStore((s) => s.toggleMasterSnap);
+  const snapActive = gridSnapEnabled || smartGuidesEnabled;
 
   const handleSave = async (saveAs: boolean) => {
     const { project, file: currentFile, markSaved } = useDocumentStore.getState();
@@ -106,6 +111,42 @@ export function TitleBar() {
   const handleNew = () => {
     createNewProject();
     push('Created new project');
+  };
+
+  const [sharing, setSharing] = useState(false);
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { project } = useDocumentStore.getState();
+      const { exportRaster } = await import('@/export/raster');
+      const scale = project.exportFrame.dpiScale ?? 1;
+      const background = project.exportFrame.background === 'transparent' ? 'transparent' : 'white';
+      const result = await exportRaster(project, { format: 'png', scale, background, quality: 0.92 });
+      const file = new File([result.blob], result.fileName, { type: 'image/png' });
+      const navAny = navigator as Navigator & {
+        canShare?: (data: { files?: File[] }) => boolean;
+        share?: (data: { files?: File[]; title?: string }) => Promise<void>;
+      };
+      if (navAny.canShare && navAny.canShare({ files: [file] }) && navAny.share) {
+        await navAny.share({ files: [file], title: result.fileName });
+        push(`Shared ${result.fileName}`);
+        return;
+      }
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': result.blob })]);
+        push(`Copied ${result.fileName} to clipboard`);
+        return;
+      }
+      const { downloadBlob } = await import('@/export/raster');
+      downloadBlob(result.blob, result.fileName);
+      push(`Downloaded ${result.fileName}`);
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return; // User cancelled the share sheet.
+      push(error instanceof Error ? error.message : 'Share failed.', 'error');
+    } finally {
+      setSharing(false);
+    }
   };
 
   const displayName = file?.name ?? `${projectName || 'Untitled'}.cartoproj`;
@@ -192,7 +233,15 @@ export function TitleBar() {
         <IconButton label="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redo()}>
           <Redo2 size={16} />
         </IconButton>
-        <IconButton label="Snap (Phase 2)" disabled>
+        <IconButton
+          label={
+            snapActive
+              ? 'Snap on — disable smart guides + grid'
+              : 'Snap off — enable smart guides + grid'
+          }
+          active={snapActive}
+          onClick={toggleMasterSnap}
+        >
           <Magnet size={16} />
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
@@ -202,7 +251,11 @@ export function TitleBar() {
         >
           {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
         </IconButton>
-        <IconButton label="Share (Phase 2)" disabled>
+        <IconButton
+          label={sharing ? 'Sharing…' : 'Share map (PNG)'}
+          disabled={mode !== 'editing' || sharing}
+          onClick={() => void handleShare()}
+        >
           <Share size={16} />
         </IconButton>
         <button

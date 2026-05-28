@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Lock, MapPinned, MousePointer2, Palette } from 'lucide-react';
 import { ColorPickerPopover } from '@/ui/ColorPickerPopover';
+import { Plus, Trash2 } from 'lucide-react';
 import type {
   Annotation,
   AnnotationAnchorMode,
@@ -8,6 +9,8 @@ import type {
   AnnotationStyle,
   BlendMode,
   FillPattern,
+  LegendAnnotation,
+  LegendEntry,
   PinIcon,
   StrokePattern,
 } from '@/project/cartoproj';
@@ -467,6 +470,24 @@ function StyleControls({
           <EffectsControls style={style} onChange={onChange} />
         </>
       );
+    case 'image':
+      return <EffectsControls style={style} onChange={onChange} />;
+    case 'legend':
+      return (
+        <>
+          <FillControls style={style} onChange={onChange} />
+          <StrokeControls style={style} onChange={onChange} />
+          <TextStyleControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
+        </>
+      );
+    case 'comment':
+      return (
+        <>
+          <PinStyleControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
+        </>
+      );
   }
 }
 
@@ -609,7 +630,178 @@ function GeometryControls({
           <Hint>Drag the canvas handles to scale the polygon.</Hint>
         </Section>
       );
+    case 'image':
+      return (
+        <Section title="Image">
+          <Row label="Width">
+            <Input
+              type="number"
+              min={8}
+              value={annotation.width}
+              disabled={disabled}
+              onChange={(e) => onChange({ width: Number(e.target.value) } as Partial<Annotation>)}
+            />
+          </Row>
+          <Row label="Height">
+            <Input
+              type="number"
+              min={8}
+              value={annotation.height}
+              disabled={disabled}
+              onChange={(e) => onChange({ height: Number(e.target.value) } as Partial<Annotation>)}
+            />
+          </Row>
+          <Hint>Drop a PNG/JPEG/SVG onto the canvas to add more images.</Hint>
+        </Section>
+      );
+    case 'legend':
+      return <LegendEntriesEditor annotation={annotation} disabled={disabled} onChange={onChange} />;
+    case 'comment':
+      return (
+        <Section title="Comment">
+          <Row label="Text">
+            <textarea
+              value={annotation.text}
+              disabled={disabled}
+              onChange={(e) => onChange({ text: e.target.value } as Partial<Annotation>)}
+              className="min-w-0 h-20 resize-none rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+            />
+          </Row>
+          <Hint>Comments pin to a geographic location and move with the map.</Hint>
+        </Section>
+      );
   }
+}
+
+function LegendEntryRow({
+  entry,
+  index,
+  disabled,
+  onUpdate,
+  onRemove,
+}: {
+  entry: LegendEntry;
+  index: number;
+  disabled: boolean;
+  onUpdate: (patch: Partial<LegendEntry>) => void;
+  onRemove: () => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid grid-cols-[24px_1fr_28px] items-center gap-1.5">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`Entry ${index + 1} color`}
+        className="relative h-6 w-6 rounded-[6px] border border-[var(--divider)] transition-transform hover:scale-105"
+        style={{ background: entry.swatchColor }}
+      />
+      <ColorPickerPopover
+        open={open}
+        anchorRef={buttonRef}
+        value={entry.swatchColor}
+        onChange={(hex) => onUpdate({ swatchColor: hex })}
+        onClose={() => setOpen(false)}
+      />
+      <input
+        value={entry.label}
+        disabled={disabled}
+        onChange={(e) => onUpdate({ label: e.target.value })}
+        className="min-w-0 rounded-[6px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+      />
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label={`Remove entry ${index + 1}`}
+        className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
+
+function LegendEntriesEditor({
+  annotation,
+  disabled,
+  onChange,
+}: {
+  annotation: LegendAnnotation;
+  disabled: boolean;
+  onChange: (patch: Partial<Annotation>) => void;
+}) {
+  const layers = useDocumentStore((s) => s.project.layers);
+  const setEntries = (next: LegendEntry[]) =>
+    onChange({ entries: next } as Partial<Annotation>);
+
+  const updateEntry = (index: number, patch: Partial<LegendEntry>) => {
+    const next = annotation.entries.map((entry, i) => (i === index ? { ...entry, ...patch } : entry));
+    setEntries(next);
+  };
+  const removeEntry = (index: number) => setEntries(annotation.entries.filter((_, i) => i !== index));
+  const addEntry = () =>
+    setEntries([...annotation.entries, { label: 'New entry', swatchColor: '#34c759', visible: true }]);
+  const syncFromLayers = () =>
+    setEntries(
+      layers.map((layer) => ({ label: layer.name, swatchColor: layer.style.fillColor, visible: true })),
+    );
+
+  return (
+    <Section title="Legend">
+      <Row label="Title">
+        <Input
+          value={annotation.title}
+          disabled={disabled}
+          onChange={(e) => onChange({ title: e.target.value } as Partial<Annotation>)}
+        />
+      </Row>
+      <Row label="Width">
+        <Input
+          type="number"
+          min={80}
+          value={annotation.width}
+          disabled={disabled}
+          onChange={(e) => onChange({ width: Number(e.target.value) } as Partial<Annotation>)}
+        />
+      </Row>
+      <div className="flex flex-col gap-1.5">
+        {annotation.entries.map((entry, index) => (
+          <LegendEntryRow
+            key={`${index}-${entry.label}`}
+            entry={entry}
+            index={index}
+            disabled={disabled}
+            onUpdate={(patch) => updateEntry(index, patch)}
+            onRemove={() => removeEntry(index)}
+          />
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={addEntry}
+          disabled={disabled}
+          className="flex items-center gap-1 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Plus size={11} /> Add row
+        </button>
+        <button
+          type="button"
+          onClick={syncFromLayers}
+          disabled={disabled || layers.length === 0}
+          className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
+        >
+          Sync from layers
+        </button>
+      </div>
+    </Section>
+  );
 }
 
 function ToolDefaults() {

@@ -71,6 +71,10 @@ export function applySublayerVisibility(
  */
 export function buildBasemapStyle(config: BasemapConfig): StyleSpecification | string {
   if (config.kind === 'style-url') return config.url;
+  if (config.kind === 'style-json') {
+    // Trusted to be JSON-parseable — the StylePanel validates before assignment.
+    return JSON.parse(config.styleJson) as StyleSpecification;
+  }
 
   const preset =
     config.kind === 'pmtiles-url'

@@ -59,7 +59,9 @@ export function MapSetupPanel() {
   const push = useNotices((s) => s.push);
   const [styleUrl, setStyleUrl] = useState('');
   const [pmtilesUrl, setPmtilesUrl] = useState('');
-  const [collapsed, setCollapsed] = useState(false);
+  // Start collapsed so a concurrently-visible RecoveryPrompt has the top
+  // bar to itself; the user expands the panel when they want to set up.
+  const [collapsed, setCollapsed] = useState(true);
 
   if (mode !== 'mapSetup') return null;
 

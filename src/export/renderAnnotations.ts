@@ -336,6 +336,116 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       );
       break;
     }
+    case 'image': {
+      if (annotation.src) {
+        const img = new window.Image();
+        img.src = annotation.src;
+        // Synchronous: if the image isn't decoded yet, Konva will simply paint
+        // an empty rect — exports are triggered after the live stage has loaded
+        // it, so caches are usually warm.
+        group.add(
+          new Konva.Image({
+            image: img,
+            width: annotation.width,
+            height: annotation.height,
+            ...shadow,
+          }),
+        );
+      }
+      break;
+    }
+    case 'legend': {
+      const padding = 10;
+      const rowHeight = style.textSize + 8;
+      const swatchSize = style.textSize;
+      const visibleEntries = annotation.entries.filter((entry) => entry.visible);
+      const height = padding * 2 + (style.textSize + 6) + rowHeight * visibleEntries.length;
+      group.add(
+        new Konva.Rect({
+          width: annotation.width,
+          height,
+          fill: style.fillColor,
+          cornerRadius: 10,
+          stroke: style.strokeColor,
+          strokeWidth: style.strokeWidth,
+          ...shadow,
+        }),
+      );
+      group.add(
+        new Konva.Text({
+          text: annotation.title,
+          x: padding,
+          y: padding,
+          fontSize: style.textSize + 2,
+          fontFamily: style.fontFamily,
+          fontStyle: 'bold',
+          fill: style.textColor,
+        }),
+      );
+      visibleEntries.forEach((entry, index) => {
+        const y = padding + (style.textSize + 6) + index * rowHeight;
+        group.add(
+          new Konva.Rect({
+            x: padding,
+            y,
+            width: swatchSize,
+            height: swatchSize,
+            fill: entry.swatchColor,
+            cornerRadius: 3,
+            stroke: style.strokeColor,
+            strokeWidth: 0.5,
+          }),
+        );
+        group.add(
+          new Konva.Text({
+            text: entry.label,
+            x: padding + swatchSize + 8,
+            y: y + 1,
+            fontSize: style.textSize,
+            fontFamily: style.fontFamily,
+            fill: style.textColor,
+          }),
+        );
+      });
+      break;
+    }
+    case 'comment': {
+      const radius = 14;
+      group.add(
+        new Konva.Circle({
+          radius,
+          fill: style.pinColor,
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          shadowColor: 'rgba(0,0,0,0.24)',
+          shadowBlur: 6,
+        }),
+      );
+      group.add(
+        new Konva.Line({
+          points: [radius * 0.4, radius * 0.7, radius * 0.7, radius * 1.2, -radius * 0.4, radius * 1.2],
+          closed: true,
+          fill: style.pinColor,
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          lineJoin: 'round',
+        }),
+      );
+      group.add(
+        new Konva.Text({
+          text: '…',
+          x: -radius / 2,
+          y: -radius * 0.75,
+          width: radius,
+          align: 'center',
+          fontSize: radius,
+          fontFamily: style.fontFamily,
+          fontStyle: 'bold',
+          fill: '#ffffff',
+        }),
+      );
+      break;
+    }
     case 'measurement':
       group.add(
         new Konva.Line({

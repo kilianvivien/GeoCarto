@@ -87,7 +87,7 @@ export function RecoveryPrompt() {
     const only = entries[0];
     const onlyLabel = only.fileName ?? only.project.meta.name ?? 'Untitled';
     return (
-      <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center">
+      <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
         <div
           data-testid="recovery-prompt"
           className="glass pointer-events-auto flex items-center gap-3 rounded-full bg-[var(--glass-strong)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--text)]"
@@ -119,7 +119,7 @@ export function RecoveryPrompt() {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
       <div
         data-testid="recovery-prompt"
         className="glass pointer-events-auto flex max-w-[520px] flex-col gap-2 rounded-[12px] bg-[var(--glass-strong)] p-3 text-[13px] text-[var(--text)]"
