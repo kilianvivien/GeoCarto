@@ -19,6 +19,7 @@ import { hintHistoryLabel } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
+import { useMapInstance } from '@/canvas/mapInstance';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
 import { rememberRecentProject } from '@/project/recents';
@@ -94,6 +95,18 @@ export function TitleBar() {
       if (error instanceof UserCancelledError) return;
       push(error instanceof Error ? error.message : 'Save failed.', 'error');
     }
+  };
+
+  const handleLockToggle = () => {
+    if (mode === 'editing') {
+      unlockMapArea();
+      return;
+    }
+    const container = useMapInstance.getState().map?.getContainer();
+    lockMapArea(
+      viewport,
+      container ? { width: container.clientWidth, height: container.clientHeight } : undefined,
+    );
   };
 
   const handleOpen = async () => {
@@ -260,7 +273,7 @@ export function TitleBar() {
         </IconButton>
         <button
           type="button"
-          onClick={() => (mode === 'editing' ? unlockMapArea() : lockMapArea(viewport))}
+          onClick={handleLockToggle}
           className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--glass-thin)] px-3 text-[12px] font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
         >
           {mode === 'editing' ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}

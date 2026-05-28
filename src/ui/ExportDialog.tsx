@@ -3,6 +3,7 @@ import { Download, X } from 'lucide-react';
 import type { ExportBackground, ExportFormat } from '@/export/raster';
 import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { useMapInstance } from '@/canvas/mapInstance';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { useNotices } from './notices';
 
@@ -59,8 +60,12 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const bgMode: 'white' | 'transparent' | 'custom' =
     background === 'white' ? 'white' : background === 'transparent' ? 'transparent' : 'custom';
 
-  const outW = Math.round(project.exportFrame.width * scale);
-  const outH = Math.round(project.exportFrame.height * scale);
+  const liveContainer = useMapInstance((s) => s.map?.getContainer());
+  const baseW = project.mode === 'editing' && liveContainer?.clientWidth ? liveContainer.clientWidth : project.exportFrame.width;
+  const baseH =
+    project.mode === 'editing' && liveContainer?.clientHeight ? liveContainer.clientHeight : project.exportFrame.height;
+  const outW = Math.round(baseW * scale);
+  const outH = Math.round(baseH * scale);
   const margin = project.exportFrame.margin ?? 0;
 
   const handleExport = async () => {

@@ -17,7 +17,13 @@ test('export a PNG from the locked composition frame', async ({ page }) => {
   await page.getByTitle('Export (⌘E)').click();
   const dialog = page.getByRole('dialog', { name: 'Export image' });
   await expect(dialog).toBeVisible();
-  await expect(page.getByTestId('export-output-size')).toHaveText('1600 × 1200 px');
+  const canvasBox = await page.getByTestId('map-view').boundingBox();
+  expect(canvasBox).not.toBeNull();
+  const expectedSize = {
+    width: Math.round(canvasBox!.width),
+    height: Math.round(canvasBox!.height),
+  };
+  await expect(page.getByTestId('export-output-size')).toHaveText(`${expectedSize.width} × ${expectedSize.height}`);
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -31,20 +37,26 @@ test('export a PNG from the locked composition frame', async ({ page }) => {
   for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
   const buffer = Buffer.concat(chunks);
   expect(buffer.length).toBeGreaterThan(100);
-  expect(pngDimensions(buffer)).toEqual({ width: 1600, height: 1200 });
+  expect(pngDimensions(buffer)).toEqual(expectedSize);
 });
 
 test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   await disableFileSystemAccess(page);
   await page.goto('/');
   await openProjectFixture(page);
+  const canvasBox = await page.getByTestId('map-view').boundingBox();
+  expect(canvasBox).not.toBeNull();
+  const scaledSize = {
+    width: Math.round(canvasBox!.width * 1.5),
+    height: Math.round(canvasBox!.height * 1.5),
+  };
 
   await page.getByTitle('Export (⌘E)').click();
   let dialog = page.getByRole('dialog', { name: 'Export image' });
-  await dialog.getByRole('button', { name: 'Custom' }).click();
+  await dialog.getByRole('button', { name: 'Custom', exact: true }).click();
   await dialog.getByRole('spinbutton').fill('1.5');
   await dialog.getByRole('button', { name: 'Transparent' }).click();
-  await expect(page.getByTestId('export-output-size')).toHaveText('1200 × 900 px');
+  await expect(page.getByTestId('export-output-size')).toHaveText(`${scaledSize.width} × ${scaledSize.height}`);
   const [pngDownload] = await Promise.all([
     page.waitForEvent('download'),
     dialog.getByRole('button', { name: 'Export' }).click(),
@@ -53,7 +65,7 @@ test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   expect(pngStream).not.toBeNull();
   const pngChunks: Buffer[] = [];
   for await (const chunk of pngStream!) pngChunks.push(Buffer.from(chunk));
-  expect(pngDimensions(Buffer.concat(pngChunks))).toEqual({ width: 1200, height: 900 });
+  expect(pngDimensions(Buffer.concat(pngChunks))).toEqual(scaledSize);
 
   await page.getByTitle('Export (⌘E)').click();
   dialog = page.getByRole('dialog', { name: 'Export image' });

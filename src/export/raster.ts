@@ -1,6 +1,5 @@
 import maplibregl from 'maplibre-gl';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
-import { computeFrameBox } from '@/canvas/compositionFrame';
 import { syncLayersToMap } from '@/canvas/syncLayers';
 import { useMapInstance } from '@/canvas/mapInstance';
 import type { CartoProject, PageBackground } from '@/project/cartoproj';
@@ -31,13 +30,6 @@ function fillBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
   ctx.fillRect(0, 0, width, height);
 }
 
-function exportAspectRenderSize(liveW: number, liveH: number, aspect: number) {
-  const box = computeFrameBox(liveW, liveH, aspect);
-  const widthLimited = box.width / liveW >= box.height / liveH;
-  if (widthLimited) return { width: liveW, height: liveW / aspect };
-  return { width: liveH * aspect, height: liveH };
-}
-
 async function renderMapCanvas(
   project: CartoProject,
   outW: number,
@@ -50,8 +42,8 @@ async function renderMapCanvas(
   const liveH = liveContainer.clientHeight;
   if (liveW === 0 || liveH === 0) throw new ExportError('Map container has no size.');
 
-  const aspect = project.exportFrame.width / project.exportFrame.height;
-  const { width: renderW, height: renderH } = exportAspectRenderSize(liveW, liveH, aspect);
+  const renderW = liveW;
+  const renderH = liveH;
   const pixelRatio = Math.max(1, Math.min(4, outW / renderW, outH / renderH));
 
   const offscreen = document.createElement('div');
@@ -152,6 +144,17 @@ export interface ExportResult {
   height: number;
 }
 
+export function effectiveExportSize(project: CartoProject, scale: number): { width: number; height: number } {
+  const liveContainer = useMapInstance.getState().map?.getContainer();
+  const baseW = project.mode === 'editing' && liveContainer?.clientWidth ? liveContainer.clientWidth : project.exportFrame.width;
+  const baseH =
+    project.mode === 'editing' && liveContainer?.clientHeight ? liveContainer.clientHeight : project.exportFrame.height;
+  return {
+    width: Math.round(baseW * scale),
+    height: Math.round(baseH * scale),
+  };
+}
+
 function fileNameFor(project: CartoProject, format: ExportFormat): string {
   const ext = format === 'png' ? 'png' : 'jpg';
   const base = project.meta.name?.trim() || 'Untitled';
@@ -163,8 +166,7 @@ function fileNameFor(project: CartoProject, format: ExportFormat): string {
  * the basemap, GeoJSON layers, and annotations.
  */
 export async function exportRaster(project: CartoProject, options: ExportOptions): Promise<ExportResult> {
-  const outW = Math.round(project.exportFrame.width * options.scale);
-  const outH = Math.round(project.exportFrame.height * options.scale);
+  const { width: outW, height: outH } = effectiveExportSize(project, options.scale);
   if (outW <= 0 || outH <= 0) throw new ExportError('Invalid output dimensions.');
 
   const target = document.createElement('canvas');
@@ -190,10 +192,6 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
   const liveMap = useMapInstance.getState().map;
   const liveContainer = liveMap?.getContainer();
   if (liveContainer) {
-    const aspect = project.exportFrame.width / project.exportFrame.height;
-    const box = computeFrameBox(liveContainer.clientWidth, liveContainer.clientHeight, aspect);
-    const offsetX = (liveContainer.clientWidth - box.width) / 2;
-    const offsetY = (liveContainer.clientHeight - box.height) / 2;
     const annotationCanvas = renderAnnotationsToCanvas({
       width: outW,
       height: outH,
@@ -201,8 +199,8 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
         (annotation) => project.basemap.kind === 'static' || annotation.anchorMode !== 'map',
       ),
       map: liveMap,
-      frameOffset: { x: offsetX, y: offsetY },
-      scale: outW / box.width,
+      frameOffset: { x: 0, y: 0 },
+      scale: outW / liveContainer.clientWidth,
     });
     ctx.drawImage(annotationCanvas, 0, 0);
   }
