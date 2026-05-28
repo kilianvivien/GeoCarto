@@ -31,6 +31,7 @@ test('context-menu grouping, ruler, and grid snap edit the document model', asyn
       shadowOffsetX: 0,
       shadowOffsetY: 0,
       blendMode: 'normal' as const,
+      brushPreset: 'round' as const,
     };
     window.__documentStore.getState().addAnnotation({
       id: 'a-rect-1',

@@ -1,6 +1,6 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, AnnotationStyle, PinIcon } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, BrushPreset, PinIcon } from '@/project/cartoproj';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 
 function shadowProps(style: AnnotationStyle) {
@@ -19,6 +19,19 @@ function shadowProps(style: AnnotationStyle) {
 function blendOperation(style: AnnotationStyle): GlobalCompositeOperation | undefined {
   if (style.blendMode === 'normal') return undefined;
   return style.blendMode as GlobalCompositeOperation;
+}
+
+function brushStrokeProps(style: AnnotationStyle, preset: BrushPreset | undefined, opacity: number) {
+  switch (preset ?? 'round') {
+    case 'marker':
+      return { strokeWidth: style.strokeWidth * 1.8, opacity: opacity * 0.78, dash: undefined };
+    case 'pencil':
+      return { strokeWidth: Math.max(1, style.strokeWidth * 0.9), opacity: opacity * 0.68, dash: [1, 5] };
+    case 'highlighter':
+      return { strokeWidth: style.strokeWidth * 3.5, opacity: opacity * 0.42, dash: undefined };
+    case 'round':
+      return { strokeWidth: style.strokeWidth, opacity, dash: strokeDash(style) };
+  }
 }
 
 interface RenderOptions {
@@ -252,6 +265,35 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       });
       break;
     case 'line':
+      if (annotation.lineRole === 'brush') {
+        const brush = brushStrokeProps(style, style.brushPreset, annotation.opacity);
+        if (haloWidth > 0) {
+          group.add(
+            new Konva.Line({
+              points: annotation.points,
+              stroke: haloColor,
+              strokeWidth: brush.strokeWidth + haloWidth * 2,
+              lineCap: 'round',
+              lineJoin: 'round',
+              tension: 0.35,
+            }),
+          );
+        }
+        group.add(
+          new Konva.Line({
+            points: annotation.points,
+            stroke: style.strokeColor,
+            strokeWidth: brush.strokeWidth,
+            opacity: brush.opacity,
+            dash: brush.dash,
+            lineCap: 'round',
+            lineJoin: 'round',
+            tension: 0.35,
+            ...shadow,
+          }),
+        );
+        break;
+      }
       if (haloWidth > 0) {
         group.add(
           new Konva.Line({
@@ -271,6 +313,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           dash: strokeDash(style),
           lineCap: 'round',
           lineJoin: 'round',
+          tension: annotation.points.length > 4 ? 0.35 : 0,
           ...shadow,
         }),
       );
@@ -410,10 +453,15 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       break;
     }
     case 'comment': {
-      const radius = 14;
+      const width = 28;
+      const height = 22;
       group.add(
-        new Konva.Circle({
-          radius,
+        new Konva.Rect({
+          x: -width / 2,
+          y: -height - 5,
+          width,
+          height,
+          cornerRadius: 7,
           fill: style.pinColor,
           stroke: '#ffffff',
           strokeWidth: 2,
@@ -423,7 +471,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       );
       group.add(
         new Konva.Line({
-          points: [radius * 0.4, radius * 0.7, radius * 0.7, radius * 1.2, -radius * 0.4, radius * 1.2],
+          points: [-5, -6, 0, 0, 5, -6],
           closed: true,
           fill: style.pinColor,
           stroke: '#ffffff',
@@ -432,16 +480,19 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
         }),
       );
       group.add(
-        new Konva.Text({
-          text: '…',
-          x: -radius / 2,
-          y: -radius * 0.75,
-          width: radius,
-          align: 'center',
-          fontSize: radius,
-          fontFamily: style.fontFamily,
-          fontStyle: 'bold',
-          fill: '#ffffff',
+        new Konva.Line({
+          points: [-7, -20, 7, -20],
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          lineCap: 'round',
+        }),
+      );
+      group.add(
+        new Konva.Line({
+          points: [-7, -14, 3, -14],
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          lineCap: 'round',
         }),
       );
       break;

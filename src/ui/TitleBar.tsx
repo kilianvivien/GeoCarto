@@ -121,7 +121,7 @@ export function TitleBar() {
       const { project } = useDocumentStore.getState();
       const { exportRaster } = await import('@/export/raster');
       const scale = project.exportFrame.dpiScale ?? 1;
-      const background = project.exportFrame.background === 'transparent' ? 'transparent' : 'white';
+      const background = project.exportFrame.background ?? 'white';
       const result = await exportRaster(project, { format: 'png', scale, background, quality: 0.92 });
       const file = new File([result.blob], result.fileName, { type: 'image/png' });
       const navAny = navigator as Navigator & {

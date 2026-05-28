@@ -149,6 +149,7 @@ export type PinIcon =
 export type FillPattern = 'none' | 'diagonal' | 'crosshatch' | 'horizontal' | 'vertical' | 'dots';
 export type StrokePattern = 'solid' | 'dotted' | 'dashed';
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay';
+export type BrushPreset = 'round' | 'marker' | 'pencil' | 'highlighter';
 
 export interface AnnotationStyle {
   fillColor: string;
@@ -173,6 +174,8 @@ export interface AnnotationStyle {
   shadowOffsetY: number;
   /** Composite operation applied to the annotation group. */
   blendMode: BlendMode;
+  /** Freehand brush rendering style. Ignored by regular line and arrow tools. */
+  brushPreset: BrushPreset;
 }
 
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
@@ -195,6 +198,7 @@ export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   shadowOffsetX: 0,
   shadowOffsetY: 0,
   blendMode: 'normal',
+  brushPreset: 'round',
 };
 
 export interface AnnotationBase {
@@ -236,6 +240,7 @@ export type EllipseAnnotation = AnnotationBase & {
 export type LineAnnotation = AnnotationBase & {
   kind: 'line' | 'arrow';
   points: number[];
+  lineRole?: 'line' | 'brush';
 };
 
 export type PolygonAnnotation = AnnotationBase & {

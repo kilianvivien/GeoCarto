@@ -3,11 +3,11 @@ import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { computeFrameBox } from '@/canvas/compositionFrame';
 import { syncLayersToMap } from '@/canvas/syncLayers';
 import { useMapInstance } from '@/canvas/mapInstance';
-import type { CartoProject } from '@/project/cartoproj';
+import type { CartoProject, PageBackground } from '@/project/cartoproj';
 import { renderAnnotationsToCanvas } from './renderAnnotations';
 
 export type ExportFormat = 'png' | 'jpeg';
-export type ExportBackground = 'white' | 'transparent';
+export type ExportBackground = PageBackground;
 
 export interface ExportOptions {
   format: ExportFormat;
@@ -27,8 +27,15 @@ export class ExportError extends Error {
 
 function fillBackground(ctx: CanvasRenderingContext2D, width: number, height: number, background: ExportBackground): void {
   if (background === 'transparent') return;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = background === 'white' ? '#ffffff' : background;
   ctx.fillRect(0, 0, width, height);
+}
+
+function exportAspectRenderSize(liveW: number, liveH: number, aspect: number) {
+  const box = computeFrameBox(liveW, liveH, aspect);
+  const widthLimited = box.width / liveW >= box.height / liveH;
+  if (widthLimited) return { width: liveW, height: liveW / aspect };
+  return { width: liveH * aspect, height: liveH };
 }
 
 async function renderMapCanvas(
@@ -43,8 +50,8 @@ async function renderMapCanvas(
   const liveH = liveContainer.clientHeight;
   if (liveW === 0 || liveH === 0) throw new ExportError('Map container has no size.');
 
-  const renderW = liveW;
-  const renderH = liveH;
+  const aspect = project.exportFrame.width / project.exportFrame.height;
+  const { width: renderW, height: renderH } = exportAspectRenderSize(liveW, liveH, aspect);
   const pixelRatio = Math.max(1, Math.min(4, outW / renderW, outH / renderH));
 
   const offscreen = document.createElement('div');

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, FileJson, Globe2 } from 'lucide-react';
+import { ChevronDown, FileJson } from 'lucide-react';
 import {
   DEFAULT_BASEMAP_SUBLAYERS,
   type BasemapConfig,
@@ -448,11 +448,6 @@ export function StylePanel() {
         <SectionHeader title="Page" open={openPage} onToggle={() => setOpenPage((prev) => !prev)} />
         {openPage && <PageSettings />}
       </section>
-
-      <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-3)]">
-        <Globe2 size={12} />
-        {basemap.name}
-      </div>
     </div>
   );
 }

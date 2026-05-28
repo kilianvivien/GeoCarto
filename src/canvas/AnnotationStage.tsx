@@ -17,6 +17,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type maplibregl from 'maplibre-gl';
 import type {
   Annotation,
+  BrushPreset,
   AnnotationStyle,
   CommentAnnotation,
   ImageAnnotation,
@@ -94,6 +95,12 @@ interface PickedImage {
   height: number;
 }
 
+interface FreehandDraft {
+  position: { x: number; y: number };
+  geoAnchor: [number, number] | null;
+  points: number[];
+}
+
 /** Prompt the user for an image file, read it as a data URL, and return its natural pixel size. */
 function pickImageFile(): Promise<PickedImage | null> {
   return new Promise((resolve) => {
@@ -139,6 +146,19 @@ function shadowProps(style: AnnotationStyle) {
 function blendOperation(style: AnnotationStyle) {
   if (style.blendMode === 'normal') return undefined;
   return style.blendMode as GlobalCompositeOperation;
+}
+
+function brushStrokeProps(style: AnnotationStyle, preset: BrushPreset | undefined, opacity: number) {
+  switch (preset ?? 'round') {
+    case 'marker':
+      return { strokeWidth: style.strokeWidth * 1.8, opacity: opacity * 0.78, dash: undefined };
+    case 'pencil':
+      return { strokeWidth: Math.max(1, style.strokeWidth * 0.9), opacity: opacity * 0.68, dash: [1, 5] };
+    case 'highlighter':
+      return { strokeWidth: style.strokeWidth * 3.5, opacity: opacity * 0.42, dash: undefined };
+    case 'round':
+      return { strokeWidth: style.strokeWidth, opacity, dash: strokeDash(style) };
+  }
 }
 
 function FillShape({
@@ -217,6 +237,37 @@ function FillShape({
         </>
       );
     case 'line':
+      if (annotation.lineRole === 'brush') {
+        const brush = brushStrokeProps(annotation.style, annotation.style.brushPreset, annotation.opacity);
+        return (
+          <>
+            <LineSelectionBounds points={annotation.points} strokeWidth={brush.strokeWidth} />
+            {haloWidth > 0 && (
+              <Line
+                points={annotation.points}
+                stroke={haloColor}
+                strokeWidth={brush.strokeWidth + haloWidth * 2}
+                opacity={annotation.opacity}
+                lineCap="round"
+                lineJoin="round"
+                tension={0.35}
+                listening={false}
+              />
+            )}
+            <Line
+              points={annotation.points}
+              opacity={brush.opacity}
+              stroke={annotation.style.strokeColor}
+              strokeWidth={brush.strokeWidth}
+              dash={brush.dash}
+              lineCap="round"
+              lineJoin="round"
+              tension={0.35}
+              {...(shadow ?? {})}
+            />
+          </>
+        );
+      }
       return (
         <>
           <LineSelectionBounds points={annotation.points} strokeWidth={annotation.style.strokeWidth} />
@@ -239,6 +290,7 @@ function FillShape({
             dash={strokeDash(annotation.style)}
             lineCap="round"
             lineJoin="round"
+            tension={annotation.points.length > 4 ? 0.35 : 0}
             {...(shadow ?? {})}
           />
         </>
@@ -453,36 +505,32 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
 }
 
 function CommentShape({ annotation }: { annotation: CommentAnnotation }) {
-  const radius = 14;
   const shadow = shadowProps(annotation.style);
+  const width = 28;
+  const height = 22;
   return (
     <Group>
-      <Circle
-        radius={radius}
+      <Rect
+        x={-width / 2}
+        y={-height - 5}
+        width={width}
+        height={height}
+        cornerRadius={7}
         fill={annotation.style.pinColor}
         stroke="#ffffff"
         strokeWidth={2}
         {...(shadow ?? {})}
       />
       <Line
-        points={[radius * 0.4, radius * 0.7, radius * 0.7, radius * 1.2, -radius * 0.4, radius * 1.2]}
+        points={[-5, -6, 0, 0, 5, -6]}
         closed
         fill={annotation.style.pinColor}
         stroke="#ffffff"
         strokeWidth={2}
         lineJoin="round"
       />
-      <Text
-        text="…"
-        x={-radius / 2}
-        y={-radius * 0.75}
-        width={radius}
-        align="center"
-        fontSize={radius}
-        fontFamily={annotation.style.fontFamily}
-        fontStyle="bold"
-        fill="#ffffff"
-      />
+      <Line points={[-7, -20, 7, -20]} stroke="#ffffff" strokeWidth={2} lineCap="round" listening={false} />
+      <Line points={[-7, -14, 3, -14]} stroke="#ffffff" strokeWidth={2} lineCap="round" listening={false} />
     </Group>
   );
 }
@@ -721,8 +769,8 @@ function boundsFromAnnotation(annotation: Annotation, origin: { x: number; y: nu
   } else if (annotation.kind === 'comment') {
     left -= 16;
     right += 16;
-    top -= 16;
-    bottom += 24;
+    top -= 30;
+    bottom += 6;
   } else {
     const xs = annotation.points.filter((_, index) => index % 2 === 0).map((x) => x + origin.x);
     const ys = annotation.points.filter((_, index) => index % 2 === 1).map((y) => y + origin.y);
@@ -879,6 +927,12 @@ export function AnnotationStage() {
     position: { x: number; y: number };
     geoAnchor: [number, number] | null;
     points: number[];
+    previewPoint: { x: number; y: number } | null;
+  } | null>(null);
+  const [draftArrow, setDraftArrow] = useState<{
+    position: { x: number; y: number };
+    geoAnchor: [number, number] | null;
+    previewPoint: { x: number; y: number } | null;
   } | null>(null);
   const [editingText, setEditingText] = useState<{ id: string; value: string } | null>(null);
   const [marquee, setMarquee] = useState<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
@@ -887,16 +941,14 @@ export function AnnotationStage() {
     geoAnchor: [number, number] | null;
     points: number[];
     geoPoints: [number, number][];
+    previewPoint: { x: number; y: number } | null;
   } | null>(null);
   const [guides, setGuides] = useState<{ x?: number; y?: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; ids: string[] } | null>(null);
-  const [paintDraft, setPaintDraft] = useState<{
-    position: { x: number; y: number };
-    geoAnchor: [number, number] | null;
-    points: number[];
-  } | null>(null);
+  const [paintDraft, setPaintDraft] = useState<FreehandDraft | null>(null);
   const [commentEditor, setCommentEditor] = useState<{ id: string } | null>(null);
   const paintPointerRef = useRef<number | null>(null);
+  const paintDraftRef = useRef<FreehandDraft | null>(null);
   const marqueePointerRef = useRef<number | null>(null);
   const dragStartRef = useRef<Record<string, { x: number; y: number; geoAnchor: [number, number] | null }>>({});
   const lastMultiSelectionRef = useRef<string[]>([]);
@@ -1007,6 +1059,7 @@ export function AnnotationStage() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         !draftPolygon &&
+        !draftArrow &&
         !draftMeasurement &&
         event.key === 'Enter' &&
         selectedTextEditable &&
@@ -1043,6 +1096,12 @@ export function AnnotationStage() {
           return;
         }
       }
+      if (draftArrow) {
+        if (event.key === 'Escape') {
+          setDraftArrow(null);
+          return;
+        }
+      }
       if (!draftPolygon) return;
       if (event.key === 'Enter' && draftPolygon.points.length >= 6) {
         event.preventDefault();
@@ -1066,6 +1125,7 @@ export function AnnotationStage() {
     addAnnotation,
     defaultAnchorMode,
     defaultStyle,
+    draftArrow,
     draftMeasurement,
     draftPolygon,
     editingText,
@@ -1178,12 +1238,14 @@ export function AnnotationStage() {
             geoAnchor: geo,
             points: [0, 0],
             geoPoints: [geo],
+            previewPoint: null,
           };
         }
         return {
           ...draft,
           points: [...draft.points, rawPointer.x - draft.position.x, rawPointer.y - draft.position.y],
           geoPoints: [...draft.geoPoints, geo],
+          previewPoint: null,
         };
       });
       return;
@@ -1192,8 +1254,8 @@ export function AnnotationStage() {
     const kind = toolToAnnotationKind(activeTool);
     if (!kind) return;
 
-    // Paint uses a drag-to-draw flow handled by the dedicated pointer listeners
-    // on the wrapper div — clicks alone don't commit a paint stroke.
+    // Brush uses a drag-to-draw flow handled by the dedicated pointer listeners
+    // on the wrapper div — clicks alone don't commit a stroke.
     if (activeTool === 'paint') return;
 
     // Image tool: open a file picker, then place the loaded bitmap at the click point.
@@ -1228,6 +1290,31 @@ export function AnnotationStage() {
       return;
     }
 
+    if (activeTool === 'arrow') {
+      if (!draftArrow) {
+        setDraftArrow({
+          position: pointer,
+          geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null,
+          previewPoint: null,
+        });
+        return;
+      }
+      const points = [0, 0, pointer.x - draftArrow.position.x, pointer.y - draftArrow.position.y];
+      if (Math.hypot(points[2], points[3]) >= 4) {
+        const annotation = createAnnotation({
+          kind: 'arrow',
+          anchorMode: defaultAnchorMode,
+          position: draftArrow.position,
+          geoAnchor: draftArrow.geoAnchor,
+          style: defaultStyle,
+        });
+        if (annotation.kind === 'arrow') addAnnotation({ ...annotation, points });
+      }
+      setDraftArrow(null);
+      useToolStore.getState().setActiveTool('move');
+      return;
+    }
+
     if (kind === 'polygon') {
       setDraftPolygon((draft) => {
         if (!draft) {
@@ -1235,11 +1322,13 @@ export function AnnotationStage() {
             position: pointer,
             geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null,
             points: [0, 0],
+            previewPoint: null,
           };
         }
         return {
           ...draft,
           points: [...draft.points, pointer.x - draft.position.x, pointer.y - draft.position.y],
+          previewPoint: null,
         };
       });
       return;
@@ -1295,9 +1384,21 @@ export function AnnotationStage() {
   };
 
   const handleStagePointerMove = (event: KonvaEventObject<MouseEvent>) => {
-    if (!marquee) return;
     const pointer = event.target.getStage()?.getPointerPosition();
     if (!pointer) return;
+    if (draftPolygon) {
+      setDraftPolygon({ ...draftPolygon, previewPoint: snapToGrid(pointer, gridSnapEnabled, gridSpacing) });
+      return;
+    }
+    if (draftArrow) {
+      setDraftArrow({ ...draftArrow, previewPoint: snapToGrid(pointer, gridSnapEnabled, gridSpacing) });
+      return;
+    }
+    if (draftMeasurement) {
+      setDraftMeasurement({ ...draftMeasurement, previewPoint: pointer });
+      return;
+    }
+    if (!marquee) return;
     setMarquee({ ...marquee, end: pointer });
   };
 
@@ -1386,6 +1487,43 @@ export function AnnotationStage() {
     useToolStore.getState().setActiveTool('move');
   };
 
+  const draftPointsWithPreview = (
+    draft: { position: { x: number; y: number }; points: number[]; previewPoint: { x: number; y: number } | null },
+  ) =>
+    draft.previewPoint
+      ? [...draft.points, draft.previewPoint.x - draft.position.x, draft.previewPoint.y - draft.position.y]
+      : draft.points;
+
+  const beginPaintDraft = (point: { x: number; y: number }) => {
+    const draft: FreehandDraft = {
+      position: point,
+      geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, point) : null,
+      points: [0, 0],
+    };
+    paintDraftRef.current = draft;
+    setPaintDraft(draft);
+  };
+
+  const appendPaintPoint = (point: { x: number; y: number }) => {
+    const draft = paintDraftRef.current;
+    if (!draft) return;
+    const last = draft.points.length - 2;
+    const nextX = point.x - draft.position.x;
+    const nextY = point.y - draft.position.y;
+    const dx = nextX - draft.points[last];
+    const dy = nextY - draft.points[last + 1];
+    // Skip nearly-stationary samples to keep the stored stroke light.
+    if (dx * dx + dy * dy < 16) return;
+    const next = { ...draft, points: [...draft.points, nextX, nextY] };
+    paintDraftRef.current = next;
+    setPaintDraft(next);
+  };
+
+  const clearPaintDraft = () => {
+    paintDraftRef.current = null;
+    setPaintDraft(null);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -1398,11 +1536,7 @@ export function AnnotationStage() {
           const point = stagePointFromClient(event.clientX, event.clientY);
           paintPointerRef.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
-          setPaintDraft({
-            position: point,
-            geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, point) : null,
-            points: [0, 0],
-          });
+          beginPaintDraft(point);
           return;
         }
         if (activeTool !== 'marquee') return;
@@ -1414,18 +1548,7 @@ export function AnnotationStage() {
       onPointerMove={(event) => {
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
           const point = stagePointFromClient(event.clientX, event.clientY);
-          setPaintDraft((draft) => {
-            if (!draft) return draft;
-            const last = draft.points.length - 2;
-            const dx = point.x - draft.position.x - draft.points[last];
-            const dy = point.y - draft.position.y - draft.points[last + 1];
-            // Skip nearly-stationary samples to keep the stored path light.
-            if (dx * dx + dy * dy < 16) return draft;
-            return {
-              ...draft,
-              points: [...draft.points, point.x - draft.position.x, point.y - draft.position.y],
-            };
-          });
+          appendPaintPoint(point);
           return;
         }
         if (activeTool !== 'marquee' || marqueePointerRef.current !== event.pointerId) return;
@@ -1436,18 +1559,19 @@ export function AnnotationStage() {
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
           paintPointerRef.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
-          const draft = paintDraft;
-          setPaintDraft(null);
-          if (draft && draft.points.length >= 6) {
+          appendPaintPoint(stagePointFromClient(event.clientX, event.clientY));
+          const draft = paintDraftRef.current;
+          clearPaintDraft();
+          if (draft && draft.points.length >= 4) {
             const annotation = createAnnotation({
-              kind: 'polygon',
+              kind: 'line',
               anchorMode: defaultAnchorMode,
               position: draft.position,
               geoAnchor: draft.geoAnchor,
-              style: { ...defaultStyle, fillPattern: defaultStyle.fillPattern === 'none' ? 'diagonal' : defaultStyle.fillPattern },
+              style: defaultStyle,
             });
-            if (annotation.kind === 'polygon') {
-              addAnnotation({ ...annotation, points: draft.points });
+            if (annotation.kind === 'line') {
+              addAnnotation({ ...annotation, name: 'Brush stroke', lineRole: 'brush', points: draft.points });
             }
           }
           useToolStore.getState().setActiveTool('move');
@@ -1462,7 +1586,7 @@ export function AnnotationStage() {
         marqueePointerRef.current = null;
         paintPointerRef.current = null;
         setMarquee(null);
-        setPaintDraft(null);
+        clearPaintDraft();
       }}
     >
       <Stage
@@ -1640,27 +1764,79 @@ export function AnnotationStage() {
             );
           })}
           {draftPolygon && (
-            <Line
-              x={draftPolygon.position.x}
-              y={draftPolygon.position.y}
-              points={draftPolygon.points}
-              stroke={defaultStyle.strokeColor}
-              strokeWidth={defaultStyle.strokeWidth}
-              fill={defaultStyle.fillColor}
-              opacity={0.55}
-              closed={draftPolygon.points.length >= 6}
-              dash={[5, 5]}
-            />
+            <>
+              <Line
+                x={draftPolygon.position.x}
+                y={draftPolygon.position.y}
+                points={draftPointsWithPreview(draftPolygon)}
+                stroke={defaultStyle.strokeColor}
+                strokeWidth={defaultStyle.strokeWidth}
+                fill={defaultStyle.fillColor}
+                opacity={0.55}
+                closed={draftPolygon.points.length >= 6}
+                dash={[5, 5]}
+                listening={false}
+              />
+              <Circle
+                x={draftPolygon.position.x}
+                y={draftPolygon.position.y}
+                radius={Math.max(4, defaultStyle.strokeWidth + 2)}
+                fill={defaultStyle.strokeColor}
+                opacity={0.75}
+                listening={false}
+              />
+            </>
+          )}
+          {draftArrow && (
+            <>
+              <Arrow
+                x={draftArrow.position.x}
+                y={draftArrow.position.y}
+                points={
+                  draftArrow.previewPoint
+                    ? [0, 0, draftArrow.previewPoint.x - draftArrow.position.x, draftArrow.previewPoint.y - draftArrow.position.y]
+                    : [0, 0, 0, 0]
+                }
+                stroke={defaultStyle.strokeColor}
+                fill={defaultStyle.strokeColor}
+                strokeWidth={defaultStyle.strokeWidth}
+                pointerLength={12}
+                pointerWidth={12}
+                opacity={0.75}
+                lineCap="round"
+                lineJoin="round"
+                listening={false}
+              />
+              <Circle
+                x={draftArrow.position.x}
+                y={draftArrow.position.y}
+                radius={Math.max(4, defaultStyle.strokeWidth + 2)}
+                fill={defaultStyle.strokeColor}
+                opacity={0.75}
+                listening={false}
+              />
+            </>
           )}
           {draftMeasurement && (
-            <Line
-              x={draftMeasurement.position.x}
-              y={draftMeasurement.position.y}
-              points={draftMeasurement.points}
-              stroke={defaultStyle.strokeColor}
-              strokeWidth={defaultStyle.strokeWidth}
-              dash={[6, 5]}
-            />
+            <>
+              <Line
+                x={draftMeasurement.position.x}
+                y={draftMeasurement.position.y}
+                points={draftPointsWithPreview(draftMeasurement)}
+                stroke={defaultStyle.strokeColor}
+                strokeWidth={defaultStyle.strokeWidth}
+                dash={[6, 5]}
+                listening={false}
+              />
+              <Circle
+                x={draftMeasurement.position.x}
+                y={draftMeasurement.position.y}
+                radius={Math.max(4, defaultStyle.strokeWidth + 2)}
+                fill={defaultStyle.strokeColor}
+                opacity={0.75}
+                listening={false}
+              />
+            </>
           )}
           {paintDraft && (
             <Line
@@ -1669,11 +1845,11 @@ export function AnnotationStage() {
               points={paintDraft.points}
               stroke={defaultStyle.strokeColor}
               strokeWidth={defaultStyle.strokeWidth}
-              fill={defaultStyle.fillColor}
-              closed={paintDraft.points.length >= 6}
-              opacity={0.6}
+              opacity={0.8}
               lineCap="round"
               lineJoin="round"
+              tension={paintDraft.points.length > 4 ? 0.35 : 0}
+              listening={false}
             />
           )}
           {marquee && (

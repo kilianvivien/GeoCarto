@@ -62,7 +62,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   { key: 'text', name: 'Text', shortcut: 'T', phase: 'phase1', enabled: true },
   {
     key: 'paint',
-    name: 'Paint area',
+    name: 'Brush',
     shortcut: 'B',
     phase: 'phase2',
     enabled: true,
@@ -136,9 +136,8 @@ export function toolToAnnotationKind(tool: ToolKey): AnnotationKind | null {
   if (tool === 'text' || tool === 'pin' || tool === 'arrow') return tool;
   if (tool === 'pen') return 'line';
   if (tool === 'ruler') return 'measurement';
-  // Paint reuses the polygon kind — the stage's pointer handlers spawn a
-  // freehand drag flow instead of the click-to-place polygon multi-point flow.
-  if (tool === 'paint') return 'polygon';
+  // Brush uses a drag-to-draw flow that commits an open freehand line.
+  if (tool === 'paint') return 'line';
   if (tool === 'image') return 'image';
   if (tool === 'legend') return 'legend';
   if (tool === 'comment') return 'comment';

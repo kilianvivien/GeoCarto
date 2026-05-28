@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import type { ExportBackground, ExportFormat } from '@/export/raster';
+import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { ColorPickerPopover } from './ColorPickerPopover';
 import { useNotices } from './notices';
 
 // Defer the raster export module (pulls maplibre-gl into the bundle) until the
@@ -38,33 +40,34 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     return () => clearTimeout(t);
   }, [open]);
   const project = useDocumentStore((s) => s.project);
+  const { setExportFrameBackground, setExportFrameDpiScale } = useDocumentStore.getState();
   const push = useNotices((s) => s.push);
 
   const [format, setFormat] = useState<ExportFormat>('png');
   const projectScale = project.exportFrame.dpiScale ?? 1;
   const initialPreset: ScalePreset = projectScale === 1 ? '1x' : projectScale === 2 ? '2x' : 'custom';
-  const [scalePreset, setScalePreset] = useState<ScalePreset>(initialPreset);
-  const [customScale, setCustomScale] = useState(projectScale);
-  const projectBg = project.exportFrame.background;
-  const initialBackground: ExportBackground = projectBg === 'transparent' ? 'transparent' : 'white';
-  const [background, setBackground] = useState<ExportBackground>(initialBackground);
+  const scalePreset: ScalePreset = initialPreset;
+  const background = project.exportFrame.background ?? 'white';
+  const customBgRef = useRef<HTMLButtonElement>(null);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [quality, setQuality] = useState(0.92);
   const [busy, setBusy] = useState(false);
 
-  const scale = useMemo(() => {
-    if (scalePreset === '1x') return 1;
-    if (scalePreset === '2x') return 2;
-    return Math.max(0.25, Math.min(8, customScale));
-  }, [scalePreset, customScale]);
+  const scale = Math.max(0.25, Math.min(8, projectScale));
+  const exportBackground: ExportBackground = format === 'jpeg' && background === 'transparent' ? 'white' : background;
+  const customBgValue = background === 'white' || background === 'transparent' ? '#cccccc' : background;
+  const bgMode: 'white' | 'transparent' | 'custom' =
+    background === 'white' ? 'white' : background === 'transparent' ? 'transparent' : 'custom';
 
   const outW = Math.round(project.exportFrame.width * scale);
   const outH = Math.round(project.exportFrame.height * scale);
+  const margin = project.exportFrame.margin ?? 0;
 
   const handleExport = async () => {
     setBusy(true);
     try {
       const { exportRaster, downloadBlob } = await loadRaster();
-      const result = await exportRaster(project, { format, scale, background, quality });
+      const result = await exportRaster(project, { format, scale, background: exportBackground, quality });
       downloadBlob(result.blob, result.fileName);
       push(`Exported ${result.fileName} (${result.width}×${result.height})`);
       onClose();
@@ -97,7 +100,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div>
             <div className="text-[14px] font-semibold">Export image</div>
             <div className="mt-0.5 text-[11.5px] text-[var(--text-2)]">
-              Renders the locked composition area as PNG or JPEG.
+              Uses the Page settings from the Style panel.
             </div>
           </div>
           <button
@@ -129,7 +132,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               { value: '2x', label: '2×' },
               { value: 'custom', label: 'Custom' },
             ]}
-            onChange={setScalePreset}
+            onChange={(value) => {
+              if (value === '1x') setExportFrameDpiScale(1);
+              else if (value === '2x') setExportFrameDpiScale(2);
+              else setExportFrameDpiScale(scalePreset === 'custom' ? scale : 1.5);
+            }}
           />
           {scalePreset === 'custom' && (
             <input
@@ -137,8 +144,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               min={0.25}
               max={8}
               step={0.25}
-              value={customScale}
-              onChange={(e) => setCustomScale(parseFloat(e.target.value) || 1)}
+              value={scale}
+              onChange={(e) => setExportFrameDpiScale(parseFloat(e.target.value) || 1)}
               className="mt-2 w-24 rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent)]"
             />
           )}
@@ -146,15 +153,58 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
         {format === 'png' && (
           <Field label="Background">
-            <Segmented
-              value={background}
-              options={[
-                { value: 'white', label: 'White' },
-                { value: 'transparent', label: 'Transparent' },
-              ]}
-              onChange={setBackground}
-            />
+            <div className="flex flex-wrap items-center gap-1">
+              {(['white', 'transparent'] as const).map((mode) => {
+                const active = bgMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setExportFrameBackground(mode)}
+                    className={`rounded-full px-3 py-1 text-[12px] font-medium capitalize transition-colors ${
+                      active
+                        ? 'bg-[var(--accent)] text-[var(--text-on-accent)]'
+                        : 'border border-[var(--divider)] bg-[var(--hover)] text-[var(--text-2)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                );
+              })}
+              <button
+                ref={customBgRef}
+                type="button"
+                onClick={() => setBgPickerOpen((prev) => !prev)}
+                aria-haspopup="dialog"
+                aria-expanded={bgPickerOpen}
+                aria-label="Custom background color"
+                className={`h-7 w-7 rounded-full border transition-transform hover:scale-105 ${
+                  bgMode === 'custom'
+                    ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]'
+                    : 'border-[var(--divider)]'
+                }`}
+                style={{
+                  background:
+                    bgMode === 'custom'
+                      ? customBgValue
+                      : 'conic-gradient(from 0deg, #ff3b30, #ff9500, #ffcc00, #34c759, #5ac8fa, #007aff, #5856d6, #af52de, #ff2d55, #ff3b30)',
+                }}
+              />
+              <ColorPickerPopover
+                open={bgPickerOpen}
+                anchorRef={customBgRef}
+                value={customBgValue}
+                onChange={(hex) => setExportFrameBackground(hex as PageBackground)}
+                onClose={() => setBgPickerOpen(false)}
+              />
+            </div>
           </Field>
+        )}
+
+        {format === 'jpeg' && background === 'transparent' && (
+          <div className="mt-3 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
+            JPEG does not support transparency, so this export will use a white background.
+          </div>
         )}
 
         {format === 'jpeg' && (
@@ -172,9 +222,12 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         )}
 
         <div className="mt-4 flex items-center justify-between rounded-[9px] bg-[var(--hover)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
-          <span>Output</span>
-          <span data-testid="export-output-size" className="mono font-semibold text-[var(--text)]">
-            {outW} × {outH} px
+          <div className="flex flex-col gap-1">
+            <span>Frame {project.exportFrame.width} × {project.exportFrame.height}px</span>
+            <span>Margin {margin}px · Background {background}</span>
+          </div>
+          <span data-testid="export-output-size" className="mono shrink-0 font-semibold text-[var(--text)]">
+            {outW} × {outH}
           </span>
         </div>
 

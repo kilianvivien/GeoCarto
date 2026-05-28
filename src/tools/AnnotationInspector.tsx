@@ -8,6 +8,7 @@ import type {
   AnnotationKind,
   AnnotationStyle,
   BlendMode,
+  BrushPreset,
   FillPattern,
   LegendAnnotation,
   LegendEntry,
@@ -16,7 +17,7 @@ import type {
 } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
-import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
+import { TOOL_BY_KEY, useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 
 const SWATCHES = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#111827', '#ffffff'];
 const FONTS = ['Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia'];
@@ -27,6 +28,12 @@ const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
   { value: 'horizontal', label: 'Horizontal hatch' },
   { value: 'vertical', label: 'Vertical hatch' },
   { value: 'dots', label: 'Dot hatch' },
+];
+const BRUSH_PRESETS: { value: BrushPreset; label: string; width: number }[] = [
+  { value: 'round', label: 'Round', width: 2 },
+  { value: 'marker', label: 'Marker', width: 5 },
+  { value: 'pencil', label: 'Pencil', width: 2 },
+  { value: 'highlighter', label: 'Highlighter', width: 6 },
 ];
 const STROKE_PATTERNS: { value: StrokePattern; label: string }[] = [
   { value: 'solid', label: 'Solid' },
@@ -337,6 +344,22 @@ function PinStyleControls({
   );
 }
 
+function CommentStyleControls({
+  style,
+  onChange,
+}: {
+  style: AnnotationStyle;
+  onChange: (patch: Partial<AnnotationStyle>) => void;
+}) {
+  return (
+    <Section title="Comment Marker">
+      <Row label="Color">
+        <Swatches value={style.pinColor} onChange={(pinColor) => onChange({ pinColor })} />
+      </Row>
+    </Section>
+  );
+}
+
 function EffectsControls({
   style,
   onChange,
@@ -484,11 +507,40 @@ function StyleControls({
     case 'comment':
       return (
         <>
-          <PinStyleControls style={style} onChange={onChange} />
+          <CommentStyleControls style={style} onChange={onChange} />
           <EffectsControls style={style} onChange={onChange} />
         </>
       );
   }
+}
+
+function BrushPresetControls({
+  style,
+  onChange,
+}: {
+  style: AnnotationStyle;
+  onChange: (patch: Partial<AnnotationStyle>) => void;
+}) {
+  return (
+    <Section title="Brush">
+      <Row label="Preset">
+        <Select
+          value={style.brushPreset ?? 'round'}
+          onChange={(e) => {
+            const preset = BRUSH_PRESETS.find((item) => item.value === e.target.value);
+            if (!preset) return;
+            onChange({ brushPreset: preset.value, strokeWidth: preset.width });
+          }}
+        >
+          {BRUSH_PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+        </Select>
+      </Row>
+    </Section>
+  );
 }
 
 function GeometryControls({
@@ -810,6 +862,7 @@ function ToolDefaults() {
   const style = useToolStore((s) => s.defaultStyle);
   const { setDefaultAnchorMode, updateDefaultStyle } = useToolStore.getState();
   const kind = toolToAnnotationKind(activeTool);
+  const toolName = TOOL_BY_KEY[activeTool].name;
 
   if (!kind) {
     return (
@@ -830,13 +883,16 @@ function ToolDefaults() {
           <Palette size={15} />
         </span>
         <div>
-          <div className="text-[13px] font-semibold capitalize text-[var(--text)]">{kind} defaults</div>
-          <div className="text-[11px] text-[var(--text-3)]">Applied to the next object you place.</div>
+          <div className="text-[13px] font-semibold text-[var(--text)]">{toolName} defaults</div>
+          <div className="text-[11px] text-[var(--text-3)]">
+            Applied to the next {activeTool === 'paint' ? 'stroke you draw' : 'object you place'}.
+          </div>
         </div>
       </div>
       <Section title="Anchor">
         <AnchorControl value={anchorMode} onChange={setDefaultAnchorMode} />
       </Section>
+      {activeTool === 'paint' && <BrushPresetControls style={style} onChange={updateDefaultStyle} />}
       <StyleControls kind={kind} style={style} onChange={updateDefaultStyle} />
     </div>
   );
@@ -912,6 +968,13 @@ function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
       <Section title="Anchor">
         <AnchorControl value={annotation.anchorMode} onChange={setAnchorMode} />
       </Section>
+
+      {annotation.kind === 'line' && annotation.lineRole === 'brush' && (
+        <BrushPresetControls
+          style={annotation.style}
+          onChange={(patch) => updateAnnotationStyle(annotation.id, patch)}
+        />
+      )}
 
       <StyleControls
         kind={annotation.kind}
