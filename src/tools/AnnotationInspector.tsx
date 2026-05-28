@@ -918,7 +918,7 @@ function LegendEntriesEditor({
       <div className="flex flex-col gap-1.5">
         {annotation.entries.map((entry, index) => (
           <LegendEntryRow
-            key={`${index}-${entry.label}`}
+            key={index}
             entry={entry}
             index={index}
             disabled={disabled}
