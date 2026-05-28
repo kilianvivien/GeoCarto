@@ -51,12 +51,36 @@ export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
 export type BuiltInBasemapPreset = 'editorial-light' | 'editorial-dark' | 'minimal-grey' | 'print-bw';
 
+/**
+ * Editorial sub-layer groups for a Protomaps-based basemap. Each maps to one
+ * or more Protomaps `source-layer` names (see basemapStyle.ts).
+ */
+export type BasemapSublayerKey =
+  | 'roads'
+  | 'labels'
+  | 'water'
+  | 'landuse'
+  | 'buildings'
+  | 'boundaries';
+
+export type BasemapSublayers = Record<BasemapSublayerKey, boolean>;
+
+export const DEFAULT_BASEMAP_SUBLAYERS: BasemapSublayers = {
+  roads: true,
+  labels: true,
+  water: true,
+  landuse: true,
+  buildings: true,
+  boundaries: true,
+};
+
 export type BasemapConfig =
   | {
       kind: 'builtin';
       preset: BuiltInBasemapPreset;
       name: string;
       attribution: string;
+      sublayers: BasemapSublayers;
     }
   | {
       kind: 'style-url';
@@ -70,6 +94,7 @@ export type BasemapConfig =
       url: string;
       preset: BuiltInBasemapPreset;
       attribution: string;
+      sublayers: BasemapSublayers;
     }
   | {
       kind: 'static';
@@ -92,6 +117,7 @@ export const DEFAULT_BASEMAP: BasemapConfig = {
   preset: 'editorial-light',
   name: 'Editorial Light',
   attribution: 'Protomaps © OpenStreetMap',
+  sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
 };
 
 export type PinIcon =
@@ -107,6 +133,7 @@ export type PinIcon =
 
 export type FillPattern = 'none' | 'diagonal' | 'crosshatch' | 'horizontal' | 'vertical' | 'dots';
 export type StrokePattern = 'solid' | 'dotted' | 'dashed';
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay';
 
 export interface AnnotationStyle {
   fillColor: string;
@@ -121,6 +148,16 @@ export interface AnnotationStyle {
   fontFamily: string;
   pinColor: string;
   pinIcon: PinIcon;
+  /** Outer halo painted beneath the shape; 0 width disables. */
+  haloColor: string;
+  haloWidth: number;
+  /** Drop shadow projected onto the canvas; 0 blur + 0 offset disables. */
+  shadowColor: string;
+  shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  /** Composite operation applied to the annotation group. */
+  blendMode: BlendMode;
 }
 
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
@@ -136,6 +173,13 @@ export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   fontFamily: 'Inter',
   pinColor: '#ff3b30',
   pinIcon: 'dot',
+  haloColor: '#ffffff',
+  haloWidth: 0,
+  shadowColor: '#000000',
+  shadowBlur: 0,
+  shadowOffsetX: 0,
+  shadowOffsetY: 0,
+  blendMode: 'normal',
 };
 
 export interface AnnotationBase {

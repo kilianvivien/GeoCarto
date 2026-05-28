@@ -6,6 +6,7 @@ import type {
   AnnotationAnchorMode,
   AnnotationKind,
   AnnotationStyle,
+  BlendMode,
   FillPattern,
   PinIcon,
   StrokePattern,
@@ -28,6 +29,12 @@ const STROKE_PATTERNS: { value: StrokePattern; label: string }[] = [
   { value: 'solid', label: 'Solid' },
   { value: 'dotted', label: 'Dotted' },
   { value: 'dashed', label: 'Dashed' },
+];
+const BLEND_MODES: { value: BlendMode; label: string }[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'multiply', label: 'Multiply' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'overlay', label: 'Overlay' },
 ];
 const PIN_ICONS: { value: PinIcon; label: string }[] = [
   { value: 'dot', label: 'Dot' },
@@ -327,6 +334,95 @@ function PinStyleControls({
   );
 }
 
+function EffectsControls({
+  style,
+  onChange,
+}: {
+  style: AnnotationStyle;
+  onChange: (patch: Partial<AnnotationStyle>) => void;
+}) {
+  const haloOn = style.haloWidth > 0;
+  const shadowOn = style.shadowBlur > 0 || style.shadowOffsetX !== 0 || style.shadowOffsetY !== 0;
+  const [open, setOpen] = useState(haloOn || shadowOn || style.blendMode !== 'normal');
+  return (
+    <section className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)]"
+      >
+        <span>Effects</span>
+        <span className="text-[12px]">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2">
+          <Row label="Halo">
+            <Input
+              type="number"
+              min={0}
+              max={32}
+              value={style.haloWidth}
+              onChange={(e) => onChange({ haloWidth: Math.max(0, Number(e.target.value)) })}
+            />
+          </Row>
+          {style.haloWidth > 0 && (
+            <Row label="Halo color">
+              <Swatches value={style.haloColor} onChange={(haloColor) => onChange({ haloColor })} />
+            </Row>
+          )}
+          <Row label="Shadow">
+            <Input
+              type="number"
+              min={0}
+              max={48}
+              value={style.shadowBlur}
+              onChange={(e) => onChange({ shadowBlur: Math.max(0, Number(e.target.value)) })}
+            />
+          </Row>
+          {shadowOn && (
+            <>
+              <Row label="Shadow color">
+                <Swatches value={style.shadowColor} onChange={(shadowColor) => onChange({ shadowColor })} />
+              </Row>
+              <Row label="Offset X">
+                <Input
+                  type="number"
+                  min={-32}
+                  max={32}
+                  value={style.shadowOffsetX}
+                  onChange={(e) => onChange({ shadowOffsetX: Number(e.target.value) })}
+                />
+              </Row>
+              <Row label="Offset Y">
+                <Input
+                  type="number"
+                  min={-32}
+                  max={32}
+                  value={style.shadowOffsetY}
+                  onChange={(e) => onChange({ shadowOffsetY: Number(e.target.value) })}
+                />
+              </Row>
+            </>
+          )}
+          <Row label="Blend">
+            <Select
+              value={style.blendMode}
+              onChange={(e) => onChange({ blendMode: e.target.value as BlendMode })}
+            >
+              {BLEND_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </Select>
+          </Row>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function StyleControls({
   kind,
   style,
@@ -338,16 +434,27 @@ function StyleControls({
 }) {
   switch (kind) {
     case 'text':
-      return <TextStyleControls style={style} onChange={onChange} />;
+      return (
+        <>
+          <TextStyleControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
+        </>
+      );
     case 'line':
     case 'arrow':
     case 'measurement':
-      return <StrokeControls style={style} onChange={onChange} />;
+      return (
+        <>
+          <StrokeControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
+        </>
+      );
     case 'pin':
       return (
         <>
           <PinStyleControls style={style} onChange={onChange} />
           <TextStyleControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
         </>
       );
     case 'rectangle':
@@ -357,6 +464,7 @@ function StyleControls({
         <>
           <FillControls style={style} onChange={onChange} />
           <StrokeControls style={style} onChange={onChange} />
+          <EffectsControls style={style} onChange={onChange} />
         </>
       );
   }

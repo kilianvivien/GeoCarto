@@ -164,6 +164,56 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.lockedMapView).toBeNull();
   });
 
+  it('defaults basemap sub-layers on built-in basemaps from older v1 project files', () => {
+    const project = createEmptyProject('Legacy basemap');
+    delete (project.basemap as { sublayers?: unknown }).sublayers;
+
+    const restored = deserializeProject(JSON.stringify(project));
+    if (restored.basemap.kind !== 'builtin') throw new Error('expected builtin basemap');
+    expect(restored.basemap.sublayers).toEqual({
+      roads: true,
+      labels: true,
+      water: true,
+      landuse: true,
+      buildings: true,
+      boundaries: true,
+    });
+  });
+
+  it('preserves partial basemap sub-layer overrides while defaulting missing keys', () => {
+    const project = createEmptyProject('Partial sublayers');
+    if (project.basemap.kind === 'builtin') {
+      (project.basemap as { sublayers: Record<string, unknown> }).sublayers = { labels: false };
+    }
+    const restored = deserializeProject(JSON.stringify(project));
+    if (restored.basemap.kind !== 'builtin') throw new Error('expected builtin basemap');
+    expect(restored.basemap.sublayers.labels).toBe(false);
+    expect(restored.basemap.sublayers.roads).toBe(true);
+  });
+
+  it('defaults newer annotation effect fields from older v1 project files', () => {
+    const project = createEmptyProject('Legacy effects');
+    const annotation = rectAnnotation();
+    delete (annotation.style as Partial<typeof annotation.style>).haloColor;
+    delete (annotation.style as Partial<typeof annotation.style>).haloWidth;
+    delete (annotation.style as Partial<typeof annotation.style>).shadowColor;
+    delete (annotation.style as Partial<typeof annotation.style>).shadowBlur;
+    delete (annotation.style as Partial<typeof annotation.style>).shadowOffsetX;
+    delete (annotation.style as Partial<typeof annotation.style>).shadowOffsetY;
+    delete (annotation.style as Partial<typeof annotation.style>).blendMode;
+    project.annotations.push(annotation);
+
+    const restored = deserializeProject(JSON.stringify(project));
+    const style = restored.annotations[0].style;
+    expect(style.haloWidth).toBe(0);
+    expect(style.haloColor).toBe('#ffffff');
+    expect(style.shadowBlur).toBe(0);
+    expect(style.shadowColor).toBe('#000000');
+    expect(style.shadowOffsetX).toBe(0);
+    expect(style.shadowOffsetY).toBe(0);
+    expect(style.blendMode).toBe('normal');
+  });
+
   it('defaults newer annotation style fields from older v1 project files', () => {
     const project = createEmptyProject('Legacy styles');
     const annotation = rectAnnotation();

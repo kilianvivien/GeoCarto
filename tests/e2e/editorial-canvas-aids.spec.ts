@@ -24,6 +24,13 @@ test('context-menu grouping, ruler, and grid snap edit the document model', asyn
       fontFamily: 'Inter',
       pinColor: '#ff3b30',
       pinIcon: 'dot' as const,
+      haloColor: '#ffffff',
+      haloWidth: 0,
+      shadowColor: '#000000',
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+      blendMode: 'normal' as const,
     };
     window.__documentStore.getState().addAnnotation({
       id: 'a-rect-1',

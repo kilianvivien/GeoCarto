@@ -128,7 +128,16 @@ Closed out by Milestone 7. Phase 2 work now sits on a clean Phase 1 base.
     into one entry. Selection / viewport / tool state stays out of history by
     construction (they live in separate stores).
   - ⌘Z / ⌘⇧Z, plus toolbar Undo/Redo lifted from the Phase 1 gate.
-- ⬜ Pixel/grid snap, ruler/measurement tool, and locked-canvas pan tool (M10)
+- ✅ Editorial canvas aids (M10):
+  - Locked-canvas pan/zoom via the screen-only `viewTransformStore` (H tool);
+    composition pan never mutates project geometry.
+  - Marquee select with shift/cmd/alt modifiers across all annotations.
+  - Ruler tool (K) → persisted `measurement` annotation type with metric /
+    imperial distance + area readouts driven from `geoPoints`.
+  - Grid snap (toggle + spacing in the status bar) with on-canvas grid overlay.
+  - Smart guides — edge/center alignment cues during drag with ±6 px tolerance.
+  - Object grouping via ⌘G / ⌘⇧G and the canvas context menu; groups
+    round-trip through `.cartoproj`.
 - ⬜ Share, comments, image placement, and legend builder workflows (M13/M14)
 
 ### Basemap sources & styling 🟡
@@ -137,22 +146,31 @@ The basemap must be **user-selectable**, from either an online source or a custo
 base — this is a core editorial requirement.
 
 - ✅ Built-in style presets: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
-- 🟡 **Basemap source picker** — partial Phase 1 prototype:
+- ✅ **Basemap source picker** (M11):
   - ✅ Online: hosted Protomaps PMTiles / standard tile or style URLs
   - ✅ Custom: user-supplied MapLibre style URL
   - 🟡 Custom: PMTiles URL supported; local PMTiles file deferred because
         persisted `blob:` URLs break save/reopen
-  - ⬜ Offline: bundled / downloaded regional basemap packs (desktop)
-- ⬜ Toggle basemap sub-layers: roads, labels, water, landuse, buildings, boundaries
-- 🟡 Persist the chosen basemap source + style in the `.cartoproj` document
+  - ⬜ Offline: bundled / downloaded regional basemap packs (desktop, M16)
+- ✅ Basemap sub-layer toggles (M11): roads, labels, water, landuse, buildings,
+      boundaries. Filter applied at style-build time by Protomaps
+      `source-layer`; persisted per project; chips in MapSetupPanel + status-bar
+      popover for editing mode. `style-url`/`static` basemaps hide the chips.
+- ✅ Persist the chosen basemap source + sub-layer mask in `.cartoproj`
+      (with a defaulting migration for Phase 1 documents).
 
-### Richer annotation & styling ⬜
+### Richer annotation & styling 🟡
 
-- ⬜ deck.gl data layers interleaved via `MapboxOverlay`
-- ⬜ Dashed lines, arrowheads, halos, shadows, patterns, blend modes
-- ⬜ Grouped objects; smart guides (edge/center) and pixel/grid snap
-- ⬜ Title block, source credit, scale bar, north arrow
-- ⬜ Manually editable legend builder
+- ⬜ deck.gl data layers interleaved via `MapboxOverlay` (M12 remainder —
+      split out so the bundle-budget impact lands in its own session).
+- ✅ Dashed lines, arrowheads, hatch / pattern fills.
+- ✅ Halos, drop shadows, and blend modes (normal / multiply / screen /
+      overlay) on every annotation kind, surfaced via the Inspector's
+      progressively-disclosed Effects panel and mirrored in PNG/JPEG export
+      (M12).
+- ✅ Grouped objects; smart guides (edge/center) and pixel/grid snap (M10).
+- ⬜ Title block, source credit, scale bar, north arrow (M13)
+- ⬜ Manually editable legend builder (M13)
 
 ### Import & export ⬜
 

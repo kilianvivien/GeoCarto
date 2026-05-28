@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Check, ChevronDown, FileImage, Globe2, Link2, LockKeyhole, Map } from 'lucide-react';
 import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
+import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
+import { BasemapSublayerToggles } from '@/basemap/BasemapSublayerToggles';
 import { useNotices } from '@/ui/notices';
 import { useMapInstance } from './mapInstance';
 import { frameZoomDelta } from './compositionFrame';
@@ -38,6 +40,7 @@ function builtinConfig(preset: BuiltInBasemapPreset): BasemapConfig {
     preset,
     name: item.name,
     attribution: 'Protomaps © OpenStreetMap',
+    sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
   };
 }
 
@@ -113,7 +116,14 @@ export function MapSetupPanel() {
     const url = pmtilesUrl.trim();
     if (!url) return;
     chooseBasemap(
-      { kind: 'pmtiles-url', name: 'Custom PMTiles', url, preset: 'editorial-light', attribution: 'Custom PMTiles' },
+      {
+        kind: 'pmtiles-url',
+        name: 'Custom PMTiles',
+        url,
+        preset: 'editorial-light',
+        attribution: 'Custom PMTiles',
+        sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
+      },
       'Custom PMTiles URL selected',
     );
   };
@@ -275,6 +285,15 @@ export function MapSetupPanel() {
               </div>
             </button>
           </div>
+
+          {(basemap.kind === 'builtin' || basemap.kind === 'pmtiles-url') && (
+            <>
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                Basemap sub-layers
+              </div>
+              <BasemapSublayerToggles />
+            </>
+          )}
 
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
             Composition frame

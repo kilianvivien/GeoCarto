@@ -3,7 +3,7 @@ import Konva from 'konva';
 import { Arrow, Circle, Ellipse, Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, PinAnnotation, PinIcon, TextAnnotation } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, PinAnnotation, PinIcon, TextAnnotation } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
@@ -67,6 +67,24 @@ function blurFocusedControl() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }
 
+function shadowProps(style: AnnotationStyle) {
+  if (style.shadowBlur <= 0 && style.shadowOffsetX === 0 && style.shadowOffsetY === 0) {
+    return undefined;
+  }
+  return {
+    shadowColor: style.shadowColor,
+    shadowBlur: style.shadowBlur,
+    shadowOffsetX: style.shadowOffsetX,
+    shadowOffsetY: style.shadowOffsetY,
+    shadowOpacity: 0.65,
+  };
+}
+
+function blendOperation(style: AnnotationStyle) {
+  if (style.blendMode === 'normal') return undefined;
+  return style.blendMode as GlobalCompositeOperation;
+}
+
 function FillShape({
   annotation,
   editing,
@@ -74,13 +92,18 @@ function FillShape({
   annotation: Annotation;
   editing?: boolean;
 }) {
+  const shadow = shadowProps(annotation.style);
   const common = {
     opacity: annotation.opacity,
     fill: annotation.style.fillColor,
     stroke: annotation.style.strokeColor,
     strokeWidth: annotation.style.strokeWidth,
     dash: strokeDash(annotation.style),
+    ...(shadow ?? {}),
   };
+  const haloWidth = annotation.style.haloWidth;
+  const haloColor = annotation.style.haloColor;
+  const haloStrokeWidth = annotation.style.strokeWidth + haloWidth * 2;
 
   switch (annotation.kind) {
     case 'text':
@@ -97,6 +120,18 @@ function FillShape({
     case 'rectangle':
       return (
         <>
+          {haloWidth > 0 && (
+            <Rect
+              width={annotation.width}
+              height={annotation.height}
+              cornerRadius={annotation.cornerRadius}
+              fill={haloColor}
+              stroke={haloColor}
+              strokeWidth={haloStrokeWidth}
+              opacity={annotation.opacity}
+              listening={false}
+            />
+          )}
           <Rect {...common} width={annotation.width} height={annotation.height} cornerRadius={annotation.cornerRadius} />
           <HatchOverlay kind="rectangle" width={annotation.width} height={annotation.height} annotation={annotation} />
         </>
@@ -104,6 +139,17 @@ function FillShape({
     case 'ellipse':
       return (
         <>
+          {haloWidth > 0 && (
+            <Ellipse
+              radiusX={annotation.radiusX + haloWidth}
+              radiusY={annotation.radiusY + haloWidth}
+              fill={haloColor}
+              stroke={haloColor}
+              strokeWidth={haloStrokeWidth}
+              opacity={annotation.opacity}
+              listening={false}
+            />
+          )}
           <Ellipse {...common} radiusX={annotation.radiusX} radiusY={annotation.radiusY} />
           <HatchOverlay
             kind="ellipse"
@@ -118,6 +164,17 @@ function FillShape({
       return (
         <>
           <LineSelectionBounds points={annotation.points} strokeWidth={annotation.style.strokeWidth} />
+          {haloWidth > 0 && (
+            <Line
+              points={annotation.points}
+              stroke={haloColor}
+              strokeWidth={haloStrokeWidth}
+              opacity={annotation.opacity}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+          )}
           <Line
             points={annotation.points}
             opacity={annotation.opacity}
@@ -126,6 +183,7 @@ function FillShape({
             dash={strokeDash(annotation.style)}
             lineCap="round"
             lineJoin="round"
+            {...(shadow ?? {})}
           />
         </>
       );
@@ -133,6 +191,20 @@ function FillShape({
       return (
         <>
           <LineSelectionBounds points={annotation.points} strokeWidth={annotation.style.strokeWidth} />
+          {haloWidth > 0 && (
+            <Arrow
+              points={annotation.points}
+              stroke={haloColor}
+              fill={haloColor}
+              strokeWidth={haloStrokeWidth}
+              pointerLength={12 + haloWidth}
+              pointerWidth={12 + haloWidth}
+              opacity={annotation.opacity}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+          )}
           <Arrow
             points={annotation.points}
             opacity={annotation.opacity}
@@ -144,12 +216,25 @@ function FillShape({
             pointerWidth={12}
             lineCap="round"
             lineJoin="round"
+            {...(shadow ?? {})}
           />
         </>
       );
     case 'polygon':
       return (
         <>
+          {haloWidth > 0 && (
+            <Line
+              points={annotation.points}
+              closed={annotation.closed}
+              fill={haloColor}
+              stroke={haloColor}
+              strokeWidth={haloStrokeWidth}
+              lineJoin="round"
+              opacity={annotation.opacity}
+              listening={false}
+            />
+          )}
           <Line {...common} points={annotation.points} closed={annotation.closed} lineJoin="round" />
           <HatchOverlay kind="polygon" points={annotation.points} annotation={annotation} />
         </>
@@ -1059,6 +1144,7 @@ export function AnnotationStage() {
                 x={position.x}
                 y={position.y}
                 rotation={annotation.rotation}
+                globalCompositeOperation={blendOperation(annotation.style)}
                 draggable={mode === 'editing' && !annotation.locked && activeTool === 'move'}
                 onMouseDown={(event) => {
                   if (event.evt.button === 2) {

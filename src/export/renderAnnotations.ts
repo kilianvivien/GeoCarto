@@ -1,7 +1,25 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, PinIcon } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, PinIcon } from '@/project/cartoproj';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+
+function shadowProps(style: AnnotationStyle) {
+  if (style.shadowBlur <= 0 && style.shadowOffsetX === 0 && style.shadowOffsetY === 0) {
+    return {} as Record<string, never>;
+  }
+  return {
+    shadowColor: style.shadowColor,
+    shadowBlur: style.shadowBlur,
+    shadowOffsetX: style.shadowOffsetX,
+    shadowOffsetY: style.shadowOffsetY,
+    shadowOpacity: 0.65,
+  };
+}
+
+function blendOperation(style: AnnotationStyle): GlobalCompositeOperation | undefined {
+  if (style.blendMode === 'normal') return undefined;
+  return style.blendMode as GlobalCompositeOperation;
+}
 
 interface RenderOptions {
   width: number;
@@ -155,19 +173,26 @@ function formatMeasurement(annotation: Extract<Annotation, { kind: 'measurement'
 function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x: number; y: number }): void {
   if (!annotation.visible) return;
 
+  const blend = blendOperation(annotation.style);
   const group = new Konva.Group({
     x: originPx.x,
     y: originPx.y,
     rotation: annotation.rotation,
     opacity: annotation.opacity,
+    ...(blend ? { globalCompositeOperation: blend } : {}),
   });
 
   const { style } = annotation;
+  const shadow = shadowProps(style);
+  const haloWidth = style.haloWidth;
+  const haloColor = style.haloColor;
+  const haloStrokeWidth = style.strokeWidth + haloWidth * 2;
   const commonFill = {
     fill: style.fillColor,
     stroke: style.strokeColor,
     strokeWidth: style.strokeWidth,
     dash: strokeDash(style),
+    ...shadow,
   };
 
   switch (annotation.kind) {
@@ -184,6 +209,18 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       );
       break;
     case 'rectangle':
+      if (haloWidth > 0) {
+        group.add(
+          new Konva.Rect({
+            width: annotation.width,
+            height: annotation.height,
+            cornerRadius: annotation.cornerRadius,
+            fill: haloColor,
+            stroke: haloColor,
+            strokeWidth: haloStrokeWidth,
+          }),
+        );
+      }
       group.add(
         new Konva.Rect({
           ...commonFill,
@@ -195,6 +232,17 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       addHatch(group, annotation, 'rectangle', { width: annotation.width, height: annotation.height });
       break;
     case 'ellipse':
+      if (haloWidth > 0) {
+        group.add(
+          new Konva.Ellipse({
+            radiusX: annotation.radiusX + haloWidth,
+            radiusY: annotation.radiusY + haloWidth,
+            fill: haloColor,
+            stroke: haloColor,
+            strokeWidth: haloStrokeWidth,
+          }),
+        );
+      }
       group.add(new Konva.Ellipse({ ...commonFill, radiusX: annotation.radiusX, radiusY: annotation.radiusY }));
       addHatch(group, annotation, 'ellipse', {
         x: -annotation.radiusX,
@@ -204,6 +252,17 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       });
       break;
     case 'line':
+      if (haloWidth > 0) {
+        group.add(
+          new Konva.Line({
+            points: annotation.points,
+            stroke: haloColor,
+            strokeWidth: haloStrokeWidth,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }),
+        );
+      }
       group.add(
         new Konva.Line({
           points: annotation.points,
@@ -212,10 +271,25 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           dash: strokeDash(style),
           lineCap: 'round',
           lineJoin: 'round',
+          ...shadow,
         }),
       );
       break;
     case 'arrow':
+      if (haloWidth > 0) {
+        group.add(
+          new Konva.Arrow({
+            points: annotation.points,
+            stroke: haloColor,
+            fill: haloColor,
+            strokeWidth: haloStrokeWidth,
+            pointerLength: 12 + haloWidth,
+            pointerWidth: 12 + haloWidth,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }),
+        );
+      }
       group.add(
         new Konva.Arrow({
           points: annotation.points,
@@ -227,10 +301,23 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
           pointerWidth: 12,
           lineCap: 'round',
           lineJoin: 'round',
+          ...shadow,
         }),
       );
       break;
     case 'polygon':
+      if (haloWidth > 0) {
+        group.add(
+          new Konva.Line({
+            points: annotation.points,
+            closed: annotation.closed,
+            fill: haloColor,
+            stroke: haloColor,
+            strokeWidth: haloStrokeWidth,
+            lineJoin: 'round',
+          }),
+        );
+      }
       group.add(new Konva.Line({ ...commonFill, points: annotation.points, closed: annotation.closed, lineJoin: 'round' }));
       addHatch(group, annotation, 'polygon', polygonLocalBounds(annotation.points), annotation.points);
       break;

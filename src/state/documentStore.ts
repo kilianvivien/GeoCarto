@@ -5,6 +5,7 @@ import {
   type Annotation,
   type AnnotationStyle,
   type BasemapConfig,
+  type BasemapSublayerKey,
   type CartoProject,
   type GeoJsonLayer,
   type GeoJsonStyle,
@@ -41,6 +42,7 @@ interface DocumentState {
 
   renameProject: (name: string) => void;
   setBasemap: (basemap: BasemapConfig) => void;
+  setBasemapSublayer: (key: BasemapSublayerKey, visible: boolean) => void;
   setExportFrame: (frame: { width: number; height: number }) => void;
   lockMapArea: (viewport: Viewport) => void;
   unlockMapArea: () => void;
@@ -113,6 +115,16 @@ export const useDocumentStore = create<DocumentState>()(
     setBasemap: (basemap) =>
       set((state) => {
         state.project.basemap = basemap;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setBasemapSublayer: (key, visible) =>
+      set((state) => {
+        const basemap = state.project.basemap;
+        if (basemap.kind !== 'builtin' && basemap.kind !== 'pmtiles-url') return;
+        if (basemap.sublayers[key] === visible) return;
+        basemap.sublayers[key] = visible;
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),

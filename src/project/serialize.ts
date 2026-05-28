@@ -1,4 +1,9 @@
-import { DEFAULT_ANNOTATION_STYLE, DEFAULT_BASEMAP, type CartoProject } from './cartoproj';
+import {
+  DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_BASEMAP,
+  DEFAULT_BASEMAP_SUBLAYERS,
+  type CartoProject,
+} from './cartoproj';
 
 export class ProjectLoadError extends Error {
   constructor(message: string) {
@@ -60,6 +65,16 @@ function validateProject(value: unknown): asserts value is CartoProject {
 
   if (!('basemap' in value)) value.basemap = { ...DEFAULT_BASEMAP };
   expect(isObject(value.basemap), 'Project basemap missing.');
+  // M11: built-in / pmtiles-url basemaps gained editorial sub-layer toggles.
+  // Older v1 documents are missing the field — default to all visible.
+  const basemapKind = (value.basemap as { kind?: unknown }).kind;
+  if (basemapKind === 'builtin' || basemapKind === 'pmtiles-url') {
+    const current = (value.basemap as { sublayers?: unknown }).sublayers;
+    (value.basemap as { sublayers: unknown }).sublayers = {
+      ...DEFAULT_BASEMAP_SUBLAYERS,
+      ...(isObject(current) ? current : {}),
+    };
+  }
   if (!('lockedMapView' in value)) value.lockedMapView = null;
   if (!('annotations' in value)) value.annotations = [];
   if (!('annotationGroups' in value)) value.annotationGroups = [];
