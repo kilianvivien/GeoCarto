@@ -1,7 +1,8 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, AnnotationStyle, BrushPreset, PinIcon } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, BrushPreset, LegendEntry, LegendFillStyle, PinIcon } from '@/project/cartoproj';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import { legendEntryFill } from '@/style/legendSwatches';
 
 function shadowProps(style: AnnotationStyle) {
   if (style.shadowBlur <= 0 && style.shadowOffsetX === 0 && style.shadowOffsetY === 0) {
@@ -156,6 +157,40 @@ function pinGlyph(group: Konva.Group, color: string, icon: PinIcon, size: number
       break;
     }
   }
+}
+
+function addLegendSwatch(group: Konva.Group, entry: LegendEntry, fill: LegendFillStyle, style: AnnotationStyle, x: number, y: number, size: number): void {
+  group.add(
+    new Konva.Rect({
+      x,
+      y,
+      width: size,
+      height: size,
+      fill: fill.fillColor,
+      cornerRadius: 3,
+      stroke: style.strokeColor,
+      strokeWidth: 0.5,
+    }),
+  );
+  if (entry.fillStyle?.fillPattern === 'none' || fill.fillPattern === 'none') return;
+  const hatch = new Konva.Group({
+    x,
+    y,
+    clipFunc: (ctx) => {
+      ctx.rect(0, 0, size, size);
+    },
+  });
+  for (const line of hatchLines(size, size, fill.fillPattern, fill.hatchSpacing)) {
+    hatch.add(
+      new Konva.Line({
+        points: line.points,
+        stroke: fill.hatchColor,
+        strokeWidth: 1.25,
+        lineCap: fill.fillPattern === 'dots' ? 'round' : 'butt',
+      }),
+    );
+  }
+  group.add(hatch);
 }
 
 function haversineMeters(a: [number, number], b: [number, number]) {
@@ -427,18 +462,7 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
       );
       visibleEntries.forEach((entry, index) => {
         const y = padding + (style.textSize + 6) + index * rowHeight;
-        group.add(
-          new Konva.Rect({
-            x: padding,
-            y,
-            width: swatchSize,
-            height: swatchSize,
-            fill: entry.swatchColor,
-            cornerRadius: 3,
-            stroke: style.strokeColor,
-            strokeWidth: 0.5,
-          }),
-        );
+        addLegendSwatch(group, entry, legendEntryFill(entry), style, padding, y, swatchSize);
         group.add(
           new Konva.Text({
             text: entry.label,

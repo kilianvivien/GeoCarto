@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
-import { Lock, MapPinned, MousePointer2, Palette } from 'lucide-react';
+import { Lock, MapPinned, MousePointer2, Palette, Pipette, Plus, Trash2 } from 'lucide-react';
 import { ColorPickerPopover } from '@/ui/ColorPickerPopover';
-import { Plus, Trash2 } from 'lucide-react';
 import type {
   Annotation,
   AnnotationAnchorMode,
@@ -18,6 +17,12 @@ import type {
 import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
 import { TOOL_BY_KEY, useToolStore, toolToAnnotationKind } from '@/state/toolStore';
+import { useUiStore } from '@/ui/uiStore';
+import {
+  legendEntryFill,
+  legendSwatchBackground,
+  legendSwatchBackgroundSize,
+} from '@/style/legendSwatches';
 
 const SWATCHES = ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#111827', '#ffffff'];
 const FONTS = ['Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia'];
@@ -207,14 +212,41 @@ function AnchorControl({
 
 function FillControls({
   style,
+  sampleTargetAnnotationId,
   onChange,
 }: {
   style: AnnotationStyle;
+  sampleTargetAnnotationId?: string;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const pendingAnnotationFillSample = useUiStore((s) => s.pendingAnnotationFillSample);
+  const startAnnotationFillSample = useUiStore((s) => s.startAnnotationFillSample);
+  const cancelAnnotationFillSample = useUiStore((s) => s.cancelAnnotationFillSample);
+  const picking =
+    sampleTargetAnnotationId !== undefined &&
+    pendingAnnotationFillSample?.annotationId === sampleTargetAnnotationId;
   return (
     <Section title="Fill">
-      <Swatches value={style.fillColor} onChange={(fillColor) => onChange({ fillColor })} />
+      <div className="grid grid-cols-[1fr_28px] items-center gap-1.5">
+        <Swatches value={style.fillColor} onChange={(fillColor) => onChange({ fillColor })} />
+        <button
+          type="button"
+          onClick={() => {
+            if (!sampleTargetAnnotationId) return;
+            if (picking) cancelAnnotationFillSample();
+            else startAnnotationFillSample(sampleTargetAnnotationId);
+          }}
+          disabled={!sampleTargetAnnotationId}
+          aria-label="Pick fill from shape"
+          aria-pressed={picking}
+          title="Pick fill from shape"
+          className={`flex h-7 w-7 items-center justify-center rounded-[7px] border border-[var(--divider)] hover:bg-[var(--hover)] disabled:opacity-40 ${
+            picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
+          }`}
+        >
+          <Pipette size={13} />
+        </button>
+      </div>
       <Row label="Hatch">
         <Select
           value={style.fillPattern}
@@ -452,10 +484,12 @@ function EffectsControls({
 function StyleControls({
   kind,
   style,
+  sampleTargetAnnotationId,
   onChange,
 }: {
   kind: AnnotationKind;
   style: AnnotationStyle;
+  sampleTargetAnnotationId?: string;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
   switch (kind) {
@@ -488,7 +522,11 @@ function StyleControls({
     case 'polygon':
       return (
         <>
-          <FillControls style={style} onChange={onChange} />
+          <FillControls
+            style={style}
+            sampleTargetAnnotationId={sampleTargetAnnotationId}
+            onChange={onChange}
+          />
           <StrokeControls style={style} onChange={onChange} />
           <EffectsControls style={style} onChange={onChange} />
         </>
@@ -498,7 +536,11 @@ function StyleControls({
     case 'legend':
       return (
         <>
-          <FillControls style={style} onChange={onChange} />
+          <FillControls
+            style={style}
+            sampleTargetAnnotationId={sampleTargetAnnotationId}
+            onChange={onChange}
+          />
           <StrokeControls style={style} onChange={onChange} />
           <TextStyleControls style={style} onChange={onChange} />
           <EffectsControls style={style} onChange={onChange} />
@@ -729,19 +771,28 @@ function LegendEntryRow({
   entry,
   index,
   disabled,
+  legendId,
   onUpdate,
   onRemove,
 }: {
   entry: LegendEntry;
   index: number;
   disabled: boolean;
+  legendId: string;
   onUpdate: (patch: Partial<LegendEntry>) => void;
   onRemove: () => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const pendingLegendFillSample = useUiStore((s) => s.pendingLegendFillSample);
+  const startLegendFillSample = useUiStore((s) => s.startLegendFillSample);
+  const cancelLegendFillSample = useUiStore((s) => s.cancelLegendFillSample);
+  const picking =
+    pendingLegendFillSample?.legendId === legendId &&
+    pendingLegendFillSample.entryIndex === index;
+  const fill = legendEntryFill(entry);
   return (
-    <div className="grid grid-cols-[24px_1fr_28px] items-center gap-1.5">
+    <div className="grid grid-cols-[24px_1fr_28px_28px] items-center gap-1.5">
       <button
         ref={buttonRef}
         type="button"
@@ -751,13 +802,21 @@ function LegendEntryRow({
         aria-expanded={open}
         aria-label={`Entry ${index + 1} color`}
         className="relative h-6 w-6 rounded-[6px] border border-[var(--divider)] transition-transform hover:scale-105"
-        style={{ background: entry.swatchColor }}
+        style={{
+          background: legendSwatchBackground(fill),
+          backgroundSize: legendSwatchBackgroundSize(fill),
+        }}
       />
       <ColorPickerPopover
         open={open}
         anchorRef={buttonRef}
-        value={entry.swatchColor}
-        onChange={(hex) => onUpdate({ swatchColor: hex })}
+        value={fill.fillColor}
+        onChange={(hex) =>
+          onUpdate({
+            swatchColor: hex,
+            fillStyle: { ...fill, fillColor: hex, fillPattern: 'none' },
+          })
+        }
         onClose={() => setOpen(false)}
       />
       <input
@@ -766,6 +825,22 @@ function LegendEntryRow({
         onChange={(e) => onUpdate({ label: e.target.value })}
         className="min-w-0 rounded-[6px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
       />
+      <button
+        type="button"
+        onClick={() => {
+          if (picking) cancelLegendFillSample();
+          else startLegendFillSample(legendId, index);
+        }}
+        disabled={disabled}
+        aria-label={`Sample selected shape fill for entry ${index + 1}`}
+        aria-pressed={picking}
+        title="Pick shape fill"
+        className={`flex h-6 w-6 items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
+          picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
+        }`}
+      >
+        <Pipette size={12} />
+      </button>
       <button
         type="button"
         onClick={onRemove}
@@ -798,10 +873,28 @@ function LegendEntriesEditor({
   };
   const removeEntry = (index: number) => setEntries(annotation.entries.filter((_, i) => i !== index));
   const addEntry = () =>
-    setEntries([...annotation.entries, { label: 'New entry', swatchColor: '#34c759', visible: true }]);
+    setEntries([
+      ...annotation.entries,
+      {
+        label: 'New entry',
+        swatchColor: '#34c759',
+        fillStyle: { fillColor: '#34c759', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+        visible: true,
+      },
+    ]);
   const syncFromLayers = () =>
     setEntries(
-      layers.map((layer) => ({ label: layer.name, swatchColor: layer.style.fillColor, visible: true })),
+      layers.map((layer) => ({
+        label: layer.name,
+        swatchColor: layer.style.fillColor,
+        fillStyle: {
+          fillColor: layer.style.fillColor,
+          fillPattern: 'none',
+          hatchColor: '#0f172a',
+          hatchSpacing: 10,
+        },
+        visible: true,
+      })),
     );
 
   return (
@@ -829,6 +922,7 @@ function LegendEntriesEditor({
             entry={entry}
             index={index}
             disabled={disabled}
+            legendId={annotation.id}
             onUpdate={(patch) => updateEntry(index, patch)}
             onRemove={() => removeEntry(index)}
           />
@@ -979,6 +1073,7 @@ function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
       <StyleControls
         kind={annotation.kind}
         style={annotation.style}
+        sampleTargetAnnotationId={annotation.id}
         onChange={(patch) => updateAnnotationStyle(annotation.id, patch)}
       />
     </div>

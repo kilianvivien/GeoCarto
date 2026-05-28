@@ -24,6 +24,7 @@ describe('createAnnotation new kinds', () => {
     expect(annotation.kind).toBe('legend');
     if (annotation.kind !== 'legend') return;
     expect(annotation.entries.length).toBeGreaterThan(0);
+    expect(annotation.entries[0].fillStyle).toMatchObject({ fillColor: '#007aff', fillPattern: 'none' });
     expect(annotation.title).toBe('Legend');
   });
 

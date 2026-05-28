@@ -86,8 +86,18 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
         kind: 'legend',
         title: 'Legend',
         entries: [
-          { label: 'Sample entry', swatchColor: '#007aff', visible: true },
-          { label: 'Another entry', swatchColor: '#ff9500', visible: true },
+          {
+            label: 'Sample entry',
+            swatchColor: '#007aff',
+            fillStyle: { fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+            visible: true,
+          },
+          {
+            label: 'Another entry',
+            swatchColor: '#ff9500',
+            fillStyle: { fillColor: '#ff9500', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+            visible: true,
+          },
         ],
         width: 200,
       };

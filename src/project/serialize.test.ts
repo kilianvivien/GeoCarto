@@ -230,6 +230,38 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.annotations[0].style.strokePattern).toBe('solid');
   });
 
+  it('defaults newer legend entry fill styles from older v1 project files', () => {
+    const project = createEmptyProject('Legacy legend');
+    const annotation = rectAnnotation();
+    project.annotations.push({
+      id: annotation.id,
+      kind: 'legend',
+      name: 'Legend',
+      visible: annotation.visible,
+      locked: annotation.locked,
+      anchorMode: annotation.anchorMode,
+      position: annotation.position,
+      geoAnchor: annotation.geoAnchor,
+      rotation: annotation.rotation,
+      opacity: annotation.opacity,
+      style: annotation.style,
+      title: 'Legend',
+      entries: [{ label: 'Industrial port', swatchColor: '#007aff', visible: true }],
+      width: 200,
+    });
+
+    const restored = deserializeProject(JSON.stringify(project));
+    const legend = restored.annotations[0];
+    expect(legend.kind).toBe('legend');
+    if (legend.kind !== 'legend') return;
+    expect(legend.entries[0].fillStyle).toEqual({
+      fillColor: '#007aff',
+      fillPattern: 'none',
+      hatchColor: '#0f172a',
+      hatchSpacing: 10,
+    });
+  });
+
   it('rejects invalid export frame dimensions', () => {
     const project = createEmptyProject();
     project.exportFrame.width = 0;

@@ -22,6 +22,7 @@ import type {
   CommentAnnotation,
   ImageAnnotation,
   LegendAnnotation,
+  LegendFillStyle,
   PinAnnotation,
   PinIcon,
   TextAnnotation,
@@ -30,8 +31,10 @@ import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import { legendEntryFill, legendFillFromStyle } from '@/style/legendSwatches';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
+import { useUiStore } from '@/ui/uiStore';
 import { useMapInstance } from './mapInstance';
 
 function useStageSize(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -87,6 +90,10 @@ function isTypingTarget(target: EventTarget | null) {
 
 function blurFocusedControl() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+function isFillSampleSource(annotation: Annotation) {
+  return annotation.kind === 'rectangle' || annotation.kind === 'ellipse' || annotation.kind === 'polygon';
 }
 
 interface PickedImage {
@@ -480,14 +487,11 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
         const y = padding + (annotation.style.textSize + 6) + index * rowHeight;
         return (
           <Group key={`${entry.label}-${index}`} y={y}>
-            <Rect
+            <LegendSwatch
               x={padding}
-              width={swatchSize}
-              height={swatchSize}
-              fill={entry.swatchColor}
-              cornerRadius={3}
-              stroke={annotation.style.strokeColor}
-              strokeWidth={0.5}
+              size={swatchSize}
+              fill={legendEntryFill(entry)}
+              strokeColor={annotation.style.strokeColor}
             />
             <Text
               text={entry.label}
@@ -500,6 +504,52 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
           </Group>
         );
       })}
+    </>
+  );
+}
+
+function LegendSwatch({
+  x,
+  size,
+  fill,
+  strokeColor,
+}: {
+  x: number;
+  size: number;
+  fill: LegendFillStyle;
+  strokeColor: string;
+}) {
+  const lines = hatchLines(size, size, fill.fillPattern, fill.hatchSpacing);
+  return (
+    <>
+      <Rect
+        x={x}
+        width={size}
+        height={size}
+        fill={fill.fillColor}
+        cornerRadius={3}
+        stroke={strokeColor}
+        strokeWidth={0.5}
+      />
+      {fill.fillPattern !== 'none' && (
+        <Group
+          x={x}
+          clipFunc={(ctx) => {
+            ctx.rect(0, 0, size, size);
+          }}
+          listening={false}
+        >
+          {lines.map((line, index) => (
+            <Line
+              key={index}
+              points={line.points}
+              stroke={fill.hatchColor}
+              strokeWidth={1.25}
+              lineCap={fill.fillPattern === 'dots' ? 'round' : 'butt'}
+            />
+          ))}
+        </Group>
+      )}
     </>
   );
 }
@@ -914,6 +964,8 @@ export function AnnotationStage() {
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
   const selectedAnnotationIds = useDocumentStore((s) => s.selectedAnnotationIds);
   const mode = useDocumentStore((s) => s.project.mode);
+  const pendingLegendFillSample = useUiStore((s) => s.pendingLegendFillSample);
+  const pendingAnnotationFillSample = useUiStore((s) => s.pendingAnnotationFillSample);
   const { addAnnotation, moveAnnotations, selectAnnotation, setSelectedAnnotations, toggleAnnotationSelection, updateAnnotation } =
     useDocumentStore.getState();
   const activeTool = useToolStore((s) => s.activeTool);
@@ -973,13 +1025,15 @@ export function AnnotationStage() {
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId),
     [annotations, selectedAnnotationId],
   );
-  const editingAnnotation =
-    editingText &&
-    selectedTextEditable?.id === editingText.id &&
-    selectedTextEditable.visible &&
-    !selectedTextEditable.locked
-      ? selectedTextEditable
-      : null;
+  const editingAnnotation = editingText
+    ? annotations.find(
+        (annotation): annotation is TextAnnotation | PinAnnotation =>
+          (annotation.kind === 'text' || annotation.kind === 'pin') &&
+          annotation.id === editingText.id &&
+          annotation.visible &&
+          !annotation.locked,
+      ) ?? null
+    : null;
   const editingPosition = editingAnnotation ? anchorPosition(editingAnnotation, map) : null;
   const editorMetrics = editingAnnotation
     ? editingAnnotation.kind === 'pin'
@@ -1224,6 +1278,13 @@ export function AnnotationStage() {
     const pointer = snapToGrid(rawPointer, gridSnapEnabled, gridSpacing);
 
     if (activeTool === 'move') {
+      commitTextEditing();
+      if (
+        useUiStore.getState().pendingLegendFillSample ||
+        useUiStore.getState().pendingAnnotationFillSample
+      ) {
+        useUiStore.getState().cancelFillSample();
+      }
       selectAnnotation(null);
       return;
     }
@@ -1529,7 +1590,10 @@ export function AnnotationStage() {
       ref={containerRef}
       data-testid="annotation-stage"
       className="absolute inset-0 z-20"
-      style={{ pointerEvents: capturesPointer ? 'auto' : 'none' }}
+      style={{
+        pointerEvents: capturesPointer ? 'auto' : 'none',
+        cursor: pendingLegendFillSample || pendingAnnotationFillSample ? 'crosshair' : undefined,
+      }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if (activeTool === 'paint') {
@@ -1657,6 +1721,38 @@ export function AnnotationStage() {
                 onContextMenu={(event) => openContextMenu(event, idsForAnnotation(annotation))}
                 onClick={(event) => {
                   event.cancelBubble = true;
+                  const pendingSample = useUiStore.getState().pendingLegendFillSample;
+                  if (pendingSample && isFillSampleSource(annotation)) {
+                    const sampled = legendFillFromStyle(annotation.style);
+                    const legend = useDocumentStore
+                      .getState()
+                      .project.annotations.find((item) => item.id === pendingSample.legendId);
+                    if (legend?.kind === 'legend') {
+                      updateAnnotation(pendingSample.legendId, {
+                        entries: legend.entries.map((entry, index) =>
+                          index === pendingSample.entryIndex
+                            ? { ...entry, swatchColor: sampled.fillColor, fillStyle: sampled }
+                            : entry,
+                        ),
+                      } as Partial<Annotation>);
+                      setSelectedAnnotations([pendingSample.legendId]);
+                    }
+                    useUiStore.getState().cancelLegendFillSample();
+                    return;
+                  }
+                  const pendingAnnotationSample = useUiStore.getState().pendingAnnotationFillSample;
+                  if (
+                    pendingAnnotationSample &&
+                    isFillSampleSource(annotation) &&
+                    annotation.id !== pendingAnnotationSample.annotationId
+                  ) {
+                    useDocumentStore
+                      .getState()
+                      .updateAnnotationStyle(pendingAnnotationSample.annotationId, legendFillFromStyle(annotation.style));
+                    useUiStore.getState().cancelAnnotationFillSample();
+                    setSelectedAnnotations([pendingAnnotationSample.annotationId]);
+                    return;
+                  }
                   blurFocusedControl();
                   if (event.evt.metaKey || event.evt.ctrlKey || event.evt.shiftKey) {
                     toggleAnnotationSelection(annotation.id);

@@ -106,6 +106,20 @@ function validateProject(value: unknown): asserts value is CartoProject {
     if (isObject(annotation) && isObject(annotation.style)) {
       annotation.style = { ...DEFAULT_ANNOTATION_STYLE, ...annotation.style };
     }
+    if (isObject(annotation) && annotation.kind === 'legend' && Array.isArray(annotation.entries)) {
+      for (const entry of annotation.entries) {
+        if (!isObject(entry)) continue;
+        const swatchColor = typeof entry.swatchColor === 'string' ? entry.swatchColor : DEFAULT_ANNOTATION_STYLE.fillColor;
+        entry.swatchColor = swatchColor;
+        entry.fillStyle = {
+          fillColor: swatchColor,
+          fillPattern: 'none',
+          hatchColor: DEFAULT_ANNOTATION_STYLE.hatchColor,
+          hatchSpacing: DEFAULT_ANNOTATION_STYLE.hatchSpacing,
+          ...(isObject(entry.fillStyle) ? entry.fillStyle : {}),
+        };
+      }
+    }
   }
 }
 

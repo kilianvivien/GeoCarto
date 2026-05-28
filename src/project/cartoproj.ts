@@ -178,6 +178,11 @@ export interface AnnotationStyle {
   brushPreset: BrushPreset;
 }
 
+export type LegendFillStyle = Pick<
+  AnnotationStyle,
+  'fillColor' | 'fillPattern' | 'hatchColor' | 'hatchSpacing'
+>;
+
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   fillColor: '#007aff',
   fillPattern: 'none',
@@ -278,6 +283,7 @@ export type ImageAnnotation = AnnotationBase & {
 export interface LegendEntry {
   label: string;
   swatchColor: string;
+  fillStyle?: LegendFillStyle;
   visible: boolean;
 }
 
