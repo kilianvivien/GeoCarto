@@ -27,6 +27,10 @@ export function Inspector() {
     if (activeTool !== 'move' || selectedAnnotationId) setPane('properties');
   }, [activeTool, selectedAnnotationId]);
 
+  useEffect(() => {
+    if (selectedFeature || selectedLayerId || selectedAnnotationId) setPane('properties');
+  }, [selectedAnnotationId, selectedFeature, selectedLayerId]);
+
   return (
     <aside className="glass m-1.5 flex w-[300px] flex-col overflow-hidden">
       <div role="tablist" className="flex gap-1 border-b border-[var(--divider)] p-2">

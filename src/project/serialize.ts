@@ -107,9 +107,12 @@ function validateProject(value: unknown): asserts value is CartoProject {
     // layer fill controls work on older documents.
     if (isObject(layer.style)) {
       layer.style = {
+        featureFillColors: DEFAULT_GEOJSON_STYLE.featureFillColors,
+        featureFillStyles: DEFAULT_GEOJSON_STYLE.featureFillStyles,
         fillPattern: DEFAULT_GEOJSON_STYLE.fillPattern,
         hatchColor: DEFAULT_GEOJSON_STYLE.hatchColor,
         hatchSpacing: DEFAULT_GEOJSON_STYLE.hatchSpacing,
+        showPoints: DEFAULT_GEOJSON_STYLE.showPoints,
         ...layer.style,
       };
     }

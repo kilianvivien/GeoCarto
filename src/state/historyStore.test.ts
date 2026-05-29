@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useDocumentStore } from './documentStore';
 import { installHistoryCapture, useHistoryStore, hintHistoryLabel } from './historyStore';
-import { createEmptyProject } from '@/project/cartoproj';
+import { createEmptyProject, DEFAULT_GEOJSON_STYLE } from '@/project/cartoproj';
 
 function makeLayer(id: string) {
   return {
@@ -14,9 +14,9 @@ function makeLayer(id: string) {
     featureCount: 0,
     data: { type: 'FeatureCollection' as const, features: [] },
     style: {
+      ...DEFAULT_GEOJSON_STYLE,
       fillColor: '#000',
       fillOpacity: 1,
-      fillPattern: 'none' as const,
       hatchColor: '#000',
       hatchSpacing: 10,
       strokeColor: '#000',

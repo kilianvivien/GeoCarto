@@ -34,6 +34,7 @@ import type {
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
+import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { legendEntryFill, legendFillFromStyle } from '@/style/legendSwatches';
@@ -41,6 +42,7 @@ import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
 import { useUiStore } from '@/ui/uiStore';
 import { useMapInstance } from './mapInstance';
+import { layerIdFromRenderId, layerRenderIds } from './syncLayers';
 
 function useStageSize(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -1089,12 +1091,13 @@ export function AnnotationStage() {
   useViewportStore((s) => s.viewport);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const annotationGroups = useDocumentStore((s) => s.project.annotationGroups);
+  const geoJsonLayers = useDocumentStore((s) => s.project.layers);
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
   const selectedAnnotationIds = useDocumentStore((s) => s.selectedAnnotationIds);
   const mode = useDocumentStore((s) => s.project.mode);
   const pendingLegendFillSample = useUiStore((s) => s.pendingLegendFillSample);
   const pendingAnnotationFillSample = useUiStore((s) => s.pendingAnnotationFillSample);
-  const { addAnnotation, moveAnnotations, selectAnnotation, setSelectedAnnotations, toggleAnnotationSelection, updateAnnotation } =
+  const { addAnnotation, moveAnnotations, selectAnnotation, selectFeature, setSelectedAnnotations, toggleAnnotationSelection, updateAnnotation } =
     useDocumentStore.getState();
   const activeTool = useToolStore((s) => s.activeTool);
   const defaultAnchorMode = useToolStore((s) => s.defaultAnchorMode);
@@ -1341,6 +1344,28 @@ export function AnnotationStage() {
     [size.height, size.width],
   );
 
+  const selectGeoJsonFeatureAt = useCallback(
+    (point: { x: number; y: number }) => {
+      if (!map) {
+        selectFeature(null);
+        return;
+      }
+      const ids = geoJsonLayers
+        .flatMap((layer) => Object.values(layerRenderIds(layer.id)))
+        .filter((id) => map.getLayer(id));
+      const hits = ids.length ? map.queryRenderedFeatures([point.x, point.y], { layers: ids }) : [];
+      if (hits.length === 0) {
+        selectFeature(null);
+        return;
+      }
+      const hit = hits[0];
+      const layerId = layerIdFromRenderId(hit.layer.id);
+      const properties = hit.properties ?? {};
+      selectFeature({ layerId, properties, fillKey: featureFillKey(properties) });
+    },
+    [geoJsonLayers, map, selectFeature],
+  );
+
   const smartSnapDelta = useCallback(
     (movingIds: string[], delta: { x: number; y: number }) => {
       if (!smartGuidesEnabled) return { delta, guides: null };
@@ -1414,6 +1439,7 @@ export function AnnotationStage() {
         useUiStore.getState().cancelFillSample();
       }
       selectAnnotation(null);
+      selectGeoJsonFeatureAt(rawPointer);
       return;
     }
 

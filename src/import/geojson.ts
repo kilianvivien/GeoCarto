@@ -42,6 +42,16 @@ function familyOf(geometryType: string): GeometryKind | null {
   return null;
 }
 
+function hasPolygonGeometry(fc: FeatureCollection): boolean {
+  return fc.features.some((feature) => {
+    if (feature.geometry?.type === 'Polygon' || feature.geometry?.type === 'MultiPolygon') return true;
+    if (feature.geometry?.type !== 'GeometryCollection') return false;
+    return feature.geometry.geometries.some(
+      (geometry) => geometry.type === 'Polygon' || geometry.type === 'MultiPolygon',
+    );
+  });
+}
+
 /** Classify a collection as point / line / polygon, or mixed when it spans families. */
 export function detectGeometry(fc: FeatureCollection): GeometryKind {
   const families = new Set<GeometryKind>();
@@ -64,7 +74,12 @@ export function featureCollectionToLayer(name: string, data: FeatureCollection):
     geometry: detectGeometry(data),
     featureCount: data.features.length,
     data,
-    style: { ...DEFAULT_GEOJSON_STYLE },
+    style: {
+      ...DEFAULT_GEOJSON_STYLE,
+      // OSM exports often mix admin-boundary polygons with admin-centre points.
+      // Default those to clean province/region shapes; users can re-enable points.
+      showPoints: !hasPolygonGeometry(data),
+    },
   };
 }
 

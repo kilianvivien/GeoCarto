@@ -20,6 +20,7 @@ import type { Viewport } from './viewportStore';
 export interface SelectedFeature {
   layerId: string;
   properties: Record<string, unknown>;
+  fillKey: string | null;
 }
 
 export interface DocumentFileBinding {

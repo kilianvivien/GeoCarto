@@ -182,7 +182,7 @@ describe('documentStore', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Temp');
     useDocumentStore.getState().addLayer(layer);
-    useDocumentStore.getState().selectFeature({ layerId: layer.id, properties: {} });
+    useDocumentStore.getState().selectFeature({ layerId: layer.id, properties: {}, fillKey: null });
     useDocumentStore.getState().removeLayer(layer.id);
     expect(ids()).toEqual([]);
     expect(useDocumentStore.getState().selectedLayerId).toBeNull();

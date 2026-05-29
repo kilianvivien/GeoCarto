@@ -47,6 +47,17 @@ describe('importGeoJsonFile', () => {
       }),
     );
     expect(layer.geometry).toBe('mixed');
+    expect(layer.style.showPoints).toBe(false);
+  });
+
+  it('keeps point-only layers visible by default', async () => {
+    const layer = await importGeoJsonFile(
+      file({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', geometry: point, properties: {} }],
+      }),
+    );
+    expect(layer.style.showPoints).toBe(true);
   });
 
   it('rejects invalid JSON', async () => {
