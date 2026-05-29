@@ -7,6 +7,12 @@
     <title>GeoCarto</title>
     <script>
       (function () {
+        // Tauri injects __TAURI_INTERNALS__ before the bundle loads. Mark the
+        // root element synchronously so the desktop chrome (transparent body for
+        // native vibrancy, traffic-light clearance) applies without a flash.
+        if ('__TAURI_INTERNALS__' in window) {
+          document.documentElement.setAttribute('data-tauri', '');
+        }
         try {
           var saved = localStorage.getItem('geocarto-theme');
           if (saved) {

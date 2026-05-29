@@ -75,10 +75,8 @@ export function StatusBar() {
   return (
     <div className="mono flex h-7 items-center justify-between border-t border-[var(--divider)] px-3 text-[10.5px] text-[var(--text-3)]">
       <div className="flex items-center gap-3">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#28c840] shadow-[0_0_4px_#28c840]" />
-          Saved
-        </span>
+        {/* Save state already lives in the title bar; show the app version here instead. */}
+        <span>v{__APP_VERSION__}</span>
         <span>Web Mercator</span>
         <label className="flex items-center gap-1.5">
           <input

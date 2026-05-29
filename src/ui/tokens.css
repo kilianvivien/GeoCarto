@@ -100,6 +100,9 @@ html[data-theme='dark'] {
 body {
   background: var(--wallpaper);
   color: var(--text);
+  /* Leading inset of the title bar's content. Bumped under Tauri so the toolbar
+     clears the native macOS traffic lights drawn by the Overlay title bar. */
+  --titlebar-leading: 12px;
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.4;
@@ -107,6 +110,50 @@ body {
   transition:
     background-color var(--t-slow) var(--ease-out),
     color var(--t-slow) var(--ease-out);
+}
+
+/* Desktop (Tauri) chrome: the window itself is transparent with a native macOS
+   vibrancy material behind it (tauri.conf.json windowEffects). Keep the body
+   transparent so that material shows through the translucent glass UI, and inset
+   the title bar so it clears the Overlay-style traffic lights. */
+html[data-tauri] body {
+  background: transparent;
+  --titlebar-leading: 84px;
+}
+
+/* The `sidebar` vibrancy material reads fairly grey in macOS light appearance, so
+   the default 0.55 white glass tint leaves the chrome looking muddy/grey against
+   the bright canvas. Lift the tint opacity in light mode on desktop so the chrome
+   stays bright and blends in (dark mode already blends well — left untouched). */
+html[data-tauri][data-theme='light'] {
+  --glass: rgba(255, 255, 255, 0.93);
+  --glass-strong: rgba(255, 255, 255, 0.97);
+  --glass-thin: rgba(255, 255, 255, 0.62);
+}
+
+/* Over a transparent (vibrancy) window, an in-document `backdrop-filter` has
+   nothing behind it to blur — the native NSVisualEffectView material does the
+   blurring outside the webview — and on WKWebView it can even render as an opaque
+   black box. So drop in-document blur on desktop and let the OS material show
+   through the glass tints. Covers both the `.glass` recipe and Tailwind's
+   `backdrop-blur-*` utilities used on flyouts. */
+html[data-tauri] .glass,
+html[data-tauri] [class*='backdrop-blur'] {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Tauri/Electron honor `app-region` to make a region drag the OS window; normal
+   browsers ignore it, so the attribute is a harmless no-op on the web build. */
+[data-tauri-drag-region] {
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+[data-tauri-drag-region] button,
+[data-tauri-drag-region] input,
+[data-tauri-drag-region] a {
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 /* Four-layer glass recipe (§3) */

@@ -1,9 +1,14 @@
+import { createRequire } from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+const { version } = createRequire(import.meta.url)('./package.json') as { version: string };
+
 export default defineConfig({
+  // Single version source for both web and desktop builds; surfaced in the status bar.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {

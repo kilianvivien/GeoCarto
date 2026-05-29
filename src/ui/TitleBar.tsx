@@ -4,6 +4,7 @@ import {
   FilePlus2,
   FileText,
   FolderOpen,
+  Github,
   LockKeyhole,
   Magnet,
   Moon,
@@ -14,6 +15,7 @@ import {
   Undo2,
   UnlockKeyhole,
 } from 'lucide-react';
+import { isTauri, openExternalUrl } from '@/app/platform';
 import { useTheme } from './useTheme';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
@@ -27,6 +29,8 @@ import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
+
+const REPO_URL = 'https://github.com/kilianvivien/GeoCarto';
 
 function IconButton({
   label,
@@ -176,14 +180,16 @@ export function TitleBar() {
     setEditingName(false);
   };
 
+  // The bar doubles as the OS window drag region on desktop (data-tauri-drag-region);
+  // it's an inert data attribute on the web. The leading inset (--titlebar-leading)
+  // widens under Tauri so the centered title clears the native traffic lights that
+  // the Overlay title bar draws over the top-left corner.
   return (
-    <div className="flex h-11 items-center gap-3 border-b border-[var(--divider)] px-3">
-      <div className="flex gap-2" aria-hidden>
-        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-        <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-      </div>
-
+    <div
+      data-tauri-drag-region
+      className="flex h-11 items-center gap-3 border-b border-[var(--divider)] pr-3"
+      style={{ paddingLeft: 'var(--titlebar-leading)' }}
+    >
       <div className="mx-auto flex items-center gap-2 rounded-full px-3 py-1 text-[13px] transition-colors hover:bg-[var(--hover)]">
         <FileText size={14} className="text-[var(--text-3)]" />
         {editingName ? (
@@ -284,6 +290,24 @@ export function TitleBar() {
           <Download size={14} />
           Export
         </button>
+        <a
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View source on GitHub"
+          title="View source on GitHub"
+          onClick={(e) => {
+            // In the desktop shell, route through the OS opener so the webview
+            // doesn't navigate away from the app; the web build uses the anchor.
+            if (isTauri()) {
+              e.preventDefault();
+              void openExternalUrl(REPO_URL);
+            }
+          }}
+          className="ml-1 flex h-7 w-7 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Github size={16} />
+        </a>
       </div>
       <ExportDialog open={exportOpen} onClose={closeExport} />
     </div>

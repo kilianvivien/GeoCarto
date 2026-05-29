@@ -17,10 +17,15 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# `macos-private-api` backs the transparent window + native vibrancy (windowEffects)
+# configured in tauri.conf.json. Note: it relies on a private macOS API, which
+# makes the build ineligible for the Mac App Store — fine while distribution is
+# direct (.dmg); revisit if App Store submission becomes a goal.
+tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
+tauri-plugin-opener = "2"
 
 [features]
 # Used by `tauri dev`/`tauri build` to enable custom-protocol asset serving.

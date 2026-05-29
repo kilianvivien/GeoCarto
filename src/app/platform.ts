@@ -13,6 +13,20 @@ export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+/**
+ * Open an external URL in the user's default browser. On the web a normal new
+ * tab works; under Tauri the webview would otherwise navigate away from the app,
+ * so route through the opener plugin (additive desktop path, guarded by isTauri).
+ */
+export async function openExternalUrl(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl } = await import('@tauri-apps/plugin-opener');
+    await openUrl(url);
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 /** Last path segment of a native filesystem path (POSIX or Windows separators). */
 export function basename(path: string): string {
   const parts = path.split(/[\\/]/);
