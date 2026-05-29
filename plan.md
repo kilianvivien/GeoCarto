@@ -160,7 +160,7 @@ base — this is a core editorial requirement.
 - ✅ Persist the chosen basemap source + sub-layer mask in `.cartoproj`
       (with a defaulting migration for Phase 1 documents).
 
-### Richer annotation & styling 🟡
+### Richer annotation & styling ✅
 
 - ✅ deck.gl data layers interleaved via `MapboxOverlay` (M12). A layer's
       "Render" control (Vector / Heatmap) in the inspector switches it to a
