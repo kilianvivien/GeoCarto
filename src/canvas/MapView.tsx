@@ -1,9 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
+import { useNotices } from '@/ui/notices';
 import { useMapInstance } from './mapInstance';
+
+const BASEMAP_LOADING_NOTICE_DELAY_MS = 1_200;
+const BASEMAP_LOADING_NOTICE_THROTTLE_MS = 10_000;
 
 /**
  * Owns the MapLibre map instance. The map is a disposable projection of the
@@ -13,10 +17,35 @@ import { useMapInstance } from './mapInstance';
 export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const loadingNoticeTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const loadingNoticeCycleRef = useRef(0);
+  const lastLoadingNoticeAtRef = useRef(0);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const projectViewport = useDocumentStore((s) => s.project.viewport);
   const mode = useDocumentStore((s) => s.project.mode);
   const isStaticBasemap = basemap.kind === 'static';
+
+  const armBasemapLoadingNotice = useCallback((map: maplibregl.Map) => {
+    if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
+
+    const cycle = loadingNoticeCycleRef.current + 1;
+    loadingNoticeCycleRef.current = cycle;
+
+    const clearForCycle = () => {
+      if (loadingNoticeCycleRef.current !== cycle) return;
+      if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
+      loadingNoticeTimerRef.current = null;
+    };
+
+    map.once('idle', clearForCycle);
+    loadingNoticeTimerRef.current = globalThis.setTimeout(() => {
+      if (loadingNoticeCycleRef.current !== cycle || map.loaded()) return;
+      const now = Date.now();
+      if (now - lastLoadingNoticeAtRef.current < BASEMAP_LOADING_NOTICE_THROTTLE_MS) return;
+      lastLoadingNoticeAtRef.current = now;
+      useNotices.getState().push('Basemap is loading, please wait...');
+    }, BASEMAP_LOADING_NOTICE_DELAY_MS);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -34,6 +63,7 @@ export function MapView() {
     });
     mapRef.current = map;
     useMapInstance.getState().setMap(map);
+    armBasemapLoadingNotice(map);
 
     const syncViewport = () => {
       const c = map.getCenter();
@@ -56,12 +86,14 @@ export function MapView() {
     resizeObserver.observe(container);
 
     return () => {
+      loadingNoticeCycleRef.current += 1;
+      if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
       resizeObserver.disconnect();
       useMapInstance.getState().setMap(null);
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [armBasemapLoadingNotice]);
 
   const didMount = useRef(false);
   useEffect(() => {
@@ -70,8 +102,11 @@ export function MapView() {
       didMount.current = true;
       return;
     }
-    if (!isStaticBasemap) mapRef.current?.setStyle(buildBasemapStyle(basemap));
-  }, [basemap, isStaticBasemap]);
+    if (!isStaticBasemap && mapRef.current) {
+      armBasemapLoadingNotice(mapRef.current);
+      mapRef.current.setStyle(buildBasemapStyle(basemap));
+    }
+  }, [armBasemapLoadingNotice, basemap, isStaticBasemap]);
 
   useEffect(() => {
     const map = mapRef.current;

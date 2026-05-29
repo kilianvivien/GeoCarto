@@ -12,10 +12,13 @@ const BASEMAP_CACHE_MAX_BYTES = 8 * 1024 * 1024;
 const BASEMAP_CACHE_MAX_RANGE_BYTES = 512 * 1024;
 const BASEMAP_CACHE_MANIFEST_KEY = '__geocarto_pmtiles_manifest__';
 const BASEMAP_NOTICE_THROTTLE_MS = 10_000;
+const BASEMAP_FAILURE_NOTICE_DELAY_MS = 8_000;
 const basemapCache = createStore('geocarto-basemap-cache-v1', 'pmtiles-ranges');
 let retryNoticeAt = 0;
 let cachedFallbackNoticeAt = 0;
 let failureNoticeAt = 0;
+let failureNoticeTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+let failureNoticeCycle = 0;
 
 type CachedRangeResponse = RangeResponse & {
   cachedAt: number;
@@ -73,6 +76,27 @@ function notifyBasemapIssue(
   else failureNoticeAt = now;
 
   useNotices.getState().push(message, tone);
+}
+
+function clearPendingFailureNotice(): void {
+  failureNoticeCycle += 1;
+  if (!failureNoticeTimer) return;
+  globalThis.clearTimeout(failureNoticeTimer);
+  failureNoticeTimer = null;
+}
+
+function scheduleFailureNotice(): void {
+  if (failureNoticeTimer) return;
+  const cycle = failureNoticeCycle;
+  failureNoticeTimer = globalThis.setTimeout(() => {
+    failureNoticeTimer = null;
+    if (failureNoticeCycle !== cycle) return;
+    notifyBasemapIssue(
+      'failure',
+      'Basemap tiles could not load. Check your connection or choose another basemap.',
+      'error',
+    );
+  }, BASEMAP_FAILURE_NOTICE_DELAY_MS);
 }
 
 async function readCacheManifest(): Promise<CacheManifest> {
@@ -184,6 +208,7 @@ class CachedSource implements Source {
 
     try {
       const response = await this.source.getBytes(offset, length, signal, etag);
+      clearPendingFailureNotice();
       if (response.data.byteLength <= BASEMAP_CACHE_MAX_RANGE_BYTES) {
         await set(key, { ...response, cachedAt: Date.now() }, basemapCache).catch(() => undefined);
         void rememberCachedRange(key, response.data.byteLength);
@@ -193,14 +218,11 @@ class CachedSource implements Source {
       return response;
     } catch (error) {
       if (cached) {
+        clearPendingFailureNotice();
         notifyBasemapIssue('cached-fallback', 'Using cached map tiles while the network recovers.');
         return fromCached(cached);
       }
-      notifyBasemapIssue(
-        'failure',
-        'Basemap tiles could not load. Check your connection or choose another basemap.',
-        'error',
-      );
+      scheduleFailureNotice();
       throw error;
     }
   }
