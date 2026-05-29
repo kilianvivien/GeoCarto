@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/__geocarto_basemap/v4.pmtiles",
-      "destination": "https://demo-bucket.protomaps.com/v4.pmtiles"
+      "destination": "https://data.source.coop/protomaps/openstreetmap/v4.pmtiles"
     }
   ]
 }

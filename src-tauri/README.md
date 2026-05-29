@@ -21,7 +21,7 @@ later v1 milestone and are intentionally not configured here.
 | --- | --- | --- | --- |
 | Project save / open | File System Access API, else `<a download>` | `plugin-dialog` + `plugin-fs` (path in `DocumentFileBinding.path`) | WKWebView has no FSA and anchor downloads are unreliable |
 | Export (PNG/JPEG/SVG/PDF) | `<a download>` | native save dialog + `plugin-fs.writeFile` | same |
-| Default basemap PMTiles | same-origin proxy (`/__geocarto_basemap/...`, Vite + Vercel rewrite) | fetched from the CDN through `plugin-http` (native request) | the Protomaps demo bucket sends **no** `Access-Control-Allow-Origin`, so a `fetch` from `tauri://localhost` is CORS-blocked. The native request bypasses CORS. See `TauriHttpSource` in [`src/basemap/pmtiles.ts`](../src/basemap/pmtiles.ts) |
+| Default basemap PMTiles | direct Source Cooperative PMTiles URL; legacy same-origin proxy remains for overrides | fetched from the same URL through `plugin-http` (native request) | Source Cooperative supports byte ranges and CORS; the desktop path still uses native HTTP so WKWebView-specific CORS behavior cannot break the built-in basemap. See `TauriHttpSource` in [`src/basemap/pmtiles.ts`](../src/basemap/pmtiles.ts) |
 | Glyphs / sprites | `protomaps.github.io` (CORS `*`) | identical — no change needed | GitHub Pages serves permissive CORS |
 | Window chrome | full-bleed glass over the `--wallpaper` gradient | full-bleed glass over native macOS **vibrancy** (transparent window) | one unified window instead of a card-in-a-window. See below. |
 
@@ -55,6 +55,7 @@ rules + the title bar adapt from there:
   MapLibre pulls cross-origin tiles/glyphs/sprites and spawns `blob:` workers.
   Tighten to a scoped policy once the allowed origins are pinned.
 - Capability scopes are deliberately narrow: `fs` is limited to `$HOME/**`
-  (user-chosen save paths) and `http` to `https://demo-bucket.protomaps.com/*`
-  (the default basemap archive only). Custom user PMTiles URLs still go through
-  the browser fetch path and work whenever that host serves CORS — same as web.
+  (user-chosen save paths) and `http` to
+  `https://data.source.coop/protomaps/openstreetmap/*` (the default basemap
+  archive only). Custom user PMTiles URLs still go through the browser fetch path
+  and work whenever that host serves CORS — same as web.

@@ -13,9 +13,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/__geocarto_basemap/v4.pmtiles': {
-        target: 'https://demo-bucket.protomaps.com',
+        target: 'https://data.source.coop',
         changeOrigin: true,
-        rewrite: () => '/v4.pmtiles',
+        rewrite: () => '/protomaps/openstreetmap/v4.pmtiles',
       },
     },
   },

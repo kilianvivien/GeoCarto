@@ -7,18 +7,16 @@ import type {
   BuiltInBasemapPreset,
 } from '@/project/cartoproj';
 import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
-import { isTauri } from '@/app/platform';
 
-/** Same-origin PMTiles path; Vite dev and Vercel both proxy this to the demo archive. */
+/** Legacy same-origin PMTiles path; Vite dev and Vercel proxy it for local overrides. */
 export const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
 /**
- * The demo archive the same-origin path proxies to. The desktop shell has no
- * proxy (assets load from `tauri://localhost`), so it fetches the CDN directly.
+ * Canonical public Protomaps v4 archive. Source Cooperative supports range
+ * requests and permissive CORS, so web builds can fetch it directly and the
+ * desktop shell can use the same URL through Tauri's native HTTP plugin.
  */
-export const REMOTE_PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
-export const DEFAULT_PMTILES_URL =
-  import.meta.env.VITE_GEOCARTO_PMTILES_URL ||
-  (isTauri() ? REMOTE_PMTILES_URL : DEFAULT_PMTILES_PATH);
+export const REMOTE_PMTILES_URL = 'https://data.source.coop/protomaps/openstreetmap/v4.pmtiles';
+export const DEFAULT_PMTILES_URL = import.meta.env.VITE_GEOCARTO_PMTILES_URL || REMOTE_PMTILES_URL;
 const SOURCE = 'protomaps';
 const ASSETS = 'https://protomaps.github.io/basemaps-assets';
 

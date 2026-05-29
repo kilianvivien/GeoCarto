@@ -22,7 +22,7 @@
     },
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://demo-bucket.protomaps.com/*" }]
+      "allow": [{ "url": "https://data.source.coop/protomaps/openstreetmap/*" }]
     }
   ]
 }

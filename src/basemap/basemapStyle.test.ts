@@ -5,7 +5,7 @@ import {
   DEFAULT_BASEMAP_SUBLAYERS,
   type BasemapConfig,
 } from '@/project/cartoproj';
-import { applySublayerVisibility, buildBasemapStyle, DEFAULT_PMTILES_PATH } from './basemapStyle';
+import { applySublayerVisibility, buildBasemapStyle, DEFAULT_PMTILES_URL } from './basemapStyle';
 
 function fakeLayer(id: string, sourceLayer: string): LayerSpecification {
   return {
@@ -86,12 +86,12 @@ describe('buildBasemapStyle', () => {
     expect(sourceLayers.has('roads')).toBe(true);
   });
 
-  it('uses the same-origin PMTiles endpoint for web built-in basemaps', () => {
+  it('uses the shared public PMTiles endpoint for built-in basemaps', () => {
     const style = buildBasemapStyle(DEFAULT_BASEMAP);
     if (typeof style === 'string') throw new Error('Expected style spec, not URL');
     const source = style.sources.protomaps;
     if (!source || source.type !== 'vector') throw new Error('Expected vector source');
-    expect(source.url).toBe(`pmtiles://${DEFAULT_PMTILES_PATH}`);
+    expect(source.url).toBe(`pmtiles://${DEFAULT_PMTILES_URL}`);
   });
 
   it('returns the URL verbatim for a style-url basemap', () => {
