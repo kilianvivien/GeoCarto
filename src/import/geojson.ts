@@ -15,7 +15,7 @@ const GEOMETRY_TYPES = new Set([
 ]);
 
 /** Accept a FeatureCollection, a bare Feature, or a geometry; normalize to a FC. */
-function toFeatureCollection(raw: unknown): FeatureCollection {
+export function toFeatureCollection(raw: unknown): FeatureCollection {
   if (!raw || typeof raw !== 'object') {
     throw new GeoJsonImportError('File is not a GeoJSON object.');
   }
@@ -43,7 +43,7 @@ function familyOf(geometryType: string): GeometryKind | null {
 }
 
 /** Classify a collection as point / line / polygon, or mixed when it spans families. */
-function detectGeometry(fc: FeatureCollection): GeometryKind {
+export function detectGeometry(fc: FeatureCollection): GeometryKind {
   const families = new Set<GeometryKind>();
   for (const feature of fc.features) {
     const family = feature.geometry ? familyOf(feature.geometry.type) : null;
@@ -51,6 +51,21 @@ function detectGeometry(fc: FeatureCollection): GeometryKind {
     else if (feature.geometry?.type === 'GeometryCollection') return 'mixed';
   }
   return families.size === 1 ? [...families][0] : 'mixed';
+}
+
+/** Wrap a normalized FeatureCollection in a ready-to-add GeoJSON layer. */
+export function featureCollectionToLayer(name: string, data: FeatureCollection): GeoJsonLayer {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'geojson',
+    name: name || 'Layer',
+    visible: true,
+    locked: false,
+    geometry: detectGeometry(data),
+    featureCount: data.features.length,
+    data,
+    style: { ...DEFAULT_GEOJSON_STYLE },
+  };
 }
 
 /** Parse a dropped/picked file into a ready-to-add GeoJSON layer. */
@@ -66,15 +81,5 @@ export async function importGeoJsonFile(file: File): Promise<GeoJsonLayer> {
   if (data.features.length === 0) {
     throw new GeoJsonImportError(`"${file.name}" contains no features.`);
   }
-  return {
-    id: crypto.randomUUID(),
-    kind: 'geojson',
-    name: file.name.replace(/\.(geo)?json$/i, '') || 'Layer',
-    visible: true,
-    locked: false,
-    geometry: detectGeometry(data),
-    featureCount: data.features.length,
-    data,
-    style: { ...DEFAULT_GEOJSON_STYLE },
-  };
+  return featureCollectionToLayer(file.name.replace(/\.(geo)?json$/i, ''), data);
 }

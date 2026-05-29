@@ -274,8 +274,8 @@ export function LayerPanel() {
         </span>
         <button
           type="button"
-          aria-label="Import GeoJSON"
-          title="Import GeoJSON"
+          aria-label="Import data"
+          title="Import GeoJSON, TopoJSON, KML, GPX, or Shapefile"
           disabled={locked}
           onClick={pickAndImportGeoJson}
           className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
@@ -306,7 +306,7 @@ export function LayerPanel() {
         >
           No GeoJSON layers yet.
           <br />
-          {locked ? 'Lock the map area before importing.' : 'Drop a GeoJSON file on the map, or click to import.'}
+          {locked ? 'Lock the map area before importing.' : 'Drop GeoJSON, TopoJSON, KML, GPX, or a zipped Shapefile, or click to import.'}
         </button>
       ) : (
         <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">

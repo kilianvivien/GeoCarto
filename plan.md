@@ -138,7 +138,8 @@ Closed out by Milestone 7. Phase 2 work now sits on a clean Phase 1 base.
   - Smart guides — edge/center alignment cues during drag with ±6 px tolerance.
   - Object grouping via ⌘G / ⌘⇧G and the canvas context menu; groups
     round-trip through `.cartoproj`.
-- ⬜ Share, comments, image placement, and legend builder workflows (M13/M14)
+- ✅ Image placement, legend builder, and local comment pins (M13/M14).
+      Cloud share links remain Post-v1.
 
 ### Basemap sources & styling 🟡
 
@@ -172,11 +173,18 @@ base — this is a core editorial requirement.
 - ⬜ Title block, source credit, scale bar, north arrow (M13)
 - ⬜ Manually editable legend builder (M13)
 
-### Import & export ⬜
+### Import & export 🟡
 
-- ⬜ Import TopoJSON, KML, GPX, Shapefile
+- ✅ Import TopoJSON, KML, GPX, Shapefile (M14). Format detected by extension;
+      each parser (`topojson-client`, `@tmcw/togeojson`, `shpjs`) is lazy-loaded
+      so it stays out of the initial bundle. Shapefile zips are reprojected to
+      WGS84 from the embedded `.prj`. Drop + picker accept all formats.
+- ✅ Image placement (M14) — drop/insert PNG/JPEG/SVG raster, geo or screen
+      anchored, embedded as base64 in `.cartoproj`.
 - ⬜ SVG export — technical spike first, then editable vector serializer
       (supported objects stay editable in Illustrator/Figma; fallbacks documented)
+- 🟡 Move heavy importers onto a worker thread (parsers are pure and
+      worker-ready; deferred follow-up).
 
 ### Desktop (macOS) ⬜
 
