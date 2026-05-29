@@ -95,7 +95,7 @@ function containFrame(width: number, height: number, aspect: number) {
  * and an overlay layer above the map (design.md §4.3). Accepts file drops to
  * import GeoJSON.
  */
-export function MapCanvas() {
+export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -173,7 +173,9 @@ export function MapCanvas() {
     >
       <div
         data-testid="map-surface"
-        className={`absolute overflow-hidden rounded-[var(--radius-md)] ${canPanView ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`absolute overflow-hidden rounded-[var(--radius-md)] transition-[filter] duration-200 ${
+          chromeSettling ? 'blur-[0.35px]' : 'blur-0'
+        } ${canPanView ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{
           left: surface.x,
           top: surface.y,

@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
-import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
-import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
-import { rememberRecentProject } from '@/project/recents';
-import { useSessionsStore } from '@/state/sessionsStore';
+import { isTauri } from '@/app/platform';
 import { useDocumentStore } from '@/state/documentStore';
-import { useHistoryStore } from '@/state/historyStore';
-import { isToolEnabled, SHORTCUT_TO_TOOL, useToolStore } from '@/state/toolStore';
-import { useNotices } from './notices';
-import { useUiStore } from './uiStore';
+import { SHORTCUT_TO_TOOL } from '@/state/toolStore';
+import { type AppCommand, runAppCommand } from '@/app/appCommands';
+
+declare global {
+  interface Window {
+    __geocartoTauriMenuListenerInstalled?: boolean;
+  }
+}
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -15,8 +16,22 @@ function isTypingTarget(target: EventTarget | null) {
   return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }
 
+function ensureTauriMenuListener(): void {
+  if (!isTauri() || window.__geocartoTauriMenuListenerInstalled) return;
+  window.__geocartoTauriMenuListenerInstalled = true;
+  void import('@tauri-apps/api/event').then(({ listen }) =>
+    listen<AppCommand>('geocarto://menu', (event) => {
+      void runAppCommand(event.payload);
+    }),
+  );
+}
+
 /** App-scoped keyboard shortcuts: tools, deletion, save/open/export. */
 export function KeyboardShortcuts() {
+  useEffect(() => {
+    ensureTauriMenuListener();
+  }, []);
+
   useEffect(() => {
     const onKeyDown = async (event: KeyboardEvent) => {
       if (isTypingTarget(event.target)) return;
@@ -26,77 +41,39 @@ export function KeyboardShortcuts() {
         const key = event.key.toLowerCase();
         if (key === 's') {
           event.preventDefault();
-          const { project, file, markSaved } = useDocumentStore.getState();
-          const push = useNotices.getState().push;
-          try {
-            const next = event.shiftKey
-              ? await saveProjectAs(project)
-              : await saveProjectToDisk(project, file);
-            markSaved(next);
-            void rememberRecentProject(next);
-            push(`Saved ${next.name}`);
-          } catch (error) {
-            if (error instanceof UserCancelledError) return;
-            push(error instanceof Error ? error.message : 'Save failed.', 'error');
-          }
+          await runAppCommand(event.shiftKey ? 'save-project-as' : 'save-project');
           return;
         }
         if (key === 'o') {
           event.preventDefault();
-          const push = useNotices.getState().push;
-          try {
-            const { project, file: opened } = await openProjectFromDisk();
-            openProjectInNewTab(project, opened);
-            void rememberRecentProject(opened);
-            push(`Opened ${opened.name}`);
-          } catch (error) {
-            if (error instanceof UserCancelledError) return;
-            push(error instanceof Error ? error.message : 'Open failed.', 'error');
-          }
+          if (event.shiftKey) await runAppCommand('import-data');
+          else await runAppCommand('open-project');
           return;
         }
         if (key === 'w') {
           // ⌘W closes the active tab; matches macOS browser muscle memory.
           event.preventDefault();
-          const { activeSessionId, closeSession } = useSessionsStore.getState();
-          if (useDocumentStore.getState().dirty) {
-            const ok = window.confirm(
-              'This tab has unsaved changes. Close and discard?',
-            );
-            if (!ok) return;
-          }
-          closeSession(activeSessionId);
+          await runAppCommand('close-tab');
           return;
         }
         if (key === 'n') {
           event.preventDefault();
-          createNewProject();
-          useNotices.getState().push('Created new project');
+          await runAppCommand('new-project');
           return;
         }
         if (key === 'e') {
           event.preventDefault();
-          if (useDocumentStore.getState().project.mode === 'editing') {
-            useUiStore.getState().openExportDialog();
-          }
+          await runAppCommand(event.shiftKey ? 'share-png' : 'export');
           return;
         }
         if (key === 'z') {
           event.preventDefault();
-          const hist = useHistoryStore.getState();
-          const ok = event.shiftKey ? hist.redo() : hist.undo();
-          if (!ok) {
-            useNotices
-              .getState()
-              .push(event.shiftKey ? 'Nothing to redo' : 'Nothing to undo', 'error');
-          }
+          await runAppCommand(event.shiftKey ? 'redo' : 'undo');
           return;
         }
         if (key === 'g') {
           event.preventDefault();
-          const store = useDocumentStore.getState();
-          if (event.shiftKey) store.ungroupSelectedAnnotations();
-          else store.groupSelectedAnnotations();
+          await runAppCommand(event.shiftKey ? 'ungroup-selection' : 'group-selection');
           return;
         }
         return;
@@ -106,10 +83,9 @@ export function KeyboardShortcuts() {
       if (useDocumentStore.getState().project.mode !== 'editing') return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        const { selectedAnnotationId, removeAnnotation } = useDocumentStore.getState();
-        if (selectedAnnotationId) {
+        if (useDocumentStore.getState().selectedAnnotationId) {
           event.preventDefault();
-          removeAnnotation(selectedAnnotationId);
+          await runAppCommand('delete-selection');
         }
         return;
       }
@@ -122,12 +98,7 @@ export function KeyboardShortcuts() {
       const tool = SHORTCUT_TO_TOOL[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();
-        if (!isToolEnabled(tool)) {
-          const push = useNotices.getState().push;
-          push('That tool is planned for Phase 2', 'error');
-          return;
-        }
-        useToolStore.getState().setActiveTool(tool);
+        await runAppCommand(`tool-${tool}`);
       }
     };
 

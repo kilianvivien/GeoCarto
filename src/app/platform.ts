@@ -5,6 +5,8 @@
  * Tauri branch is additive and guarded by `isTauri()`.
  */
 
+export const REPO_URL = 'https://github.com/kilianvivien/GeoCarto';
+
 /**
  * True when running inside the Tauri (desktop) shell rather than a browser tab.
  * Tauri 2 injects `__TAURI_INTERNALS__` onto `window` before the app loads.

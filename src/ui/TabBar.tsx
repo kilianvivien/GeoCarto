@@ -24,7 +24,7 @@ function tabDirty(session: ProjectSession, isActive: boolean): boolean {
  * Project tab bar (M8). Sits between the title bar and the workspace. Drives
  * the sessions store: switch, close, reorder via drag, new tab.
  */
-export function TabBar() {
+export function TabBar({ visible }: { visible: boolean }) {
   const sessions = useSessionsStore((s) => s.sessions);
   const activeId = useSessionsStore((s) => s.activeSessionId);
   const switchTo = useSessionsStore((s) => s.switchTo);
@@ -76,16 +76,15 @@ export function TabBar() {
     closeSession(id);
   };
 
-  // Stay out of the chrome when there's only one project — the title bar
-  // already shows its name and the "+ new tab" affordance lives on ⌘N.
-  if (sessions.length <= 1) return null;
-
   return (
     <div
       role="tablist"
       aria-label="Project tabs"
       data-testid="tab-bar"
-      className="flex h-9 items-end gap-1 border-b border-[var(--divider)] bg-[var(--surface-base)] px-2 pt-1"
+      aria-hidden={!visible}
+      className={`flex h-9 items-end gap-1 overflow-hidden border-b border-[var(--divider)] bg-[var(--surface-base)] px-2 pt-1 transition-[opacity,transform] duration-200 ease-out ${
+        visible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0'
+      }`}
     >
       {sessions.map((session, index) => {
         const isActive = session.id === activeId;

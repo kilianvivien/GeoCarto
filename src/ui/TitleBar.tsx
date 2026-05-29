@@ -15,7 +15,7 @@ import {
   Undo2,
   UnlockKeyhole,
 } from 'lucide-react';
-import { isTauri, openExternalUrl } from '@/app/platform';
+import { isTauri, openExternalUrl, REPO_URL } from '@/app/platform';
 import { useTheme } from './useTheme';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
@@ -29,8 +29,6 @@ import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
-
-const REPO_URL = 'https://github.com/kilianvivien/GeoCarto';
 
 function IconButton({
   label,
