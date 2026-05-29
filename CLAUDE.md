@@ -40,5 +40,8 @@ The `@/` alias maps to `src/`.
 
 - The project document (`.cartoproj`) is the source of truth. MapLibre, Konva, and
   export code render from this model — they do not own independent state.
-- Phase 1 is web-only, Web Mercator only. No Tauri, SVG/PDF export, or non-GeoJSON
-  import yet — keep those behind their milestone gates.
+- Web Mercator only for now. Non-GeoJSON import stays behind its milestone gate.
+- The app ships as both a web build and a Tauri 2 desktop app (`src-tauri/`). The
+  web build must keep full feature parity — every desktop-specific path is additive
+  and guarded by `isTauri()` (`src/app/platform.ts`). See `src-tauri/README.md` for
+  the platform differences (file dialogs, basemap fetch via the HTTP plugin).

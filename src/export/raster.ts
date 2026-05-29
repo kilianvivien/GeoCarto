@@ -1,4 +1,5 @@
 import maplibregl from 'maplibre-gl';
+import { basename, isTauri } from '@/app/platform';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { syncLayersToMap } from '@/canvas/syncLayers';
 import { useMapInstance } from '@/canvas/mapInstance';
@@ -231,7 +232,34 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
   return { blob, fileName: fileNameFor(project, options.format), width: outW, height: outH };
 }
 
-export function downloadBlob(blob: Blob, fileName: string): void {
+/** Last extension of a filename, lowercased and without the dot (for dialog filters). */
+function extensionOf(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : '';
+}
+
+/**
+ * Persist an exported artifact. In the browser this triggers an anchor download
+ * (always "succeeds"). Under the Tauri desktop shell — where anchor downloads
+ * are unreliable in WKWebView — it opens a native save dialog and writes the
+ * bytes to disk. Returns `false` when the user cancels the desktop save dialog
+ * (nothing written) and `true` once the file is saved / the download is started,
+ * so callers can suppress the success toast on cancellation.
+ */
+export async function downloadBlob(blob: Blob, fileName: string): Promise<boolean> {
+  if (isTauri()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const ext = extensionOf(fileName);
+    const path = await save({
+      defaultPath: fileName,
+      filters: ext ? [{ name: basename(fileName), extensions: [ext] }] : undefined,
+    });
+    if (!path) return false; // User cancelled the save dialog.
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+    return true;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -240,4 +268,5 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
 }

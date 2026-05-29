@@ -5,6 +5,10 @@ node_modules/
 dist/
 .vite/
 
+# tauri (rust) build artifacts and generated bindings
+src-tauri/target/
+src-tauri/gen/
+
 # test artifacts
 playwright-report/
 test-results/

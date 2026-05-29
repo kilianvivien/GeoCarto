@@ -3,6 +3,7 @@ import { ChevronDown, Clock } from 'lucide-react';
 import { readRecents, forgetRecentProject, type RecentProject } from '@/project/recents';
 import { deserializeProject } from '@/project/serialize';
 import { openProjectInNewTab } from '@/project/documentFlow';
+import { isTauri } from '@/app/platform';
 import { useNotices } from './notices';
 
 async function ensurePermission(handle: FileSystemFileHandle): Promise<boolean> {
@@ -46,6 +47,20 @@ export function RecentsMenu() {
 
   const handleClick = async (recent: RecentProject) => {
     setOpen(false);
+    if (isTauri() && recent.path) {
+      try {
+        const { readTextFile } = await import('@tauri-apps/plugin-fs');
+        const text = await readTextFile(recent.path);
+        const project = deserializeProject(text);
+        openProjectInNewTab(project, { handle: null, path: recent.path, name: recent.name });
+        push(`Opened ${recent.name}`);
+      } catch (error) {
+        // File was moved/deleted on disk — drop it from history.
+        await forgetRecentProject(recent.name);
+        push(error instanceof Error ? error.message : 'Could not reopen file.', 'error');
+      }
+      return;
+    }
     if (!recent.handle) {
       push('This browser cannot re-open files directly — use Open.', 'error');
       return;
@@ -100,7 +115,7 @@ export function RecentsMenu() {
                 className="flex w-full items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
               >
                 <span className="truncate">{item.name}</span>
-                {!item.handle && (
+                {!item.handle && !item.path && (
                   <span className="text-[10px] uppercase tracking-wide text-[var(--text-3)]">
                     history
                   </span>

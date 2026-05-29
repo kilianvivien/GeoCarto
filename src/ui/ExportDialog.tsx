@@ -82,7 +82,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         const { exportRaster } = await loadRaster();
         result = await exportRaster(project, { format, scale, background: exportBackground, quality });
       }
-      downloadBlob(result.blob, result.fileName);
+      const saved = await downloadBlob(result.blob, result.fileName);
+      if (!saved) return; // Desktop save dialog cancelled — keep the dialog open.
       push(`Exported ${result.fileName} (${result.width}×${result.height})`);
       onClose();
     } catch (error) {

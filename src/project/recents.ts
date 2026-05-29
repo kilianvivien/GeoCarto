@@ -9,6 +9,8 @@ export interface RecentProject {
   savedAt: string;
   /** File System Access handle stored verbatim — only present on Chromium. */
   handle: FileSystemFileHandle | null;
+  /** Native filesystem path — only present on the Tauri desktop shell. */
+  path?: string | null;
 }
 
 function hasIdb(): boolean {
@@ -33,12 +35,15 @@ export async function rememberRecentProject(file: DocumentFileBinding): Promise<
       name: file.name,
       savedAt: new Date().toISOString(),
       handle: file.handle ?? null,
+      path: file.path ?? null,
     };
-    // Dedupe by handle (when available) or by name. Most recent wins.
+    // Dedupe by path (desktop), then handle (Chromium), else by name. Most recent wins.
     const filtered: RecentProject[] = [];
     for (const entry of existing) {
       let drop = false;
-      if (file.handle && entry.handle) {
+      if (file.path && entry.path) {
+        drop = entry.path === file.path;
+      } else if (file.handle && entry.handle) {
         try {
           const isSame = (entry.handle as unknown as {
             isSameEntry?: (other: FileSystemHandle) => Promise<boolean>;

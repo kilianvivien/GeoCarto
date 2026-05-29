@@ -1,0 +1,27 @@
+[package]
+name = "geocarto"
+version = "0.1.0"
+description = "GeoCarto — a visual-first cartography app"
+authors = ["Kilian Vivien"]
+edition = "2021"
+rust-version = "1.77.2"
+
+# The library is what Tauri's mobile/desktop entrypoints link against; main.rs
+# is a thin shim that calls into it. Keeping the logic in a lib lets the same
+# code back a future mobile target without duplication.
+[lib]
+name = "geocarto_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-http = "2"
+
+[features]
+# Used by `tauri dev`/`tauri build` to enable custom-protocol asset serving.
+custom-protocol = ["tauri/custom-protocol"]

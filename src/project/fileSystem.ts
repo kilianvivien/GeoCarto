@@ -1,6 +1,7 @@
 import type { CartoProject } from './cartoproj';
 import type { DocumentFileBinding } from '@/state/documentStore';
 import { deserializeProject, ProjectLoadError, serializeProject } from './serialize';
+import { basename, isTauri } from '@/app/platform';
 
 const FILE_TYPE = {
   description: 'GeoCarto project',
@@ -60,8 +61,35 @@ function downloadBlob(name: string, contents: string): void {
 }
 
 /**
- * Save the project. If `existing` carries a handle (FSA path), write in place.
- * Otherwise prompt for a destination (FSA) or trigger a browser download.
+ * Desktop save via Tauri's native dialog + filesystem. Writes in place when the
+ * project already has a path; otherwise prompts for a destination.
+ */
+async function saveProjectViaTauri(
+  project: CartoProject,
+  contents: string,
+  existing?: DocumentFileBinding | null,
+): Promise<DocumentFileBinding> {
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+
+  if (existing?.path) {
+    await writeTextFile(existing.path, contents);
+    return { handle: null, path: existing.path, name: existing.name };
+  }
+
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const path = await save({
+    defaultPath: suggestedFileName(project),
+    filters: [{ name: 'GeoCarto project', extensions: ['cartoproj'] }],
+  });
+  if (!path) throw new UserCancelledError();
+  await writeTextFile(path, contents);
+  return { handle: null, path, name: basename(path) };
+}
+
+/**
+ * Save the project. If `existing` carries a handle (FSA) or path (desktop),
+ * write in place. Otherwise prompt for a destination (native dialog / FSA) or
+ * trigger a browser download.
  */
 export async function saveProjectToDisk(
   project: CartoProject,
@@ -69,6 +97,8 @@ export async function saveProjectToDisk(
 ): Promise<DocumentFileBinding> {
   const contents = serializeProject(project);
   const name = existing?.name ?? suggestedFileName(project);
+
+  if (isTauri()) return saveProjectViaTauri(project, contents, existing);
 
   if (existing?.handle) {
     await writeHandle(existing.handle, contents);
@@ -133,6 +163,20 @@ function pickFallbackFile(): Promise<File | null> {
 }
 
 export async function openProjectFromDisk(): Promise<OpenResult> {
+  if (isTauri()) {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: 'GeoCarto project', extensions: ['cartoproj'] }],
+    });
+    if (typeof path !== 'string') throw new UserCancelledError();
+    const { readTextFile } = await import('@tauri-apps/plugin-fs');
+    const text = await readTextFile(path);
+    const project = deserializeProject(text);
+    return { project, file: { handle: null, path, name: basename(path) } };
+  }
+
   if (hasFileSystemAccess()) {
     const picked = await pickFsaFile();
     if (!picked) throw new UserCancelledError();

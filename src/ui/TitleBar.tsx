@@ -147,8 +147,8 @@ export function TitleBar() {
         return;
       }
       const { downloadBlob } = await import('@/export/raster');
-      downloadBlob(result.blob, result.fileName);
-      push(`Downloaded ${result.fileName}`);
+      const saved = await downloadBlob(result.blob, result.fileName);
+      if (saved) push(`Downloaded ${result.fileName}`);
     } catch (error) {
       if ((error as Error).name === 'AbortError') return; // User cancelled the share sheet.
       push(error instanceof Error ? error.message : 'Share failed.', 'error');

@@ -26,6 +26,8 @@ export interface SelectedFeature {
 export interface DocumentFileBinding {
   /** File System Access handle (Chromium); null on the download-fallback path. */
   handle: FileSystemFileHandle | null;
+  /** Native filesystem path (Tauri desktop); null/absent in the browser. */
+  path?: string | null;
   name: string;
 }
 
