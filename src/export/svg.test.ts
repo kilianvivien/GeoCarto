@@ -68,7 +68,9 @@ describe('exportSvg', () => {
     const result = await exportSvg(projectWith([text]), { includeBasemap: false });
     const svg = await result.blob.text();
     expect(svg).toContain('A &amp; B &lt; C &gt;');
-    expect(new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('parsererror')).toBeNull();
+    expect(
+      new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('parsererror'),
+    ).toBeNull();
   });
 
   it('scales annotation origins uniformly on both axes (matches the raster layer)', async () => {
@@ -85,6 +87,27 @@ describe('exportSvg', () => {
     const [, tx, ty] = transform!;
     expect(Number(tx)).toBeCloseTo(160); // 100 * 1.6
     expect(Number(ty)).toBeCloseTo(160); // uniform — NOT 100 * 2 = 200
+  });
+
+  it('exports hatch fills as clipped vector strokes', async () => {
+    useMapInstance.setState({ map: stubMap() });
+    const polygon = make('polygon');
+    if (polygon.kind !== 'polygon') throw new Error('expected polygon');
+    polygon.style.fillPattern = 'diagonal';
+    polygon.style.hatchColor = '#663300';
+    polygon.style.hatchSpacing = 8;
+
+    const result = await exportSvg(projectWith([polygon]), { includeBasemap: false });
+    const svg = await result.blob.text();
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+
+    expect(doc.querySelector('parsererror')).toBeNull();
+    expect(doc.querySelector('clipPath[id^="gc-hatch-"] polygon')).not.toBeNull();
+    expect(
+      [...doc.querySelectorAll('g[clip-path] line')].some(
+        (line) => line.getAttribute('stroke') === '#663300',
+      ),
+    ).toBe(true);
   });
 
   it('omits comment pins from exported artwork', async () => {

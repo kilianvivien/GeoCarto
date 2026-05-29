@@ -183,8 +183,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               </label>
             </Field>
             <div className="mt-3 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
-              Annotations, text, and map furniture export as editable vectors. Effects (hatch fills,
-              halos, blend modes) and detailed pin glyphs are flattened.
+              Annotations, hatch fills, text, and map furniture export as editable vectors. Effects
+              (halos, blend modes) and detailed pin glyphs are flattened.
             </div>
           </>
         )}

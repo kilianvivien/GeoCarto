@@ -9,7 +9,8 @@ bundle.
 - `renderAnnotations.ts` — imperative Konva renderer used by raster export.
 - `svg.ts` — SVG serializer (M15). Basemap + imported data embed as a raster
   `<image>`; annotations / text / furniture become editable vector objects.
-  Effects (hatch, halo, blend) and detailed pin glyphs are flattened.
+  Hatch fills remain editable clipped strokes; halo/blend effects and detailed
+  pin glyphs are flattened.
 - `pdf.ts` — raster-in-PDF via `jsPDF` (M15). One page sized to the frame;
   editable-vector PDF is deferred to Post-v1.
 

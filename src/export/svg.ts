@@ -1,6 +1,12 @@
-import type { Annotation, AnnotationStyle, CartoProject, PinIcon } from '@/project/cartoproj';
+import type {
+  Annotation,
+  AnnotationStyle,
+  CartoProject,
+  LegendFillStyle,
+  PinIcon,
+} from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
-import { strokeDash } from '@/style/annotationPatterns';
+import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntryFill } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
@@ -34,7 +40,48 @@ function pointsAttr(points: number[]): string {
   return pairs.join(' ');
 }
 
-function textEl(text: string, x: number, y: number, style: AnnotationStyle, opts: { bold?: boolean; opacity?: number; size?: number } = {}): string {
+function polygonLocalBounds(points: number[]) {
+  const xs = points.filter((_, index) => index % 2 === 0);
+  const ys = points.filter((_, index) => index % 2 === 1);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.max(...xs) - x),
+    height: Math.max(1, Math.max(...ys) - y),
+  };
+}
+
+function hatchSvg(
+  id: string,
+  fill: LegendFillStyle,
+  clipShape: string,
+  bounds: { x: number; y: number; width: number; height: number },
+): string {
+  if (fill.fillPattern === 'none') return '';
+  const clipId = `gc-hatch-${id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
+  const lines = hatchLines(bounds.width, bounds.height, fill.fillPattern, fill.hatchSpacing);
+  if (lines.length === 0) return '';
+  const segments = lines
+    .map((line) => {
+      const pts = line.points;
+      return `<line x1="${n(pts[0] + bounds.x)}" y1="${n(pts[1] + bounds.y)}" x2="${n(pts[2] + bounds.x)}" y2="${n(pts[3] + bounds.y)}" stroke="${esc(fill.hatchColor)}" stroke-width="1.25" stroke-linecap="${fill.fillPattern === 'dots' ? 'round' : 'butt'}"/>`;
+    })
+    .join('');
+  return (
+    `<defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">${clipShape}</clipPath></defs>` +
+    `<g clip-path="url(#${clipId})" pointer-events="none">${segments}</g>`
+  );
+}
+
+function textEl(
+  text: string,
+  x: number,
+  y: number,
+  style: AnnotationStyle,
+  opts: { bold?: boolean; opacity?: number; size?: number } = {},
+): string {
   const size = opts.size ?? style.textSize;
   // SVG <text> y is the baseline; Konva text y is the top, so offset by ~size.
   return `<text x="${n(x)}" y="${n(y + size * 0.82)}" fill="${esc(style.textColor)}" font-family="${esc(style.fontFamily)}, sans-serif" font-size="${n(size)}"${opts.bold ? ' font-weight="700"' : ''}${opts.opacity != null ? ` opacity="${n(opts.opacity)}"` : ''}>${esc(text)}</text>`;
@@ -75,10 +122,29 @@ function annotationToSvg(
       body = textEl(annotation.text, 8, 8, style);
       break;
     case 'rectangle':
-      body = `<rect width="${n(annotation.width)}" height="${n(annotation.height)}" rx="${n(annotation.cornerRadius)}"${fill}${stroke}${dashAttr(style)}/>`;
+      body =
+        `<rect width="${n(annotation.width)}" height="${n(annotation.height)}" rx="${n(annotation.cornerRadius)}"${fill}${stroke}${dashAttr(style)}/>` +
+        hatchSvg(
+          annotation.id,
+          style,
+          `<rect width="${n(annotation.width)}" height="${n(annotation.height)}" rx="${n(annotation.cornerRadius)}"/>`,
+          { x: 0, y: 0, width: annotation.width, height: annotation.height },
+        );
       break;
     case 'ellipse':
-      body = `<ellipse rx="${n(annotation.radiusX)}" ry="${n(annotation.radiusY)}"${fill}${stroke}${dashAttr(style)}/>`;
+      body =
+        `<ellipse rx="${n(annotation.radiusX)}" ry="${n(annotation.radiusY)}"${fill}${stroke}${dashAttr(style)}/>` +
+        hatchSvg(
+          annotation.id,
+          style,
+          `<ellipse cx="0" cy="0" rx="${n(annotation.radiusX)}" ry="${n(annotation.radiusY)}"/>`,
+          {
+            x: -annotation.radiusX,
+            y: -annotation.radiusY,
+            width: annotation.radiusX * 2,
+            height: annotation.radiusY * 2,
+          },
+        );
       break;
     case 'line':
       body = `<polyline points="${pointsAttr(annotation.points)}" fill="none"${stroke}${dashAttr(style)} stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -100,9 +166,13 @@ function annotationToSvg(
         `<polygon points="${n(x2)},${n(y2)} ${n(ax)},${n(ay)} ${n(bx)},${n(by)}" fill="${esc(style.strokeColor)}"/>`;
       break;
     }
-    case 'polygon':
-      body = `<polygon points="${pointsAttr(annotation.points)}"${fill}${stroke}${dashAttr(style)} stroke-linejoin="round"/>`;
+    case 'polygon': {
+      const bounds = polygonLocalBounds(annotation.points);
+      body =
+        `<polygon points="${pointsAttr(annotation.points)}"${fill}${stroke}${dashAttr(style)} stroke-linejoin="round"/>` +
+        hatchSvg(annotation.id, style, `<polygon points="${pointsAttr(annotation.points)}"/>`, bounds);
       break;
+    }
     case 'pin':
       body =
         pinGlyphSvg(style.pinIcon, style.pinColor, annotation.size) +
@@ -115,7 +185,12 @@ function annotationToSvg(
       for (let i = 0; i < annotation.points.length; i += 2) {
         body += `<circle cx="${n(annotation.points[i])}" cy="${n(annotation.points[i + 1])}" r="4" fill="#ffffff"${stroke}/>`;
       }
-      body += textEl(label, annotation.points.at(-2) ?? 0, (annotation.points.at(-1) ?? 0) + 10, style);
+      body += textEl(
+        label,
+        annotation.points.at(-2) ?? 0,
+        (annotation.points.at(-1) ?? 0) + 10,
+        style,
+      );
       break;
     }
     case 'image':
@@ -130,11 +205,20 @@ function annotationToSvg(
       const visible = annotation.entries.filter((entry) => entry.visible);
       const height = padding * 2 + (style.textSize + 6) + rowHeight * visible.length;
       body = `<rect width="${n(annotation.width)}" height="${n(height)}" rx="10"${fill}${stroke}/>`;
-      body += textEl(annotation.title, padding, padding, style, { bold: true, size: style.textSize + 2 });
+      body += textEl(annotation.title, padding, padding, style, {
+        bold: true,
+        size: style.textSize + 2,
+      });
       visible.forEach((entry, index) => {
         const y = padding + (style.textSize + 6) + index * rowHeight;
         const ef = legendEntryFill(entry);
         body += `<rect x="${n(padding)}" y="${n(y)}" width="${n(swatch)}" height="${n(swatch)}" rx="3" fill="${esc(ef.fillColor)}" stroke="${esc(style.strokeColor)}" stroke-width="0.5"/>`;
+        body += hatchSvg(
+          `${annotation.id}-entry-${index}`,
+          ef,
+          `<rect x="${n(padding)}" y="${n(y)}" width="${n(swatch)}" height="${n(swatch)}" rx="3"/>`,
+          { x: padding, y, width: swatch, height: swatch },
+        );
         body += textEl(entry.label, padding + swatch + 8, y, style);
       });
       break;
@@ -186,10 +270,14 @@ function annotationToSvg(
 /**
  * Serialize the project to an SVG string. The basemap (and imported data) is
  * embedded as a raster `<image>`; annotations, text, and map furniture are
- * emitted as editable vector objects. Effects (hatch fills, halos, blend modes)
- * and most pin glyphs are flattened — surfaced to the user in the export dialog.
+ * emitted as editable vector objects. Hatch fills are emitted as clipped SVG
+ * strokes; halos, blend modes, and most pin glyphs are flattened — surfaced to
+ * the user in the export dialog.
  */
-export async function exportSvg(project: CartoProject, options: SvgExportOptions): Promise<ExportResult> {
+export async function exportSvg(
+  project: CartoProject,
+  options: SvgExportOptions,
+): Promise<ExportResult> {
   const frameW = project.exportFrame.width;
   const frameH = project.exportFrame.height;
   if (frameW <= 0 || frameH <= 0) throw new ExportError('Invalid output dimensions.');
@@ -215,12 +303,16 @@ export async function exportSvg(project: CartoProject, options: SvgExportOptions
   const parts: string[] = [];
   const background = project.exportFrame.background ?? 'white';
   if (background !== 'transparent') {
-    parts.push(`<rect x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" fill="${background === 'white' ? '#ffffff' : esc(background)}"/>`);
+    parts.push(
+      `<rect x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" fill="${background === 'white' ? '#ffffff' : esc(background)}"/>`,
+    );
   }
 
   if (options.includeBasemap) {
     const canvas = await renderBasemapCanvas(project, frameW, frameH);
-    parts.push(`<image x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" href="${canvas.toDataURL('image/png')}" preserveAspectRatio="none"/>`);
+    parts.push(
+      `<image x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" href="${canvas.toDataURL('image/png')}" preserveAspectRatio="none"/>`,
+    );
   }
 
   for (const annotation of project.annotations) {
@@ -234,5 +326,10 @@ export async function exportSvg(project: CartoProject, options: SvgExportOptions
 
   const blob = new Blob([svg], { type: 'image/svg+xml' });
   const base = project.meta.name?.trim() || 'Untitled';
-  return { blob, fileName: `${base.replace(/\.cartoproj$/, '')}.svg`, width: frameW, height: frameH };
+  return {
+    blob,
+    fileName: `${base.replace(/\.cartoproj$/, '')}.svg`,
+    width: frameW,
+    height: frameH,
+  };
 }
