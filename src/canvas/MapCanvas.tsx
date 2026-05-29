@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Maximize2, Minus, Plus } from 'lucide-react';
 import { MapView } from './MapView';
@@ -12,18 +12,21 @@ import { importGeoJsonFiles } from '@/import/importLayers';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewTransformStore } from '@/state/viewTransformStore';
+import { canvasAnchorFromClientPoint } from './canvasCoordinates';
 
-function ViewZoomControls() {
+type Point = { x: number; y: number };
+type SurfaceBox = { x: number; y: number; width: number; height: number };
+
+function ViewZoomControls({ anchor }: { anchor: () => Point }) {
   const zoom = useViewTransformStore((s) => s.zoom);
   const { setZoomAt, reset } = useViewTransformStore.getState();
-  const anchor = () => {
-    const canvas = document.querySelector('[data-testid="map-surface"]');
-    const rect = canvas?.getBoundingClientRect();
-    return rect ? { x: rect.width / 2, y: rect.height / 2 } : { x: 0, y: 0 };
-  };
 
   return (
-    <div className="glass pointer-events-auto absolute right-3 top-3 z-30 flex items-center gap-1 bg-[var(--glass-strong)] p-1">
+    <div
+      className="glass pointer-events-auto absolute right-3 top-3 z-30 flex items-center gap-1 bg-[var(--glass-strong)] p-1"
+      onPointerDown={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
       <button
         type="button"
         aria-label="Zoom out"
@@ -100,39 +103,100 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const panDragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const canInspectRef = useRef(false);
+  const surfaceRef = useRef<SurfaceBox>({ width: 0, height: 0, x: 0, y: 0 });
   const mode = useDocumentStore((s) => s.project.mode);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const activeTool = useToolStore((s) => s.activeTool);
   const viewZoom = useViewTransformStore((s) => s.zoom);
   const viewPan = useViewTransformStore((s) => s.pan);
-  const { zoomBy, panBy, reset } = useViewTransformStore.getState();
+  const { panBy, reset } = useViewTransformStore.getState();
   const canvasSize = useElementSize(canvasRef);
   const canInspect = mode === 'editing';
   const canPanView = canInspect && activeTool === 'pan';
   const frameAspect = exportFrame.width / exportFrame.height;
-  const surface =
-    mode === 'editing'
-      ? containFrame(canvasSize.width, canvasSize.height, frameAspect)
-      : { width: canvasSize.width, height: canvasSize.height, x: 0, y: 0 };
+  const surface = useMemo(
+    () =>
+      mode === 'editing'
+        ? containFrame(canvasSize.width, canvasSize.height, frameAspect)
+        : { width: canvasSize.width, height: canvasSize.height, x: 0, y: 0 },
+    [canvasSize.height, canvasSize.width, frameAspect, mode],
+  );
 
   useEffect(() => {
     if (mode === 'mapSetup') reset();
   }, [mode, reset]);
+
+  useEffect(() => {
+    canInspectRef.current = canInspect;
+    surfaceRef.current = surface;
+  }, [canInspect, surface]);
+
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node) return;
+
+    const anchorFromEvent = (event: Pick<WheelEvent, 'clientX' | 'clientY'>) =>
+      canvasAnchorFromClientPoint(
+        { x: event.clientX, y: event.clientY },
+        node.getBoundingClientRect(),
+        surfaceRef.current,
+      );
+
+    const onWheel = (event: WheelEvent) => {
+      if (!canInspectRef.current) return;
+      event.preventDefault();
+      const factor = event.ctrlKey ? Math.exp(-event.deltaY * 0.01) : event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      useViewTransformStore.getState().zoomBy(factor, anchorFromEvent(event));
+    };
+
+    type WebKitGestureEvent = Event & {
+      clientX?: number;
+      clientY?: number;
+      scale?: number;
+    };
+
+    let lastGestureScale = 1;
+    const onGestureStart = (event: WebKitGestureEvent) => {
+      if (!canInspectRef.current) return;
+      event.preventDefault();
+      lastGestureScale = event.scale ?? 1;
+    };
+    const onGestureChange = (event: WebKitGestureEvent) => {
+      if (!canInspectRef.current) return;
+      event.preventDefault();
+      const nextScale = event.scale ?? lastGestureScale;
+      const factor = nextScale / lastGestureScale;
+      lastGestureScale = nextScale;
+      const rect = node.getBoundingClientRect();
+      useViewTransformStore.getState().zoomBy(
+        factor,
+        canvasAnchorFromClientPoint(
+          {
+            x: event.clientX ?? rect.left + node.clientWidth / 2,
+            y: event.clientY ?? rect.top + node.clientHeight / 2,
+          },
+          rect,
+          surfaceRef.current,
+        ),
+      );
+    };
+
+    node.addEventListener('wheel', onWheel, { passive: false });
+    node.addEventListener('gesturestart', onGestureStart, { passive: false });
+    node.addEventListener('gesturechange', onGestureChange, { passive: false });
+    return () => {
+      node.removeEventListener('wheel', onWheel);
+      node.removeEventListener('gesturestart', onGestureStart);
+      node.removeEventListener('gesturechange', onGestureChange);
+    };
+  }, []);
 
   return (
     <div
       ref={canvasRef}
       data-testid="map-canvas"
       className="relative m-1.5 min-h-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--divider)] bg-[var(--surface)]"
-      onWheel={(e) => {
-        if (!canInspect) return;
-        e.preventDefault();
-        const rect = e.currentTarget.querySelector('[data-testid="map-surface"]')?.getBoundingClientRect();
-        zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, {
-          x: rect ? e.clientX - rect.left : 0,
-          y: rect ? e.clientY - rect.top : 0,
-        });
-      }}
       onPointerDown={(e) => {
         if (!canPanView || e.button !== 0) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -193,7 +257,20 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
         <AnnotationStage />
       </div>
       <MapSetupPanel />
-      {canInspect && <ViewZoomControls />}
+      {canInspect && (
+        <ViewZoomControls
+          anchor={() => {
+            const rect = canvasRef.current?.getBoundingClientRect();
+            return rect
+              ? canvasAnchorFromClientPoint(
+                  { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+                  rect,
+                  surface,
+                )
+              : { x: 0, y: 0 };
+          }}
+        />
+      )}
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[var(--accent-soft)]">
           <div className="glass rounded-[var(--radius-md)] px-4 py-3 text-[13px] font-medium text-[var(--accent)]">
