@@ -77,3 +77,41 @@ export function niceScaleBar(
 function formatDistance(value: number): string {
   return value >= 1 ? value.toLocaleString('en-US') : String(value);
 }
+
+function polygonAreaMeters(points: [number, number][]): number {
+  if (points.length < 3) return 0;
+  const radius = 6_371_000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  let sum = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const current = points[i];
+    const next = points[(i + 1) % points.length];
+    sum += toRad(next[0] - current[0]) * (2 + Math.sin(toRad(current[1])) + Math.sin(toRad(next[1])));
+  }
+  return Math.abs((sum * radius * radius) / 2);
+}
+
+/**
+ * Distance (and area when ≥3 points) label for a measurement annotation.
+ * Shared so the live stage, raster export, and SVG export agree.
+ */
+export function measurementLabel(
+  geoPoints: [number, number][],
+  unitSystem: MeasurementUnitSystem,
+): string {
+  const length = geoPoints.slice(1).reduce((sum, point, index) => {
+    return sum + haversineMeters(geoPoints[index], point);
+  }, 0);
+  const area = polygonAreaMeters(geoPoints);
+  if (unitSystem === 'imperial') {
+    const feet = length * 3.28084;
+    const distance = feet >= 5280 ? `${(feet / 5280).toFixed(2)} mi` : `${Math.round(feet)} ft`;
+    return geoPoints.length >= 3 && area > 0
+      ? `${distance} · ${((area * 10.7639) / 43560).toFixed(2)} ac`
+      : distance;
+  }
+  const distance = length >= 1000 ? `${(length / 1000).toFixed(2)} km` : `${Math.round(length)} m`;
+  return geoPoints.length >= 3 && area > 0
+    ? `${distance} · ${(area / 1_000_000).toFixed(2)} km2`
+    : distance;
+}

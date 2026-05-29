@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
-import type { ExportBackground, ExportFormat } from '@/export/raster';
+import type { ExportBackground } from '@/export/raster';
 import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { useNotices } from './notices';
 
-// Defer the raster export module (pulls maplibre-gl into the bundle) until the
-// user actually clicks Export — keeps it out of the initial chunk.
+// Defer each exporter (they pull maplibre-gl / jsPDF into the bundle) until the
+// user actually exports — keeps them out of the initial chunk.
 async function loadRaster() {
   return import('@/export/raster');
 }
+
+/** Dialog-level format, including the vector targets added in M15. */
+type DialogFormat = 'png' | 'jpeg' | 'svg' | 'pdf';
 
 type ScalePreset = '1x' | '2x' | 'custom';
 
@@ -43,7 +46,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const { setExportFrameBackground, setExportFrameDpiScale } = useDocumentStore.getState();
   const push = useNotices((s) => s.push);
 
-  const [format, setFormat] = useState<ExportFormat>('png');
+  const [format, setFormat] = useState<DialogFormat>('png');
+  const [svgIncludeBasemap, setSvgIncludeBasemap] = useState(true);
   const projectScale = project.exportFrame.dpiScale ?? 1;
   const initialPreset: ScalePreset = projectScale === 1 ? '1x' : projectScale === 2 ? '2x' : 'custom';
   const scalePreset: ScalePreset = initialPreset;
@@ -66,8 +70,18 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const handleExport = async () => {
     setBusy(true);
     try {
-      const { exportRaster, downloadBlob } = await loadRaster();
-      const result = await exportRaster(project, { format, scale, background: exportBackground, quality });
+      const { downloadBlob } = await loadRaster();
+      let result;
+      if (format === 'svg') {
+        const { exportSvg } = await import('@/export/svg');
+        result = await exportSvg(project, { includeBasemap: svgIncludeBasemap });
+      } else if (format === 'pdf') {
+        const { exportPdf } = await import('@/export/pdf');
+        result = await exportPdf(project, { scale });
+      } else {
+        const { exportRaster } = await loadRaster();
+        result = await exportRaster(project, { format, scale, background: exportBackground, quality });
+      }
       downloadBlob(result.blob, result.fileName);
       push(`Exported ${result.fileName} (${result.width}×${result.height})`);
       onClose();
@@ -119,11 +133,14 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             options={[
               { value: 'png', label: 'PNG' },
               { value: 'jpeg', label: 'JPEG' },
+              { value: 'svg', label: 'SVG' },
+              { value: 'pdf', label: 'PDF' },
             ]}
             onChange={setFormat}
           />
         </Field>
 
+        {format !== 'svg' && (
         <Field label="Scale">
           <Segmented
             value={scalePreset}
@@ -150,6 +167,28 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             />
           )}
         </Field>
+        )}
+
+        {format === 'svg' && (
+          <>
+            <Field label="Basemap">
+              <label className="flex items-center gap-2 text-[12px] text-[var(--text-2)]">
+                <input
+                  type="checkbox"
+                  checked={svgIncludeBasemap}
+                  onChange={(e) => setSvgIncludeBasemap(e.target.checked)}
+                  className="accent-[var(--accent)]"
+                />
+                Embed basemap &amp; data as a raster image
+              </label>
+            </Field>
+            <div className="mt-3 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
+              Annotations, text, and map furniture export as editable vectors. Effects (hatch fills,
+              halos, blend modes) and detailed pin glyphs are flattened. Illustrator/Figma editability
+              is not verified in-app.
+            </div>
+          </>
+        )}
 
         {format === 'png' && (
           <Field label="Background">

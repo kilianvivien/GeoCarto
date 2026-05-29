@@ -144,6 +144,21 @@ export interface ExportResult {
   height: number;
 }
 
+/**
+ * Render just the basemap (with imported GeoJSON baked in via the offscreen map,
+ * or the fitted static image) to a canvas at the requested size. Shared by the
+ * SVG exporter, which embeds this as a raster `<image>` beneath vector annotations.
+ */
+export async function renderBasemapCanvas(
+  project: CartoProject,
+  outW: number,
+  outH: number,
+): Promise<HTMLCanvasElement> {
+  if (project.basemap.kind === 'static') return renderStaticBasemapCanvas(project, outW, outH);
+  const { basemapCanvas } = await renderMapCanvas(project, outW, outH);
+  return basemapCanvas;
+}
+
 export function effectiveExportSize(project: CartoProject, scale: number): { width: number; height: number } {
   return {
     width: Math.round(project.exportFrame.width * scale),

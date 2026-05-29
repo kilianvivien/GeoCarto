@@ -22,6 +22,7 @@
     "clsx": "^2.1.1",
     "idb-keyval": "^6.2.4",
     "immer": "^11.1.8",
+    "jspdf": "^4.2.1",
     "konva": "^10.3.0",
     "lucide-react": "^0.469.0",
     "maplibre-gl": "^5.24.0",

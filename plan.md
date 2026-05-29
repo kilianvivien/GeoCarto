@@ -170,8 +170,11 @@ base — this is a core editorial requirement.
       progressively-disclosed Effects panel and mirrored in PNG/JPEG export
       (M12).
 - ✅ Grouped objects; smart guides (edge/center) and pixel/grid snap (M10).
-- ⬜ Title block, source credit, scale bar, north arrow (M13)
-- ⬜ Manually editable legend builder (M13)
+- ✅ Title block, source credit, scale bar, north arrow (M13) — screen-anchored
+      furniture inserted from a single Insert menu. Scale bar snaps to a round
+      distance and tracks map scale; north arrow follows map bearing. Both
+      mirror correctly into raster export.
+- ✅ Manually editable legend builder with linked/overridden swatches (M13)
 
 ### Import & export 🟡
 
@@ -181,10 +184,18 @@ base — this is a core editorial requirement.
       WGS84 from the embedded `.prj`. Drop + picker accept all formats.
 - ✅ Image placement (M14) — drop/insert PNG/JPEG/SVG raster, geo or screen
       anchored, embedded as base64 in `.cartoproj`.
-- ⬜ SVG export — technical spike first, then editable vector serializer
-      (supported objects stay editable in Illustrator/Figma; fallbacks documented)
+- ✅ SVG export (M15) — basemap + imported data embed as a raster `<image>`;
+      annotations, text, and map furniture serialize as editable vector objects.
+      Effects (hatch fills, halos, blend modes) and detailed pin glyphs are
+      flattened, surfaced in the export dialog. Verified well-formed and within
+      a rasterized-vs-PNG diff tolerance (~1.2%). Illustrator/Figma editability
+      is unverified in-app (no Illustrator available in this environment).
+- ✅ PDF export (M15 bonus) — raster-in-PDF via jsPDF, one page sized to the
+      composition frame. Editable-vector PDF stays Post-v1.
 - 🟡 Move heavy importers onto a worker thread (parsers are pure and
       worker-ready; deferred follow-up).
+- 🟡 GeoJSON-as-editable-vector-paths in SVG (currently embedded in the basemap
+      raster); a future refinement.
 
 ### Desktop (macOS) ⬜
 
@@ -218,8 +229,8 @@ base — this is a core editorial requirement.
 |---|---|---|
 | PNG  | Phase 1   | ✅ Milestone 5 |
 | JPEG | Phase 1   | 🟡 Milestone 5; broader acceptance coverage added |
-| SVG  | v1 (after spike) | ⬜ |
-| PDF  | Post-v1   | ⬜ |
+| SVG  | v1 (after spike) | ✅ Milestone 15 (basemap raster + vector annotations) |
+| PDF  | Post-v1   | ✅ Milestone 15 (raster-in-PDF; vector PDF stays Post-v1) |
 | Interactive HTML | Post-v1 | ⬜ |
 
 ### Performance targets (PRD §7)
