@@ -14,6 +14,7 @@ export function AttributeInspector() {
   const layers = useDocumentStore((s) => s.project.layers);
   const selectedLayerId = useDocumentStore((s) => s.selectedLayerId);
   const updateLayerStyle = useDocumentStore((s) => s.updateLayerStyle);
+  const setLayerRenderStrategy = useDocumentStore((s) => s.setLayerRenderStrategy);
 
   if (feature) {
     const layer = layers.find((l) => l.id === feature.layerId);
@@ -71,6 +72,21 @@ export function AttributeInspector() {
         </div>
         <div className={`flex flex-col gap-2 ${disabled ? 'opacity-65' : ''}`}>
           <Eyebrow>Layer Style</Eyebrow>
+          <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+            Render
+            <select
+              aria-label="Layer render strategy"
+              value={layer.renderStrategy ?? 'vector'}
+              disabled={disabled}
+              onChange={(event) =>
+                setLayerRenderStrategy(layer.id, event.target.value as 'vector' | 'heatmap')
+              }
+              className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+            >
+              <option value="vector">Vector</option>
+              <option value="heatmap">Heatmap</option>
+            </select>
+          </label>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Fill
             <input

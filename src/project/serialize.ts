@@ -96,6 +96,13 @@ function validateProject(value: unknown): asserts value is CartoProject {
   if (!('annotations' in value)) value.annotations = [];
   if (!('annotationGroups' in value)) value.annotationGroups = [];
   expect(Array.isArray(value.layers), 'Project layers must be an array.');
+  // M12: layers gained a render strategy. Older documents default to vector.
+  for (const layer of value.layers as unknown[]) {
+    if (!isObject(layer)) continue;
+    if (layer.renderStrategy !== 'vector' && layer.renderStrategy !== 'heatmap') {
+      layer.renderStrategy = 'vector';
+    }
+  }
   expect(Array.isArray(value.annotations), 'Project annotations must be an array.');
   expect(Array.isArray(value.annotationGroups), 'Project annotationGroups must be an array.');
   expect(

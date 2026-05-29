@@ -17,6 +17,10 @@
     "bundle-budget": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
+    "@deck.gl/aggregation-layers": "^9.3.2",
+    "@deck.gl/core": "^9.3.2",
+    "@deck.gl/layers": "^9.3.2",
+    "@deck.gl/mapbox": "^9.3.2",
     "@protomaps/basemaps": "^5.7.2",
     "@tmcw/togeojson": "^7.1.2",
     "clsx": "^2.1.1",

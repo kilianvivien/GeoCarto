@@ -162,8 +162,12 @@ base — this is a core editorial requirement.
 
 ### Richer annotation & styling 🟡
 
-- ⬜ deck.gl data layers interleaved via `MapboxOverlay` (M12 remainder —
-      split out so the bundle-budget impact lands in its own session).
+- ✅ deck.gl data layers interleaved via `MapboxOverlay` (M12). A layer's
+      "Render" control (Vector / Heatmap) in the inspector switches it to a
+      deck.gl HeatmapLayer drawn interleaved with the basemap; the same overlay
+      is attached to the offscreen export map so heatmaps appear in raster/PDF.
+      deck.gl is lazy-loaded only when a heatmap layer exists; the bundle budget
+      was raised from 3 MB → 3.7 MB with a documented rationale (lazy chunks).
 - ✅ Dashed lines, arrowheads, hatch / pattern fills.
 - ✅ Halos, drop shadows, and blend modes (normal / multiply / screen /
       overlay) on every annotation kind, surfaced via the Inspector's

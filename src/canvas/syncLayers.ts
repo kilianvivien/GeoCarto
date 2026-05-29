@@ -20,7 +20,8 @@ function addLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
 function updateLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
   const ids = layerRenderIds(layer.id);
   const { style } = layer;
-  const visibility = layer.visible ? 'visible' : 'none';
+  // Heatmap-strategy layers are drawn by the deck.gl overlay, not MapLibre.
+  const visibility = layer.visible && layer.renderStrategy !== 'heatmap' ? 'visible' : 'none';
 
   map.setPaintProperty(ids.fill, 'fill-color', style.fillColor);
   map.setPaintProperty(ids.fill, 'fill-opacity', style.fillOpacity);

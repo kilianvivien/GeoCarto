@@ -89,6 +89,7 @@ function geoLayer(): GeoJsonLayer {
       ],
     },
     style: { ...DEFAULT_GEOJSON_STYLE },
+    renderStrategy: 'vector',
   };
 }
 
@@ -125,6 +126,15 @@ describe('serializeProject / deserializeProject', () => {
 
   it('rejects malformed JSON', () => {
     expect(() => deserializeProject('not json')).toThrow(ProjectLoadError);
+  });
+
+  it('defaults a layer render strategy to vector for older v1 project files', () => {
+    const project = createEmptyProject('Legacy');
+    const layer = geoLayer() as unknown as { renderStrategy?: unknown };
+    delete layer.renderStrategy;
+    project.layers = [layer as unknown as (typeof project.layers)[number]];
+    const restored = deserializeProject(serializeProject(project));
+    expect(restored.layers[0].renderStrategy).toBe('vector');
   });
 
   it('rejects an unsupported version', () => {

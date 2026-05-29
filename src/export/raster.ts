@@ -76,6 +76,12 @@ async function renderMapCanvas(
 
     syncLayersToMap(map, project.layers);
 
+    // deck.gl heatmap layers render into the same WebGL context, so they're
+    // captured by getCanvas() below. Lazy-import keeps deck out of this chunk.
+    const { attachHeatmapOverlay } = await import('@/layers/deckHeatmap');
+    const overlay = await attachHeatmapOverlay(map, project.layers);
+    if (overlay) map.triggerRepaint();
+
     await new Promise<void>((resolve) => map.once('idle', () => resolve()));
 
     const sourceCanvas = map.getCanvas();

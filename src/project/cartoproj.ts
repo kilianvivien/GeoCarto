@@ -24,6 +24,13 @@ export const DEFAULT_GEOJSON_STYLE: GeoJsonStyle = {
   pointRadius: 5,
 };
 
+/**
+ * How a layer's geometry is drawn. `vector` is the default MapLibre fill/line/
+ * circle render; `heatmap` renders the same source as a deck.gl density layer
+ * (Milestone 12) interleaved with the basemap.
+ */
+export type LayerRenderStrategy = 'vector' | 'heatmap';
+
 /** An imported GeoJSON dataset rendered as a map layer. */
 export interface GeoJsonLayer {
   id: string;
@@ -35,6 +42,8 @@ export interface GeoJsonLayer {
   featureCount: number;
   data: FeatureCollection;
   style: GeoJsonStyle;
+  /** Render strategy; defaults to `vector` for Phase 1 documents (see serialize.ts). */
+  renderStrategy?: LayerRenderStrategy;
 }
 
 export type AnnotationKind =
