@@ -7,12 +7,12 @@ import { useMapInstance } from '@/canvas/mapInstance';
 import { exportSvg } from './svg';
 
 // Minimal stand-in for the live map: identity projection + a fixed container.
-function stubMap(): maplibregl.Map {
+function stubMap(clientWidth = 1600, clientHeight = 1200): maplibregl.Map {
   return {
     project: (lngLat: [number, number]) => ({ x: lngLat[0], y: lngLat[1] }),
     unproject: ([x, y]: [number, number]) => ({ lng: x, lat: y }),
     getCenter: () => ({ lng: 0, lat: 0 }),
-    getContainer: () => ({ clientWidth: 1600, clientHeight: 1200 }) as HTMLElement,
+    getContainer: () => ({ clientWidth, clientHeight }) as HTMLElement,
     getBearing: () => 0,
   } as unknown as maplibregl.Map;
 }
@@ -69,6 +69,22 @@ describe('exportSvg', () => {
     const svg = await result.blob.text();
     expect(svg).toContain('A &amp; B &lt; C &gt;');
     expect(new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('parsererror')).toBeNull();
+  });
+
+  it('scales annotation origins uniformly on both axes (matches the raster layer)', async () => {
+    // Container aspect (1000×600, 5:3) differs from the frame (1600×1200, 4:3) —
+    // the normal case after lock. Both axes must use frameW/containerW = 1.6;
+    // a separate Y factor (1200/600 = 2) would offset annotations vertically.
+    useMapInstance.setState({ map: stubMap(1000, 600) });
+    const rect = make('rectangle');
+    rect.position = { x: 100, y: 100 };
+    const result = await exportSvg(projectWith([rect]), { includeBasemap: false });
+    const svg = await result.blob.text();
+    const transform = svg.match(/<g transform="translate\(([\d.]+),([\d.]+)\)/);
+    expect(transform).not.toBeNull();
+    const [, tx, ty] = transform!;
+    expect(Number(tx)).toBeCloseTo(160); // 100 * 1.6
+    expect(Number(ty)).toBeCloseTo(160); // uniform — NOT 100 * 2 = 200
   });
 
   it('omits comment pins from exported artwork', async () => {

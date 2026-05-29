@@ -198,7 +198,6 @@ export async function exportSvg(project: CartoProject, options: SvgExportOptions
   const container = map?.getContainer();
   if (!container && project.basemap.kind !== 'static') throw new ExportError('Map is not ready.');
   const containerW = container?.clientWidth ?? frameW;
-  const containerH = container?.clientHeight ?? frameH;
   const scale = frameW / containerW;
 
   const originOf = (annotation: Annotation): { x: number; y: number } => {
@@ -206,7 +205,11 @@ export async function exportSvg(project: CartoProject, options: SvgExportOptions
       annotation.anchorMode === 'map' && annotation.geoAnchor && map
         ? map.project(annotation.geoAnchor)
         : annotation.position;
-    return { x: editor.x * scale, y: editor.y * (frameH / containerH) };
+    // Uniform scale on both axes to match the raster exporter's annotation
+    // layer (Konva scales x and y by the same factor); using a separate Y
+    // factor would offset annotations vertically whenever the container aspect
+    // differs from the frame aspect — the normal case after lock.
+    return { x: editor.x * scale, y: editor.y * scale };
   };
 
   const parts: string[] = [];
