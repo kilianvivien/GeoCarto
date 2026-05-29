@@ -1,7 +1,6 @@
 # GeoCarto
 
-A visual-first cartography app — "Figma for maps". Browser-based (Phase 1), native macOS
-later (Tauri). Open a basemap, annotate it on an open canvas, export print-ready images.
+A visual-first cartography app — an open-canvas map editor for editorial and casual map makers. Browser-based (Phase 1), native macOS later (Tauri). Open a basemap, annotate it on an open canvas, export print-ready images.
 
 ## Documentation
 

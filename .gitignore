@@ -16,6 +16,9 @@ test-results/
 # environment / local
 *.local
 
+# claude code (local tool config — not for version control)
+.claude/
+
 # editor / OS
 .DS_Store
 .idea/
