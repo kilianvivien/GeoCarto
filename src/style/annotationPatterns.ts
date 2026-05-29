@@ -88,59 +88,56 @@ function uniquePoints(points: number[][], width: number, height: number): [numbe
   return output;
 }
 
-export function patternCanvas(style: Pick<AnnotationStyle, 'fillColor' | 'fillPattern' | 'strokeColor'>): HTMLImageElement | undefined {
-  if (style.fillPattern === 'none') return undefined;
+export interface HatchTileStyle {
+  fillColor: string;
+  fillPattern: FillPattern;
+  hatchColor: string;
+  hatchSpacing: number;
+}
+
+/**
+ * Build a seamlessly-tiling hatch tile for a layer fill, drawn as a solid fill
+ * base with hatch marks on top — matching how the Konva annotation hatch reads.
+ * Returned as `ImageData` so it can be handed straight to `map.addImage` for a
+ * MapLibre `fill-pattern`. Returns null for the solid (`none`) pattern.
+ */
+export function hatchTileImageData(style: HatchTileStyle): ImageData | null {
+  if (style.fillPattern === 'none') return null;
+  const size = Math.max(4, Math.min(48, Math.round(style.hatchSpacing)));
   const canvas = document.createElement('canvas');
-  canvas.width = 16;
-  canvas.height = 16;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return undefined;
+  if (!ctx) return null;
 
   ctx.fillStyle = style.fillColor;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = style.strokeColor;
-  ctx.fillStyle = style.strokeColor;
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = style.hatchColor;
+  ctx.fillStyle = style.hatchColor;
   ctx.lineWidth = 1.5;
 
-  drawPattern(ctx, style.fillPattern);
-  return canvas as unknown as HTMLImageElement;
-}
-
-function drawPattern(ctx: CanvasRenderingContext2D, pattern: FillPattern): void {
-  switch (pattern) {
-    case 'diagonal':
-      drawDiagonal(ctx);
-      break;
-    case 'crosshatch':
-      drawDiagonal(ctx);
-      ctx.save();
-      ctx.translate(16, 0);
-      ctx.scale(-1, 1);
-      drawDiagonal(ctx);
-      ctx.restore();
-      break;
+  switch (style.fillPattern) {
     case 'horizontal':
-      for (let y = 3; y < 16; y += 6) drawLine(ctx, 0, y, 16, y);
+      drawLine(ctx, 0, size / 2, size, size / 2);
       break;
     case 'vertical':
-      for (let x = 3; x < 16; x += 6) drawLine(ctx, x, 0, x, 16);
+      drawLine(ctx, size / 2, 0, size / 2, size);
       break;
     case 'dots':
-      for (let y = 4; y < 16; y += 8) {
-        for (let x = 4; x < 16; x += 8) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1.4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, Math.max(1, size * 0.12), 0, Math.PI * 2);
+      ctx.fill();
       break;
-    case 'none':
+    case 'diagonal':
+      // A corner-to-corner line tiles into continuous parallel diagonals.
+      drawLine(ctx, 0, 0, size, size);
+      break;
+    case 'crosshatch':
+      drawLine(ctx, 0, 0, size, size);
+      drawLine(ctx, 0, size, size, 0);
       break;
   }
-}
-
-function drawDiagonal(ctx: CanvasRenderingContext2D): void {
-  for (let x = -16; x <= 16; x += 6) drawLine(ctx, x, 16, x + 16, 0);
+  return ctx.getImageData(0, 0, size, size);
 }
 
 function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {

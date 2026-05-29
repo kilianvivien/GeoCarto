@@ -2,6 +2,7 @@ import {
   DEFAULT_ANNOTATION_STYLE,
   DEFAULT_BASEMAP,
   DEFAULT_BASEMAP_SUBLAYERS,
+  DEFAULT_GEOJSON_STYLE,
   type CartoProject,
 } from './cartoproj';
 
@@ -101,6 +102,16 @@ function validateProject(value: unknown): asserts value is CartoProject {
     if (!isObject(layer)) continue;
     if (layer.renderStrategy !== 'vector' && layer.renderStrategy !== 'heatmap') {
       layer.renderStrategy = 'vector';
+    }
+    // Hatch fill fields arrived after Phase 1 — default them so the richer
+    // layer fill controls work on older documents.
+    if (isObject(layer.style)) {
+      layer.style = {
+        fillPattern: DEFAULT_GEOJSON_STYLE.fillPattern,
+        hatchColor: DEFAULT_GEOJSON_STYLE.hatchColor,
+        hatchSpacing: DEFAULT_GEOJSON_STYLE.hatchSpacing,
+        ...layer.style,
+      };
     }
   }
   expect(Array.isArray(value.annotations), 'Project annotations must be an array.');

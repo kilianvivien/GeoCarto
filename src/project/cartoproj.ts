@@ -9,6 +9,10 @@ export type GeometryKind = 'point' | 'line' | 'polygon' | 'mixed';
 export interface GeoJsonStyle {
   fillColor: string;
   fillOpacity: number;
+  /** Hatch fill pattern for polygon layers; `none` paints a solid fill. */
+  fillPattern: FillPattern;
+  hatchColor: string;
+  hatchSpacing: number;
   strokeColor: string;
   strokeWidth: number;
   pointColor: string;
@@ -18,6 +22,9 @@ export interface GeoJsonStyle {
 export const DEFAULT_GEOJSON_STYLE: GeoJsonStyle = {
   fillColor: '#007aff',
   fillOpacity: 0.25,
+  fillPattern: 'none',
+  hatchColor: '#0f172a',
+  hatchSpacing: 10,
   strokeColor: '#007aff',
   strokeWidth: 1.5,
   pointColor: '#007aff',
