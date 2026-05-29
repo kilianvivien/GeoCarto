@@ -183,6 +183,71 @@ The project is in early development. Issues and pull requests are welcome — pl
 
 ---
 
+## Acknowledgements
+
+GeoCarto is built on the shoulders of these open-source projects:
+
+### Core rendering
+
+| Library | License | Notes |
+|---|---|---|
+| [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) | BSD-3-Clause | WebGL vector tile renderer — the map viewport |
+| [Protomaps PMTiles](https://github.com/protomaps/PMTiles) | BSD-3-Clause | Single-file tile archive format, no tile server required |
+| [@protomaps/basemaps](https://github.com/protomaps/basemaps) | BSD-3-Clause | OSM-derived basemap styles, by The Protomaps Authors |
+| [deck.gl](https://github.com/visgl/deck.gl) | MIT | GPU-accelerated data layers (heatmaps), by vis.gl |
+| [Konva](https://github.com/konvajs/konva) / [react-konva](https://github.com/konvajs/react-konva) | MIT | 2D canvas stage for annotations, by Anton Lavrenov |
+
+### Data and import
+
+| Library | License | Notes |
+|---|---|---|
+| [@tmcw/togeojson](https://github.com/placemark/togeojson) | BSD-2-Clause | KML and GPX → GeoJSON parser |
+| [shpjs](https://github.com/calvinmetcalf/shapefile-js) | MIT | Shapefile → GeoJSON parser, by Calvin Metcalf |
+| [topojson-client](https://github.com/topojson/topojson-client) | ISC | TopoJSON → GeoJSON, by Mike Bostock |
+
+### Export
+
+| Library | License | Notes |
+|---|---|---|
+| [jsPDF](https://github.com/parallax/jsPDF) | MIT | Raster-in-PDF export |
+
+### State and persistence
+
+| Library | License | Notes |
+|---|---|---|
+| [Zustand](https://github.com/pmndrs/zustand) | MIT | State management, by Paul Henschel / pmnd.rs |
+| [Immer](https://github.com/immerjs/immer) | MIT | Immutable state updates, by Michel Weststrate |
+| [idb-keyval](https://github.com/jakearchibald/idb-keyval) | Apache-2.0 | IndexedDB autosave, by Jake Archibald |
+
+### UI and framework
+
+| Library | License | Notes |
+|---|---|---|
+| [React](https://github.com/facebook/react) | MIT | UI framework, by Meta |
+| [Vite](https://github.com/vitejs/vite) | MIT | Build tool, by Evan You / VoidZero |
+| [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Utility-first CSS framework |
+| [Lucide](https://github.com/lucide-icons/lucide) | ISC | Icon set, by Eric Fennis and contributors |
+| [clsx](https://github.com/lukeed/clsx) | MIT | Class name utility |
+| [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | Tailwind class merging, by Dany Castillo |
+
+### Desktop shell
+
+| Library | License | Notes |
+|---|---|---|
+| [Tauri](https://github.com/tauri-apps/tauri) | MIT / Apache-2.0 | Native macOS app shell |
+
+### Tooling (dev)
+
+| Library | License | Notes |
+|---|---|---|
+| [TypeScript](https://github.com/microsoft/TypeScript) | Apache-2.0 | by Microsoft |
+| [Playwright](https://github.com/microsoft/playwright) | Apache-2.0 | End-to-end tests, by Microsoft |
+| [Vitest](https://github.com/vitest-dev/vitest) | MIT | Unit tests, by Anthony Fu |
+| [ESLint](https://github.com/eslint/eslint) | MIT | Linter |
+| [Prettier](https://github.com/prettier/prettier) | MIT | Code formatter, by James Long |
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
