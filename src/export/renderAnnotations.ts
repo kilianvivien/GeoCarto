@@ -3,6 +3,7 @@ import type maplibregl from 'maplibre-gl';
 import type { Annotation, AnnotationStyle, BrushPreset, LegendEntry, LegendFillStyle, PinIcon } from '@/project/cartoproj';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntryFill } from '@/style/legendSwatches';
+import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 
 function shadowProps(style: AnnotationStyle) {
   if (style.shadowBlur <= 0 && style.shadowOffsetX === 0 && style.shadowOffsetY === 0) {
@@ -218,7 +219,12 @@ function formatMeasurement(annotation: Extract<Annotation, { kind: 'measurement'
   return length >= 1000 ? `${(length / 1000).toFixed(2)} km` : `${Math.round(length)} m`;
 }
 
-function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x: number; y: number }): void {
+function addAnnotation(
+  layer: Konva.Layer,
+  annotation: Annotation,
+  originPx: { x: number; y: number },
+  map: maplibregl.Map | null,
+): void {
   if (!annotation.visible) return;
 
   const blend = blendOperation(annotation.style);
@@ -556,6 +562,93 @@ function addAnnotation(layer: Konva.Layer, annotation: Annotation, originPx: { x
         }),
       );
       break;
+    case 'titleblock': {
+      const titleSize = style.textSize + 8;
+      group.add(
+        new Konva.Text({
+          text: annotation.title,
+          width: annotation.width,
+          fill: style.textColor,
+          fontSize: titleSize,
+          fontFamily: style.fontFamily,
+          fontStyle: 'bold',
+        }),
+      );
+      if (annotation.subtitle.trim() !== '') {
+        group.add(
+          new Konva.Text({
+            text: annotation.subtitle,
+            y: titleSize + 6,
+            width: annotation.width,
+            fill: style.textColor,
+            fontSize: style.textSize,
+            fontFamily: style.fontFamily,
+            opacity: 0.75,
+          }),
+        );
+      }
+      break;
+    }
+    case 'sourcecredit':
+      group.add(
+        new Konva.Text({
+          text: annotation.text,
+          width: annotation.width,
+          fill: style.textColor,
+          fontSize: style.textSize,
+          fontFamily: style.fontFamily,
+          opacity: 0.85,
+        }),
+      );
+      break;
+    case 'scalebar': {
+      const tick = map
+        ? niceScaleBar(metersPerPixel(map), annotation.maxWidth, annotation.unitSystem)
+        : { lengthPx: annotation.maxWidth, label: '—' };
+      const barHeight = 6;
+      const length = Math.max(1, tick.lengthPx);
+      const stroke = Math.max(1, style.strokeWidth);
+      group.add(new Konva.Line({ points: [0, 0, 0, barHeight, length, barHeight, length, 0], stroke: style.strokeColor, strokeWidth: stroke }));
+      group.add(new Konva.Rect({ x: 0, y: 0, width: length / 2, height: barHeight, fill: style.strokeColor }));
+      group.add(
+        new Konva.Text({
+          text: tick.label,
+          y: barHeight + 3,
+          fill: style.textColor,
+          fontSize: style.textSize,
+          fontFamily: style.fontFamily,
+        }),
+      );
+      break;
+    }
+    case 'northarrow': {
+      const bearing = map ? map.getBearing() : 0;
+      const r = annotation.size / 2;
+      const inner = new Konva.Group({ x: r, y: r, rotation: -bearing });
+      inner.add(
+        new Konva.Line({
+          points: [0, -r, r * 0.5, r * 0.7, 0, r * 0.32, -r * 0.5, r * 0.7],
+          closed: true,
+          fill: style.strokeColor,
+          stroke: style.strokeColor,
+          strokeWidth: 1,
+          lineJoin: 'round',
+        }),
+      );
+      inner.add(
+        new Konva.Text({
+          text: 'N',
+          x: -style.textSize / 2,
+          y: -r - style.textSize - 2,
+          fill: style.textColor,
+          fontSize: style.textSize,
+          fontFamily: style.fontFamily,
+          fontStyle: 'bold',
+        }),
+      );
+      group.add(inner);
+      break;
+    }
   }
 
   layer.add(group);
@@ -639,7 +732,7 @@ export function renderAnnotationsToCanvas(options: RenderOptions): HTMLCanvasEle
         annotation.anchorMode === 'map' && annotation.geoAnchor && map
           ? map.project(annotation.geoAnchor)
           : annotation.position;
-      addAnnotation(layer, annotation, { x: editorPos.x, y: editorPos.y });
+      addAnnotation(layer, annotation, { x: editorPos.x, y: editorPos.y }, map);
     }
 
     layer.draw();

@@ -20,6 +20,10 @@ import {
   List,
   MessageSquare,
   Ruler,
+  Heading,
+  Copyright,
+  Compass,
+  Scaling,
   type LucideIcon,
 } from 'lucide-react';
 import type { AnnotationKind, GeometryKind } from '@/project/cartoproj';
@@ -45,6 +49,10 @@ const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
   image: ImageIcon,
   legend: List,
   comment: MessageSquare,
+  titleblock: Heading,
+  sourcecredit: Copyright,
+  scalebar: Scaling,
+  northarrow: Compass,
 };
 
 function LayerRow({ layerId }: { layerId: string }) {

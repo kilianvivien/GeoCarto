@@ -48,7 +48,11 @@ export type AnnotationKind =
   | 'measurement'
   | 'image'
   | 'legend'
-  | 'comment';
+  | 'comment'
+  | 'titleblock'
+  | 'sourcecredit'
+  | 'scalebar'
+  | 'northarrow';
 
 export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
@@ -301,6 +305,35 @@ export type CommentAnnotation = AnnotationBase & {
   createdAt: string;
 };
 
+/** Title block — headline + optional subtitle, a first-class map-furniture annotation. */
+export type TitleBlockAnnotation = AnnotationBase & {
+  kind: 'titleblock';
+  title: string;
+  subtitle: string;
+  width: number;
+};
+
+/** Source / credit line, typically anchored to a frame corner. */
+export type SourceCreditAnnotation = AnnotationBase & {
+  kind: 'sourcecredit';
+  text: string;
+  width: number;
+};
+
+/** Scale bar that tracks the live map scale; length snaps to a round distance. */
+export type ScaleBarAnnotation = AnnotationBase & {
+  kind: 'scalebar';
+  unitSystem: MeasurementUnitSystem;
+  /** Maximum on-screen bar width in px; the rendered bar snaps to a round value below this. */
+  maxWidth: number;
+};
+
+/** North arrow that follows the map bearing. */
+export type NorthArrowAnnotation = AnnotationBase & {
+  kind: 'northarrow';
+  size: number;
+};
+
 export type Annotation =
   | TextAnnotation
   | RectAnnotation
@@ -311,7 +344,11 @@ export type Annotation =
   | MeasurementAnnotation
   | ImageAnnotation
   | LegendAnnotation
-  | CommentAnnotation;
+  | CommentAnnotation
+  | TitleBlockAnnotation
+  | SourceCreditAnnotation
+  | ScaleBarAnnotation
+  | NorthArrowAnnotation;
 
 export interface AnnotationGroup {
   id: string;

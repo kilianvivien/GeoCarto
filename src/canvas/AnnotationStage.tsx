@@ -23,14 +23,19 @@ import type {
   ImageAnnotation,
   LegendAnnotation,
   LegendFillStyle,
+  NorthArrowAnnotation,
   PinAnnotation,
   PinIcon,
+  ScaleBarAnnotation,
+  SourceCreditAnnotation,
   TextAnnotation,
+  TitleBlockAnnotation,
 } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { legendEntryFill, legendFillFromStyle } from '@/style/legendSwatches';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
@@ -171,9 +176,11 @@ function brushStrokeProps(style: AnnotationStyle, preset: BrushPreset | undefine
 function FillShape({
   annotation,
   editing,
+  map,
 }: {
   annotation: Annotation;
   editing?: boolean;
+  map?: maplibregl.Map | null;
 }) {
   const shadow = shadowProps(annotation.style);
   const common = {
@@ -416,7 +423,115 @@ function FillShape({
       return <LegendShape annotation={annotation} />;
     case 'comment':
       return <CommentShape annotation={annotation} />;
+    case 'titleblock':
+      return <TitleBlockShape annotation={annotation} />;
+    case 'sourcecredit':
+      return <SourceCreditShape annotation={annotation} />;
+    case 'scalebar':
+      return <ScaleBarShape annotation={annotation} map={map ?? null} />;
+    case 'northarrow':
+      return <NorthArrowShape annotation={annotation} map={map ?? null} />;
   }
+}
+
+function TitleBlockShape({ annotation }: { annotation: TitleBlockAnnotation }) {
+  const { style } = annotation;
+  const titleSize = style.textSize + 8;
+  return (
+    <>
+      <Text
+        text={annotation.title}
+        width={annotation.width}
+        fill={style.textColor}
+        fontSize={titleSize}
+        fontFamily={style.fontFamily}
+        fontStyle="bold"
+        opacity={annotation.opacity}
+      />
+      {annotation.subtitle.trim() !== '' && (
+        <Text
+          text={annotation.subtitle}
+          y={titleSize + 6}
+          width={annotation.width}
+          fill={style.textColor}
+          fontSize={style.textSize}
+          fontFamily={style.fontFamily}
+          opacity={annotation.opacity * 0.75}
+        />
+      )}
+    </>
+  );
+}
+
+function SourceCreditShape({ annotation }: { annotation: SourceCreditAnnotation }) {
+  const { style } = annotation;
+  return (
+    <Text
+      text={annotation.text}
+      width={annotation.width}
+      fill={style.textColor}
+      fontSize={style.textSize}
+      fontFamily={style.fontFamily}
+      opacity={annotation.opacity * 0.85}
+    />
+  );
+}
+
+function ScaleBarShape({ annotation, map }: { annotation: ScaleBarAnnotation; map: maplibregl.Map | null }) {
+  const { style } = annotation;
+  const tick = map
+    ? niceScaleBar(metersPerPixel(map), annotation.maxWidth, annotation.unitSystem)
+    : { lengthPx: annotation.maxWidth, label: '—' };
+  const barHeight = 6;
+  const length = Math.max(1, tick.lengthPx);
+  return (
+    <>
+      <Line
+        points={[0, 0, 0, barHeight, length, barHeight, length, 0]}
+        stroke={style.strokeColor}
+        strokeWidth={Math.max(1, style.strokeWidth)}
+        opacity={annotation.opacity}
+      />
+      <Line points={[0, barHeight, length, barHeight]} stroke={style.strokeColor} strokeWidth={Math.max(1, style.strokeWidth)} opacity={annotation.opacity} />
+      <Rect x={0} y={0} width={length / 2} height={barHeight} fill={style.strokeColor} opacity={annotation.opacity} />
+      <Text
+        text={tick.label}
+        y={barHeight + 3}
+        fill={style.textColor}
+        fontSize={style.textSize}
+        fontFamily={style.fontFamily}
+        opacity={annotation.opacity}
+      />
+    </>
+  );
+}
+
+function NorthArrowShape({ annotation, map }: { annotation: NorthArrowAnnotation; map: maplibregl.Map | null }) {
+  const { style } = annotation;
+  const bearing = map ? map.getBearing() : 0;
+  const size = annotation.size;
+  const r = size / 2;
+  return (
+    <Group x={r} y={r} rotation={-bearing} opacity={annotation.opacity}>
+      <Line
+        points={[0, -r, r * 0.5, r * 0.7, 0, r * 0.32, -r * 0.5, r * 0.7]}
+        closed
+        fill={style.strokeColor}
+        stroke={style.strokeColor}
+        strokeWidth={1}
+        lineJoin="round"
+      />
+      <Text
+        text="N"
+        x={-style.textSize / 2}
+        y={-r - style.textSize - 2}
+        fill={style.textColor}
+        fontSize={style.textSize}
+        fontFamily={style.fontFamily}
+        fontStyle="bold"
+      />
+    </Group>
+  );
 }
 
 function ImageShape({ annotation }: { annotation: ImageAnnotation }) {
@@ -821,6 +936,19 @@ function boundsFromAnnotation(annotation: Annotation, origin: { x: number; y: nu
     right += 16;
     top -= 30;
     bottom += 6;
+  } else if (annotation.kind === 'titleblock') {
+    right += annotation.width;
+    bottom += annotation.style.textSize * 2 + 16;
+  } else if (annotation.kind === 'sourcecredit') {
+    right += annotation.width;
+    bottom += annotation.style.textSize + 6;
+  } else if (annotation.kind === 'scalebar') {
+    right += annotation.maxWidth;
+    bottom += annotation.style.textSize + 12;
+  } else if (annotation.kind === 'northarrow') {
+    right += annotation.size;
+    top -= annotation.style.textSize + 2;
+    bottom += annotation.size;
   } else {
     const xs = annotation.points.filter((_, index) => index % 2 === 0).map((x) => x + origin.x);
     const ys = annotation.points.filter((_, index) => index % 2 === 1).map((y) => y + origin.y);
@@ -1844,7 +1972,7 @@ export function AnnotationStage() {
                   updateAnnotation(annotation.id, patch);
                 }}
               >
-                <FillShape annotation={annotation} editing={editingText?.id === annotation.id} />
+                <FillShape annotation={annotation} editing={editingText?.id === annotation.id} map={map} />
                 {selected && annotation.locked && (
                   <Rect
                     x={-8}

@@ -764,6 +764,81 @@ function GeometryControls({
           <Hint>Comments pin to a geographic location and move with the map.</Hint>
         </Section>
       );
+    case 'titleblock':
+      return (
+        <Section title="Title block">
+          <Row label="Title">
+            <Input
+              value={annotation.title}
+              disabled={disabled}
+              onChange={(e) => onChange({ title: e.target.value } as Partial<Annotation>)}
+            />
+          </Row>
+          <Row label="Subtitle">
+            <Input
+              value={annotation.subtitle}
+              disabled={disabled}
+              onChange={(e) => onChange({ subtitle: e.target.value } as Partial<Annotation>)}
+            />
+          </Row>
+        </Section>
+      );
+    case 'sourcecredit':
+      return (
+        <Section title="Source credit">
+          <Row label="Text">
+            <Input
+              value={annotation.text}
+              disabled={disabled}
+              onChange={(e) => onChange({ text: e.target.value } as Partial<Annotation>)}
+            />
+          </Row>
+        </Section>
+      );
+    case 'scalebar':
+      return (
+        <Section title="Scale bar">
+          <Row label="Units">
+            <Select
+              value={annotation.unitSystem}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange({ unitSystem: e.target.value as 'metric' | 'imperial' } as Partial<Annotation>)
+              }
+            >
+              <option value="metric">Metric</option>
+              <option value="imperial">Imperial</option>
+            </Select>
+          </Row>
+          <Row label="Max width">
+            <Input
+              type="number"
+              min={40}
+              max={400}
+              value={annotation.maxWidth}
+              disabled={disabled}
+              onChange={(e) => onChange({ maxWidth: Number(e.target.value) } as Partial<Annotation>)}
+            />
+          </Row>
+          <Hint>The bar snaps to a round distance and tracks the map zoom.</Hint>
+        </Section>
+      );
+    case 'northarrow':
+      return (
+        <Section title="North arrow">
+          <Row label="Size">
+            <Input
+              type="number"
+              min={16}
+              max={160}
+              value={annotation.size}
+              disabled={disabled}
+              onChange={(e) => onChange({ size: Number(e.target.value) } as Partial<Annotation>)}
+            />
+          </Row>
+          <Hint>The arrow rotates to follow the map bearing.</Hint>
+        </Section>
+      );
   }
 }
 

@@ -25,6 +25,10 @@ const TITLE: Record<AnnotationKind, string> = {
   image: 'Image',
   legend: 'Legend',
   comment: 'Comment',
+  titleblock: 'Title block',
+  sourcecredit: 'Source credit',
+  scalebar: 'Scale bar',
+  northarrow: 'North arrow',
 };
 
 function base({ kind, anchorMode, position, geoAnchor, style }: CreateAnnotationInput) {
@@ -109,5 +113,13 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
         author: null,
         createdAt: new Date().toISOString(),
       };
+    case 'titleblock':
+      return { ...seed, kind: 'titleblock', title: 'Map title', subtitle: 'Subtitle or description', width: 320 };
+    case 'sourcecredit':
+      return { ...seed, kind: 'sourcecredit', text: 'Source: …', width: 280 };
+    case 'scalebar':
+      return { ...seed, kind: 'scalebar', unitSystem: 'metric', maxWidth: 140 };
+    case 'northarrow':
+      return { ...seed, kind: 'northarrow', size: 48 };
   }
 }

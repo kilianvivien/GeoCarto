@@ -35,4 +35,27 @@ describe('createAnnotation new kinds', () => {
     expect(annotation.text).toBe('');
     expect(annotation.createdAt).toBeTruthy();
   });
+
+  it('creates a title block with title and subtitle', () => {
+    const annotation = createAnnotation({ ...seed, kind: 'titleblock' });
+    expect(annotation.kind).toBe('titleblock');
+    if (annotation.kind !== 'titleblock') return;
+    expect(annotation.title).toBeTruthy();
+    expect(annotation.width).toBeGreaterThan(0);
+  });
+
+  it('creates a scale bar defaulting to metric', () => {
+    const annotation = createAnnotation({ ...seed, kind: 'scalebar' });
+    expect(annotation.kind).toBe('scalebar');
+    if (annotation.kind !== 'scalebar') return;
+    expect(annotation.unitSystem).toBe('metric');
+    expect(annotation.maxWidth).toBeGreaterThan(0);
+  });
+
+  it('creates a north arrow with a positive size', () => {
+    const annotation = createAnnotation({ ...seed, kind: 'northarrow' });
+    expect(annotation.kind).toBe('northarrow');
+    if (annotation.kind !== 'northarrow') return;
+    expect(annotation.size).toBeGreaterThan(0);
+  });
 });
