@@ -1,7 +1,7 @@
 import maplibregl from 'maplibre-gl';
 import { PMTiles, Protocol, type RangeResponse, type Source } from 'pmtiles';
 import { isTauri } from '@/app/platform';
-import { REMOTE_PMTILES_URL } from './basemapStyle';
+import { DEFAULT_PMTILES_URL } from './basemapStyle';
 
 let registered = false;
 
@@ -45,16 +45,16 @@ class TauriHttpSource implements Source {
  * Register the `pmtiles://` protocol on MapLibre once per page.
  * Idempotent — safe under React StrictMode double-invoke and Vite HMR.
  *
- * On the Tauri desktop shell the default remote archive is pre-registered with
- * a native-fetch source so it resolves without browser CORS. Any other PMTiles
- * URL (custom user archives) falls through to pmtiles' own `FetchSource`, which
+ * On the Tauri desktop shell the default archive is pre-registered with a
+ * native-fetch source so it resolves without browser CORS. Any other PMTiles URL
+ * (custom user archives) falls through to pmtiles' own `FetchSource`, which
  * works whenever that host serves CORS — matching the web build's behavior.
  */
 export function registerPmtilesProtocol(): void {
   if (registered) return;
   const protocol = new Protocol();
   if (isTauri()) {
-    protocol.add(new PMTiles(new TauriHttpSource(REMOTE_PMTILES_URL)));
+    protocol.add(new PMTiles(new TauriHttpSource(DEFAULT_PMTILES_URL)));
   }
   maplibregl.addProtocol('pmtiles', protocol.tile);
   registered = true;

@@ -84,6 +84,7 @@ export function TitleBar() {
   const smartGuidesEnabled = useToolStore((s) => s.smartGuidesEnabled);
   const toggleMasterSnap = useToolStore((s) => s.toggleMasterSnap);
   const snapActive = gridSnapEnabled || smartGuidesEnabled;
+  const desktopShell = isTauri();
 
   const handleSave = async (saveAs: boolean) => {
     const { project, file: currentFile, markSaved } = useDocumentStore.getState();
@@ -188,6 +189,20 @@ export function TitleBar() {
       className="flex h-11 items-center gap-3 border-b border-[var(--divider)] pr-3"
       style={{ paddingLeft: 'var(--titlebar-leading)' }}
     >
+      {!desktopShell && (
+        <div
+          aria-label="GeoCarto app"
+          className="flex shrink-0 items-center gap-2.5 rounded-full px-1.5 py-1 text-[14px] font-semibold text-[var(--text)]"
+        >
+          <img
+            src="/app-icon.png"
+            alt=""
+            draggable={false}
+            className="h-6 w-6 rounded-[6px] shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
+          />
+          <span className="hidden sm:inline">GeoCarto Web</span>
+        </div>
+      )}
       <div className="mx-auto flex items-center gap-2 rounded-full px-3 py-1 text-[13px] transition-colors hover:bg-[var(--hover)]">
         <FileText size={14} className="text-[var(--text-3)]" />
         {editingName ? (

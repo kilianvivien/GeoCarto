@@ -10,13 +10,13 @@ import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
 import { isTauri } from '@/app/platform';
 
 /** Same-origin PMTiles path; Vite dev and Vercel both proxy this to the demo archive. */
-const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
+export const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
 /**
  * The demo archive the same-origin path proxies to. The desktop shell has no
  * proxy (assets load from `tauri://localhost`), so it fetches the CDN directly.
  */
 export const REMOTE_PMTILES_URL = 'https://demo-bucket.protomaps.com/v4.pmtiles';
-const DEFAULT_PMTILES_URL =
+export const DEFAULT_PMTILES_URL =
   import.meta.env.VITE_GEOCARTO_PMTILES_URL ||
   (isTauri() ? REMOTE_PMTILES_URL : DEFAULT_PMTILES_PATH);
 const SOURCE = 'protomaps';
