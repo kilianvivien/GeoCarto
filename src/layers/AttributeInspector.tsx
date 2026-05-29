@@ -1,4 +1,7 @@
+import type { FillPattern } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { Swatches } from '@/ui/Swatches';
+import { FILL_PATTERNS } from '@/ui/swatchPalette';
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +17,7 @@ export function AttributeInspector() {
   const layers = useDocumentStore((s) => s.project.layers);
   const selectedLayerId = useDocumentStore((s) => s.selectedLayerId);
   const updateLayerStyle = useDocumentStore((s) => s.updateLayerStyle);
+  const setLayerRenderStrategy = useDocumentStore((s) => s.setLayerRenderStrategy);
 
   if (feature) {
     const layer = layers.find((l) => l.id === feature.layerId);
@@ -72,16 +76,28 @@ export function AttributeInspector() {
         <div className={`flex flex-col gap-2 ${disabled ? 'opacity-65' : ''}`}>
           <Eyebrow>Layer Style</Eyebrow>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+            Render
+            <select
+              aria-label="Layer render strategy"
+              value={layer.renderStrategy ?? 'vector'}
+              disabled={disabled}
+              onChange={(event) =>
+                setLayerRenderStrategy(layer.id, event.target.value as 'vector' | 'heatmap')
+              }
+              className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+            >
+              <option value="vector">Vector</option>
+              <option value="heatmap">Heatmap</option>
+            </select>
+          </label>
+          <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Fill
-            <input
-              aria-label="Layer fill color"
-              type="color"
+            <Swatches
               value={layer.style.fillColor}
               disabled={disabled}
-              onChange={(event) => updateLayerStyle(layer.id, { fillColor: event.target.value })}
-              className="h-7 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)]"
+              onChange={(fillColor) => updateLayerStyle(layer.id, { fillColor })}
             />
-          </label>
+          </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Fill opacity
             <input
@@ -97,16 +113,54 @@ export function AttributeInspector() {
             />
           </label>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+            Hatch
+            <select
+              aria-label="Layer fill pattern"
+              value={layer.style.fillPattern}
+              disabled={disabled}
+              onChange={(event) => updateLayerStyle(layer.id, { fillPattern: event.target.value as FillPattern })}
+              className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+            >
+              {FILL_PATTERNS.map((pattern) => (
+                <option key={pattern.value} value={pattern.value}>
+                  {pattern.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {layer.style.fillPattern !== 'none' && (
+            <>
+              <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+                Hatch color
+                <Swatches
+                  value={layer.style.hatchColor}
+                  disabled={disabled}
+                  onChange={(hatchColor) => updateLayerStyle(layer.id, { hatchColor })}
+                />
+              </div>
+              <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+                Density
+                <input
+                  aria-label="Layer hatch spacing"
+                  type="number"
+                  min={4}
+                  max={40}
+                  value={layer.style.hatchSpacing}
+                  disabled={disabled}
+                  onChange={(event) => updateLayerStyle(layer.id, { hatchSpacing: Number(event.target.value) })}
+                  className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+                />
+              </label>
+            </>
+          )}
+          <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Stroke
-            <input
-              aria-label="Layer stroke color"
-              type="color"
+            <Swatches
               value={layer.style.strokeColor}
               disabled={disabled}
-              onChange={(event) => updateLayerStyle(layer.id, { strokeColor: event.target.value })}
-              className="h-7 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)]"
+              onChange={(strokeColor) => updateLayerStyle(layer.id, { strokeColor })}
             />
-          </label>
+          </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Stroke width
             <input
@@ -121,17 +175,14 @@ export function AttributeInspector() {
               className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
             />
           </label>
-          <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+          <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Point
-            <input
-              aria-label="Layer point color"
-              type="color"
+            <Swatches
               value={layer.style.pointColor}
               disabled={disabled}
-              onChange={(event) => updateLayerStyle(layer.id, { pointColor: event.target.value })}
-              className="h-7 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)]"
+              onChange={(pointColor) => updateLayerStyle(layer.id, { pointColor })}
             />
-          </label>
+          </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             Point size
             <input

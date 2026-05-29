@@ -1,5 +1,6 @@
 import type maplibregl from 'maplibre-gl';
 import type { GeoJsonLayer } from '@/project/cartoproj';
+import { hatchTileImageData } from '@/style/annotationPatterns';
 
 const sourceId = (layerId: string) => `gc:${layerId}`;
 export const layerRenderIds = (layerId: string) => ({
@@ -20,10 +21,12 @@ function addLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
 function updateLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
   const ids = layerRenderIds(layer.id);
   const { style } = layer;
-  const visibility = layer.visible ? 'visible' : 'none';
+  // Heatmap-strategy layers are drawn by the deck.gl overlay, not MapLibre.
+  const visibility = layer.visible && layer.renderStrategy !== 'heatmap' ? 'visible' : 'none';
 
   map.setPaintProperty(ids.fill, 'fill-color', style.fillColor);
   map.setPaintProperty(ids.fill, 'fill-opacity', style.fillOpacity);
+  applyFillPattern(map, layer);
   map.setPaintProperty(ids.line, 'line-color', style.strokeColor);
   map.setPaintProperty(ids.line, 'line-width', style.strokeWidth);
   map.setPaintProperty(ids.circle, 'circle-color', style.pointColor);
@@ -36,7 +39,29 @@ function updateLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
   }
 }
 
+const hatchImageId = (layerId: string) => `gc-hatch:${layerId}`;
+
+/**
+ * Apply (or clear) a `fill-pattern` hatch on the fill layer. The tile is
+ * regenerated each sync so colour/spacing edits take effect; when the pattern is
+ * solid we drop the pattern so `fill-color` shows through.
+ */
+function applyFillPattern(map: maplibregl.Map, layer: GeoJsonLayer): void {
+  const fillId = layerRenderIds(layer.id).fill;
+  const imageId = hatchImageId(layer.id);
+  // Clear first so we never remove an image still referenced by the layer.
+  map.setPaintProperty(fillId, 'fill-pattern', undefined);
+  if (map.hasImage(imageId)) map.removeImage(imageId);
+
+  if (layer.renderStrategy === 'heatmap' || layer.style.fillPattern === 'none') return;
+  const tile = hatchTileImageData(layer.style);
+  if (!tile) return;
+  map.addImage(imageId, tile, { pixelRatio: 1 });
+  map.setPaintProperty(fillId, 'fill-pattern', imageId);
+}
+
 function removeLayerGraphics(map: maplibregl.Map, layerId: string): void {
+  if (map.hasImage(hatchImageId(layerId))) map.removeImage(hatchImageId(layerId));
   for (const id of Object.values(layerRenderIds(layerId))) {
     if (map.getLayer(id)) map.removeLayer(id);
   }

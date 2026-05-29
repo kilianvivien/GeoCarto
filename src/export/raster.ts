@@ -76,6 +76,12 @@ async function renderMapCanvas(
 
     syncLayersToMap(map, project.layers);
 
+    // deck.gl heatmap layers render into the same WebGL context, so they're
+    // captured by getCanvas() below. Lazy-import keeps deck out of this chunk.
+    const { attachHeatmapOverlay } = await import('@/layers/deckHeatmap');
+    const overlay = await attachHeatmapOverlay(map, project.layers);
+    if (overlay) map.triggerRepaint();
+
     await new Promise<void>((resolve) => map.once('idle', () => resolve()));
 
     const sourceCanvas = map.getCanvas();
@@ -142,6 +148,21 @@ export interface ExportResult {
   fileName: string;
   width: number;
   height: number;
+}
+
+/**
+ * Render just the basemap (with imported GeoJSON baked in via the offscreen map,
+ * or the fitted static image) to a canvas at the requested size. Shared by the
+ * SVG exporter, which embeds this as a raster `<image>` beneath vector annotations.
+ */
+export async function renderBasemapCanvas(
+  project: CartoProject,
+  outW: number,
+  outH: number,
+): Promise<HTMLCanvasElement> {
+  if (project.basemap.kind === 'static') return renderStaticBasemapCanvas(project, outW, outH);
+  const { basemapCanvas } = await renderMapCanvas(project, outW, outH);
+  return basemapCanvas;
 }
 
 export function effectiveExportSize(project: CartoProject, scale: number): { width: number; height: number } {

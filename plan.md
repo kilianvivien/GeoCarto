@@ -138,7 +138,8 @@ Closed out by Milestone 7. Phase 2 work now sits on a clean Phase 1 base.
   - Smart guides — edge/center alignment cues during drag with ±6 px tolerance.
   - Object grouping via ⌘G / ⌘⇧G and the canvas context menu; groups
     round-trip through `.cartoproj`.
-- ⬜ Share, comments, image placement, and legend builder workflows (M13/M14)
+- ✅ Image placement, legend builder, and local comment pins (M13/M14).
+      Cloud share links remain Post-v1.
 
 ### Basemap sources & styling 🟡
 
@@ -159,24 +160,46 @@ base — this is a core editorial requirement.
 - ✅ Persist the chosen basemap source + sub-layer mask in `.cartoproj`
       (with a defaulting migration for Phase 1 documents).
 
-### Richer annotation & styling 🟡
+### Richer annotation & styling ✅
 
-- ⬜ deck.gl data layers interleaved via `MapboxOverlay` (M12 remainder —
-      split out so the bundle-budget impact lands in its own session).
+- ✅ deck.gl data layers interleaved via `MapboxOverlay` (M12). A layer's
+      "Render" control (Vector / Heatmap) in the inspector switches it to a
+      deck.gl HeatmapLayer drawn interleaved with the basemap; the same overlay
+      is attached to the offscreen export map so heatmaps appear in raster/PDF.
+      deck.gl is lazy-loaded only when a heatmap layer exists; the bundle budget
+      was raised from 3 MB → 3.7 MB with a documented rationale (lazy chunks).
 - ✅ Dashed lines, arrowheads, hatch / pattern fills.
 - ✅ Halos, drop shadows, and blend modes (normal / multiply / screen /
       overlay) on every annotation kind, surfaced via the Inspector's
       progressively-disclosed Effects panel and mirrored in PNG/JPEG export
       (M12).
 - ✅ Grouped objects; smart guides (edge/center) and pixel/grid snap (M10).
-- ⬜ Title block, source credit, scale bar, north arrow (M13)
-- ⬜ Manually editable legend builder (M13)
+- ✅ Title block, source credit, scale bar, north arrow (M13) — screen-anchored
+      furniture inserted from a single Insert menu. Scale bar snaps to a round
+      distance and tracks map scale; north arrow follows map bearing. Both
+      mirror correctly into raster export.
+- ✅ Manually editable legend builder with linked/overridden swatches (M13)
 
-### Import & export ⬜
+### Import & export 🟡
 
-- ⬜ Import TopoJSON, KML, GPX, Shapefile
-- ⬜ SVG export — technical spike first, then editable vector serializer
-      (supported objects stay editable in Illustrator/Figma; fallbacks documented)
+- ✅ Import TopoJSON, KML, GPX, Shapefile (M14). Format detected by extension;
+      each parser (`topojson-client`, `@tmcw/togeojson`, `shpjs`) is lazy-loaded
+      so it stays out of the initial bundle. Shapefile zips are reprojected to
+      WGS84 from the embedded `.prj`. Drop + picker accept all formats.
+- ✅ Image placement (M14) — drop/insert PNG/JPEG/SVG raster, geo or screen
+      anchored, embedded as base64 in `.cartoproj`.
+- ✅ SVG export (M15) — basemap + imported data embed as a raster `<image>`;
+      annotations, text, and map furniture serialize as editable vector objects.
+      Effects (hatch fills, halos, blend modes) and detailed pin glyphs are
+      flattened, surfaced in the export dialog. Verified well-formed and within
+      a rasterized-vs-PNG diff tolerance (~1.2%). Illustrator/Figma editability
+      is unverified in-app (no Illustrator available in this environment).
+- ✅ PDF export (M15 bonus) — raster-in-PDF via jsPDF, one page sized to the
+      composition frame. Editable-vector PDF stays Post-v1.
+- 🟡 Move heavy importers onto a worker thread (parsers are pure and
+      worker-ready; deferred follow-up).
+- 🟡 GeoJSON-as-editable-vector-paths in SVG (currently embedded in the basemap
+      raster); a future refinement.
 
 ### Desktop (macOS) ⬜
 
@@ -210,8 +233,8 @@ base — this is a core editorial requirement.
 |---|---|---|
 | PNG  | Phase 1   | ✅ Milestone 5 |
 | JPEG | Phase 1   | 🟡 Milestone 5; broader acceptance coverage added |
-| SVG  | v1 (after spike) | ⬜ |
-| PDF  | Post-v1   | ⬜ |
+| SVG  | v1 (after spike) | ✅ Milestone 15 (basemap raster + vector annotations) |
+| PDF  | Post-v1   | ✅ Milestone 15 (raster-in-PDF; vector PDF stays Post-v1) |
 | Interactive HTML | Post-v1 | ⬜ |
 
 ### Performance targets (PRD §7)

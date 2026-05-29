@@ -4,6 +4,7 @@ import { Maximize2, Minus, Plus } from 'lucide-react';
 import { MapView } from './MapView';
 import { ExportFrame } from './ExportFrame';
 import { GeoJsonLayers } from './GeoJsonLayers';
+import { DeckOverlay } from './DeckOverlay';
 import { AnnotationStage } from './AnnotationStage';
 import { StaticBasemapOverlay } from './StaticBasemapOverlay';
 import { MapSetupPanel } from './MapSetupPanel';
@@ -185,6 +186,7 @@ export function MapCanvas() {
         <MapView />
         <StaticBasemapOverlay />
         <GeoJsonLayers />
+        <DeckOverlay />
         {mode === 'mapSetup' && <ExportFrame />}
         <AnnotationStage />
       </div>

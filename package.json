@@ -17,10 +17,16 @@
     "bundle-budget": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
+    "@deck.gl/aggregation-layers": "^9.3.2",
+    "@deck.gl/core": "^9.3.2",
+    "@deck.gl/layers": "^9.3.2",
+    "@deck.gl/mapbox": "^9.3.2",
     "@protomaps/basemaps": "^5.7.2",
+    "@tmcw/togeojson": "^7.1.2",
     "clsx": "^2.1.1",
     "idb-keyval": "^6.2.4",
     "immer": "^11.1.8",
+    "jspdf": "^4.2.1",
     "konva": "^10.3.0",
     "lucide-react": "^0.469.0",
     "maplibre-gl": "^5.24.0",
@@ -28,7 +34,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-konva": "^19.2.4",
+    "shpjs": "^6.2.0",
     "tailwind-merge": "^2.6.0",
+    "topojson-client": "^3.1.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -41,6 +49,8 @@
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/shpjs": "^3.4.7",
+    "@types/topojson-client": "^3.1.5",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",

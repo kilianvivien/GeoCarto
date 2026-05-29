@@ -16,6 +16,9 @@ function makeLayer(id: string) {
     style: {
       fillColor: '#000',
       fillOpacity: 1,
+      fillPattern: 'none' as const,
+      hatchColor: '#000',
+      hatchSpacing: 10,
       strokeColor: '#000',
       strokeWidth: 1,
       pointColor: '#000',

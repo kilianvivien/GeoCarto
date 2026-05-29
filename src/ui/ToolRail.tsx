@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   MousePointer2,
   SquareDashed,
@@ -14,11 +15,24 @@ import {
   Image,
   List,
   MessageSquare,
+  LayoutTemplate,
+  Heading,
+  Copyright,
+  Compass,
+  Scaling,
   type LucideIcon,
 } from 'lucide-react';
 import { useNotices } from './notices';
 import { TOOL_DEFINITIONS, useToolStore, type ToolDefinition } from '@/state/toolStore';
 import { useDocumentStore } from '@/state/documentStore';
+import { insertFurniture, type FurnitureKind } from '@/tools/insertFurniture';
+
+const FURNITURE_ITEMS: { kind: FurnitureKind; label: string; icon: LucideIcon }[] = [
+  { kind: 'titleblock', label: 'Title block', icon: Heading },
+  { kind: 'sourcecredit', label: 'Source credit', icon: Copyright },
+  { kind: 'scalebar', label: 'Scale bar', icon: Scaling },
+  { kind: 'northarrow', label: 'North arrow', icon: Compass },
+];
 
 /** Tool groups from design.md §4.2. */
 const ICONS: Record<ToolDefinition['key'], LucideIcon> = {
@@ -55,6 +69,21 @@ export function ToolRail() {
   const mode = useDocumentStore((s) => s.project.mode);
   const push = useNotices((s) => s.push);
   const setupDisabled = mode !== 'editing';
+  const [insertOpen, setInsertOpen] = useState(false);
+  const insertRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!insertOpen) return;
+    const close = (e: Event) => {
+      if (!insertRef.current?.contains(e.target as Node)) setInsertOpen(false);
+    };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', close);
+    return () => {
+      window.removeEventListener('pointerdown', close);
+      window.removeEventListener('keydown', close);
+    };
+  }, [insertOpen]);
 
   const activate = (tool: ToolDefinition) => {
     if (!tool.enabled) {
@@ -115,6 +144,62 @@ export function ToolRail() {
           })}
         </div>
       ))}
+
+      <span className="my-1 h-px w-6 bg-[var(--divider)]" />
+      <div ref={insertRef} className="relative flex flex-col items-center">
+        <button
+          type="button"
+          aria-label="Insert map furniture"
+          aria-haspopup="menu"
+          aria-expanded={insertOpen}
+          disabled={setupDisabled}
+          title={setupDisabled ? 'Lock the map area before inserting furniture' : 'Insert — title, credit, scale bar, north arrow'}
+          onClick={() => {
+            if (setupDisabled) {
+              push('Lock the map area before inserting furniture', 'error');
+              return;
+            }
+            setInsertOpen((prev) => !prev);
+          }}
+          className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
+            setupDisabled
+              ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+              : insertOpen
+              ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
+              : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
+          }`}
+        >
+          <LayoutTemplate size={18} />
+        </button>
+        {insertOpen && (
+          <div
+            role="menu"
+            aria-label="Insert map furniture"
+            className="absolute left-[calc(100%+8px)] top-0 z-40 flex w-44 flex-col gap-px rounded-[10px] border border-[var(--divider)] bg-[var(--glass-strong)] p-1 text-[12px] text-[var(--text)] shadow-[0_12px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl"
+          >
+            {FURNITURE_ITEMS.map((item) => {
+              const ItemIcon = item.icon;
+              return (
+                <button
+                  key={item.kind}
+                  type="button"
+                  role="menuitem"
+                  data-furniture={item.kind}
+                  onClick={() => {
+                    insertFurniture(item.kind);
+                    setInsertOpen(false);
+                    push(`${item.label} inserted`);
+                  }}
+                  className="flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
+                >
+                  <ItemIcon size={14} className="text-[var(--text-2)]" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

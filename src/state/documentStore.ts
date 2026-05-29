@@ -10,6 +10,7 @@ import {
   type ExportFrame,
   type GeoJsonLayer,
   type GeoJsonStyle,
+  type LayerRenderStrategy,
   type PageBackground,
   type PagePresetKey,
 } from '@/project/cartoproj';
@@ -58,6 +59,7 @@ interface DocumentState {
   removeLayer: (id: string) => void;
   renameLayer: (id: string, name: string) => void;
   updateLayerStyle: (id: string, patch: Partial<GeoJsonStyle>) => void;
+  setLayerRenderStrategy: (id: string, strategy: LayerRenderStrategy) => void;
   setLayerVisible: (id: string, visible: boolean) => void;
   setLayerLocked: (id: string, locked: boolean) => void;
   /** Reorder within the stack. `up` moves toward the front (drawn on top). */
@@ -252,6 +254,15 @@ export const useDocumentStore = create<DocumentState>()(
         const layer = state.project.layers.find((l) => l.id === id);
         if (!layer || layer.locked) return;
         layer.style = { ...layer.style, ...patch };
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setLayerRenderStrategy: (id, strategy) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === id);
+        if (!layer || layer.locked) return;
+        layer.renderStrategy = strategy;
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),

@@ -153,7 +153,7 @@ Acceptance:
 
 ---
 
-### Milestone 10 — Editorial Canvas Aids
+### Milestone 10 — Editorial Canvas Aids - Done
 
 - **Locked-canvas pan tool** — when the map is locked, pan moves the composition,
   not the map viewport. Shortcut: `H`.
@@ -173,7 +173,7 @@ Acceptance:
 
 ---
 
-### Milestone 11 — Basemap Source Picker and Sub-Layers
+### Milestone 11 — Basemap Source Picker and Sub-Layers - Done
 
 - Generalize basemap state to `BasemapSource` discriminated union:
   - `built-in` (existing presets)

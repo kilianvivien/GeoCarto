@@ -27,7 +27,11 @@ const BUDGETS = {
   css: 200 * 1024,
 };
 
-const TOTAL_BUDGET = 3 * 1024 * 1024; // 3 MB total JS/CSS allowance.
+// 3.7 MB total JS/CSS allowance. Raised from 3 MB in M12: deck.gl (core +
+// luma.gl + aggregation layers, ~585 KB) lands in lazy chunks loaded only when
+// a layer uses the heatmap render strategy, and jsPDF (M15) is likewise lazy.
+// Neither touches the initial `index` shell, which stays under its own budget.
+const TOTAL_BUDGET = 3.7 * 1024 * 1024;
 
 function pickChunk(files, prefix, extension) {
   return files.find((f) => f.startsWith(prefix) && f.endsWith(extension));
