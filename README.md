@@ -172,7 +172,6 @@ src/
   basemap/    Protomaps integration, style presets
 src-tauri/    Tauri 2 Rust shell
 public/       Sample PMTiles for development
-docs-mocks/   PRD, implementation plan, design system, UI mock
 ```
 
 ---

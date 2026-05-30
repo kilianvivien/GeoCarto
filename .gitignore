@@ -16,6 +16,10 @@ test-results/
 # environment / local
 *.local
 
+# internal docs (local only)
+docs/
+docs-mocks/
+
 # claude code (local tool config — not for version control)
 .claude/
 
