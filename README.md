@@ -23,7 +23,7 @@ The target users are journalists, teachers, designers, and anyone who today fall
 
 ---
 
-## What you can do today (v0.1.0)
+## What you can do today
 
 ### Basemap and data
 - Open an interactive basemap (OSM-derived PMTiles via Protomaps) — no tile server or API key required
@@ -74,29 +74,38 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 
 ---
 
-## Current limitations
+## Known gaps
 
-The following are known gaps, not bugs:
+GeoCarto is young and moving fast. A few things to expect at this stage:
 
-- **Local PMTiles file as basemap not supported** — `blob:` URLs cannot survive project save/reopen; use a hosted PMTiles or tile URL instead
-- **Imported data layers are rasterized in SVG export** — GeoJSON/Shapefile/etc. features are embedded as a raster image in the SVG, not as editable vector paths; annotations and furniture remain fully editable
-- **PDF export is raster-only** — the PDF embeds the composition as a raster image; editable-vector PDF is post-v1
-- **Large-file importers run on the main thread** — Shapefile and TopoJSON parsers are not yet offloaded to a worker; very large files may briefly block the UI
-- **Desktop build has no native file dialogs** — the macOS app uses the browser File System Access API fallback; native open/save dialogs and drag-drop import are planned
-- **Desktop build is unsigned** — the Tauri app is not yet signed or notarized; macOS Gatekeeper will flag it
-- **No offline basemap packs** — both web and desktop fetch tiles remotely; regional offline packs are planned for a later desktop release
-- **macOS only for desktop** — Windows and Linux builds are on the roadmap
-- **No GIS analysis** — attribute joins, choropleth wizard, buffers, and geocoding are post-v1
-- **No non-Mercator projections** — only Web Mercator via MapLibre; Robinson, Equal Earth, and similar editorial projections are roadmap
-- **No interactive HTML export, cloud sync, or collaboration**
+- Web Mercator is the only projection for now — editorial projections (Robinson, Equal Earth…) are on the roadmap.
+- Imported data layers export as raster inside SVG and PDF; annotations and map furniture stay fully editable vectors.
+- The macOS desktop app is not yet signed or notarized, so Gatekeeper will warn on first launch.
+- GIS analysis (joins, choropleth, buffers) and offline basemap packs are planned, not shipped.
 
 ---
 
 ## Roadmap
 
-**Near-term** — native macOS file dialogs and notarized build, worker-threaded import parsers, GeoJSON-as-editable-vector-paths in SVG, offline regional basemap packs for desktop.
+GeoCarto is built in phases. The browser core loop and the editorial toolset are in place — here's what's next.
 
-**Post-v1** — non-Mercator editorial projections (Robinson, Equal Earth, Winkel Tripel) via d3-geo, GIS-style attribute joins and choropleth wizard, proportional symbols, interactive HTML export, editable-vector PDF, cloud project sync, real-time collaboration, Windows and Linux desktop builds, templates gallery.
+**Next — editable data & reach**
+- Edit imported GeoJSON: move/add/delete vertices, draw new features, edit attributes
+- French + English localization, auto-detected with a manual override
+- A unified settings surface (appearance, units, canvas defaults, autosave)
+- In-app help and discoverability polish
+- Local PMTiles files and offline regional basemap packs on desktop
+
+**Later — cartographic depth & print**
+- Non-Mercator editorial projections (Robinson, Equal Earth, Winkel Tripel…)
+- GIS analysis: attribute joins, choropleth wizard, proportional symbols, buffering
+- Print-grade vector PDF and a templates gallery
+
+**Future — collaboration & platform**
+- Cloud project sync, share links, and real-time collaboration
+- Interactive HTML export
+- Windows and Linux desktop builds; a signed & notarized macOS release
+- Plugin / extension API
 
 ---
 
@@ -107,7 +116,7 @@ The following are known gaps, not bugs:
 | Framework | React 19 + TypeScript + Vite 7 |
 | Desktop | Tauri 2 (macOS) |
 | Basemap | MapLibre GL JS v5 + PMTiles |
-| Data layers | deck.gl (interleaved via `MapboxOverlay`) |
+| Data layers | deck.gl |
 | Annotation canvas | Konva.js |
 | Drawing | terra-draw |
 | State | Zustand + Immer |
@@ -159,19 +168,18 @@ npm run tauri build  # production .app bundle
 
 ```
 src/
-  app/        App shell, routing, Tauri bridge
-  canvas/     MapView, AnnotationStage, DeckOverlay, coordinates, exportFrame
-  tools/      One module per tool
-  layers/     Layer model, ordering, visibility, locking
-  style/       Built-in presets, style editor
-  import/     GeoJSON, TopoJSON, KML, GPX, Shapefile parsers
-  export/     png.ts, jpeg.ts, svg.ts, pdf.ts
+  app/        App shell and platform bridge
+  canvas/     Map view, annotation stage, data overlay, export frame
+  tools/      Drawing and annotation tools
+  layers/     Layer model — ordering, visibility, locking
+  style/      Basemap style presets and editor
+  import/     Data format parsers (GeoJSON, TopoJSON, KML, GPX, Shapefile)
+  export/     Raster, SVG, and PDF exporters
   project/    .cartoproj schema, load/save, autosave
-  state/      Zustand stores — document, selection, viewport, ui
-  ui/         shadcn components, panels, inspector
-  basemap/    Protomaps integration, style presets
-src-tauri/    Tauri 2 Rust shell
-public/       Sample PMTiles for development
+  state/      Application state stores
+  ui/         Components, panels, inspector
+  basemap/    Basemap integration and style presets
+src-tauri/    Tauri 2 desktop shell
 ```
 
 ---
