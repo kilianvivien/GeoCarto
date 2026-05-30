@@ -9,6 +9,10 @@
   Open a basemap, import your data, annotate freely, export a print-ready image.
 </p>
 
+<p align="center">
+  <a href="https://geo-carto.vercel.app"><strong>🌍 Try the live demo →</strong></a>
+</p>
+
 ---
 
 ![GeoCarto screenshot](resources/demo.png)
