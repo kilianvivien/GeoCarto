@@ -148,6 +148,16 @@ npm run tauri dev    # development build with hot-reload
 npm run tauri build  # production .app bundle
 ```
 
+> **First launch:** the desktop app isn't signed or notarized yet, so macOS
+> Gatekeeper will block it the first time. To open it anyway, **right-click (or
+> Control-click) the app → Open**, then confirm **Open** in the dialog. macOS
+> remembers the choice, so afterwards you can launch it normally.
+>
+> If you only see a greyed-out **Move to Trash** option, go to **System Settings →
+> Privacy & Security**, scroll to the security section, and click **Open Anyway**
+> next to the GeoCarto warning. On recent macOS versions you may need to do this
+> once per build.
+
 ---
 
 ## Commands
