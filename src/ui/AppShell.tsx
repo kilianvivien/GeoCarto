@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isTauri } from '@/app/platform';
+import { isMacOS, isTauri } from '@/app/platform';
 import { useAutosave } from '@/project/autosave';
 import { installHistoryCapture } from '@/state/historyStore';
 import { useDocumentStore } from '@/state/documentStore';
@@ -37,6 +37,26 @@ export function AppShell() {
       invoke('set_export_menu_enabled', { enabled: mode === 'editing' }),
     );
   }, [mode]);
+
+  // Apply the macOS `sidebar` vibrancy at runtime, after the webview is alive,
+  // rather than at native window creation (tauri.conf.json windowEffects): a
+  // failed startup-time effect could keep the main window from ever appearing
+  // (running-active-NotVisible). Doing it here lets a failure fall back silently
+  // to the CSS glass tints instead of hiding the app.
+  useEffect(() => {
+    if (!isTauri() || !isMacOS()) return;
+    void (async () => {
+      try {
+        const { getCurrentWindow, Effect, EffectState } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().setEffects({
+          effects: [Effect.Sidebar],
+          state: EffectState.FollowsWindowActiveState,
+        });
+      } catch {
+        // Native vibrancy unavailable — keep the existing CSS glass/tint fallback.
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!mounted.current) {

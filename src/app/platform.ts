@@ -16,6 +16,21 @@ export function isTauri(): boolean {
 }
 
 /**
+ * Conservative browser-side check for macOS. Used only to gate macOS-specific
+ * desktop behaviour (native window vibrancy); a false negative just skips the
+ * native effect and falls back to the CSS glass, so we err on the side of not
+ * claiming macOS unless the platform clearly says so.
+ */
+export function isMacOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const uaPlatform = (navigator as { userAgentData?: { platform?: string } }).userAgentData
+    ?.platform;
+  if (uaPlatform) return /mac/i.test(uaPlatform);
+  if (navigator.platform) return /mac/i.test(navigator.platform);
+  return /Mac OS X|Macintosh/i.test(navigator.userAgent ?? '');
+}
+
+/**
  * Open an external URL in the user's default browser. On the web a normal new
  * tab works; under Tauri the webview would otherwise navigate away from the app,
  * so route through the opener plugin (additive desktop path, guarded by isTauri).

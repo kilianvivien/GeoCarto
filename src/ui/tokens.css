@@ -112,7 +112,8 @@ body {
 }
 
 /* Desktop (Tauri) chrome: the window itself is transparent with a native macOS
-   vibrancy material behind it (tauri.conf.json windowEffects). Keep the body
+   vibrancy material behind it (applied at runtime via setEffects in AppShell, so
+   a failed effect can't keep the window from appearing). Keep the body
    transparent so that material shows through the translucent glass UI, and inset
    the title bar so it clears the Overlay-style traffic lights. */
 html[data-tauri] body {
