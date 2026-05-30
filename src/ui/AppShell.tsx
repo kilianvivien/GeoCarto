@@ -43,17 +43,32 @@ export function AppShell() {
   // failed startup-time effect could keep the main window from ever appearing
   // (running-active-NotVisible). Doing it here lets a failure fall back silently
   // to the CSS glass tints instead of hiding the app.
+  //
+  // The window is created hidden (tauri.conf.json visible:false) and revealed
+  // here once the effect has been applied, so it appears as one finished piece —
+  // glass + vibrancy + traffic lights together — with no flash of bare native
+  // chrome. show() runs unconditionally (outside the effect's try, and on every
+  // Tauri platform) so a failed or unsupported effect can never leave the window
+  // permanently hidden.
   useEffect(() => {
-    if (!isTauri() || !isMacOS()) return;
+    if (!isTauri()) return;
     void (async () => {
       try {
         const { getCurrentWindow, Effect, EffectState } = await import('@tauri-apps/api/window');
-        await getCurrentWindow().setEffects({
-          effects: [Effect.Sidebar],
-          state: EffectState.FollowsWindowActiveState,
-        });
+        const win = getCurrentWindow();
+        try {
+          if (isMacOS()) {
+            await win.setEffects({
+              effects: [Effect.Sidebar],
+              state: EffectState.FollowsWindowActiveState,
+            });
+          }
+        } catch {
+          // Native vibrancy unavailable — keep the existing CSS glass/tint fallback.
+        }
+        await win.show();
       } catch {
-        // Native vibrancy unavailable — keep the existing CSS glass/tint fallback.
+        // Window module/show unavailable — nothing more we can do to reveal it.
       }
     })();
   }, []);
