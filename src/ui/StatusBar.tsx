@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Settings } from 'lucide-react';
 import { BasemapSublayerToggles } from '@/basemap/BasemapSublayerToggles';
 import { useViewportStore } from '@/state/viewportStore';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
+import { useLocale, localeNumber } from '@/i18n/useLocale';
+import { useUiStore } from './uiStore';
 
 /** Approximate map scale denominator (1:N) at the given zoom and latitude. */
 function scaleDenominator(zoom: number, latitude: number): number {
@@ -12,6 +14,7 @@ function scaleDenominator(zoom: number, latitude: number): number {
 }
 
 function BasemapMenu() {
+  const t = useLocale((s) => s.t);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -40,16 +43,16 @@ function BasemapMenu() {
         }`}
       >
         <Layers size={11} />
-        Basemap
+        {t('status.basemap')}
       </button>
       {open && (
         <div
           role="dialog"
-          aria-label="Basemap sub-layers"
+          aria-label={t('status.basemapSublayers')}
           className="glass absolute bottom-full left-0 z-50 mb-2 w-56 rounded-[10px] bg-[var(--glass-strong)] p-2.5 text-[var(--text)] shadow-[0_12px_36px_rgba(0,0,0,0.24)]"
         >
           <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Sub-layers
+            {t('status.sublayers')}
           </div>
           <BasemapSublayerToggles compact />
         </div>
@@ -60,11 +63,13 @@ function BasemapMenu() {
 
 /** Bottom status bar (design.md §4.5). Reads the viewport store. */
 export function StatusBar() {
+  const t = useLocale((s) => s.t);
   const viewport = useViewportStore((s) => s.viewport);
   const cursor = useViewportStore((s) => s.cursor);
   const gridSnapEnabled = useToolStore((s) => s.gridSnapEnabled);
   const gridSpacing = useToolStore((s) => s.gridSpacing);
   const { setGridSnapEnabled, setGridSpacing } = useToolStore.getState();
+  const openSettings = useUiStore((s) => s.openSettingsDialog);
   const featureCount = useDocumentStore((s) =>
     s.project.layers.reduce((sum, l) => sum + l.featureCount, 0),
   );
@@ -77,7 +82,7 @@ export function StatusBar() {
       <div className="flex items-center gap-3">
         {/* Save state already lives in the title bar; show the app version here instead. */}
         <span>v{__APP_VERSION__}</span>
-        <span>Web Mercator</span>
+        <span>{t('status.projection')}</span>
         <label className="flex items-center gap-1.5">
           <input
             type="checkbox"
@@ -85,10 +90,10 @@ export function StatusBar() {
             onChange={(event) => setGridSnapEnabled(event.target.checked)}
             className="h-3 w-3 accent-[var(--accent)]"
           />
-          Grid snap
+          {t('status.gridSnap')}
         </label>
         <input
-          aria-label="Grid spacing"
+          aria-label={t('status.gridSpacing')}
           type="number"
           min={4}
           max={200}
@@ -98,15 +103,24 @@ export function StatusBar() {
         />
         <BasemapMenu />
         <span data-testid="feature-count">
-          {featureCount.toLocaleString('en-US')} features
+          {t('status.features', { count: localeNumber(featureCount) })}
         </span>
       </div>
       <div className="flex items-center gap-3">
         <span>
           {lat.toFixed(4)}°, {lng.toFixed(4)}°
         </span>
-        <span>1:{scale.toLocaleString('en-US')}</span>
+        <span>1:{localeNumber(scale)}</span>
         <span data-testid="zoom-readout">z{viewport.zoom.toFixed(2)}</span>
+        <button
+          type="button"
+          aria-label={t('settings.open')}
+          title={t('settings.open')}
+          onClick={openSettings}
+          className="flex h-5 w-5 items-center justify-center rounded-[6px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Settings size={12} />
+        </button>
       </div>
     </div>
   );

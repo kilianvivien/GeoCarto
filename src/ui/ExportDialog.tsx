@@ -5,6 +5,7 @@ import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { useNotices } from './notices';
+import { useLocale } from '@/i18n/useLocale';
 
 // Defer each exporter (they pull maplibre-gl / jsPDF into the bundle) until the
 // user actually exports — keeps them out of the initial chunk.
@@ -20,6 +21,7 @@ type ScalePreset = '1x' | '2x' | 'custom';
 const TRANSITION_MS = 220;
 
 export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useLocale((s) => s.t);
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
 
@@ -84,10 +86,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       }
       const saved = await downloadBlob(result.blob, result.fileName);
       if (!saved) return; // Desktop save dialog cancelled — keep the dialog open.
-      push(`Exported ${result.fileName} (${result.width}×${result.height})`);
+      push(t('export.exported', { name: result.fileName, width: result.width, height: result.height }));
       onClose();
     } catch (error) {
-      push(error instanceof Error ? error.message : 'Export failed.', 'error');
+      push(error instanceof Error ? error.message : t('export.failed'), 'error');
     } finally {
       setBusy(false);
     }
@@ -99,7 +101,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Export image"
+      aria-label={t('export.dialog')}
       className={`fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim)] transition-opacity duration-200 ease-out motion-reduce:transition-none ${
         visible ? 'opacity-100' : 'opacity-0'
       }`}
@@ -113,22 +115,22 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       >
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-[14px] font-semibold">Export image</div>
+            <div className="text-[14px] font-semibold">{t('export.dialog')}</div>
             <div className="mt-0.5 text-[11.5px] text-[var(--text-2)]">
-              Uses the Page settings from the Style panel.
+              {t('export.subtitle')}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('export.close')}
             className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
           >
             <X size={14} />
           </button>
         </div>
 
-        <Field label="Format">
+        <Field label={t('export.format')}>
           <Segmented
             value={format}
             options={[
@@ -142,13 +144,13 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         </Field>
 
         {format !== 'svg' && (
-        <Field label="Scale">
+        <Field label={t('export.scale')}>
           <Segmented
             value={scalePreset}
             options={[
               { value: '1x', label: '1×' },
               { value: '2x', label: '2×' },
-              { value: 'custom', label: 'Custom' },
+              { value: 'custom', label: t('export.custom') },
             ]}
             onChange={(value) => {
               if (value === '1x') setExportFrameDpiScale(1);
@@ -172,7 +174,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
         {format === 'svg' && (
           <>
-            <Field label="Basemap">
+            <Field label={t('export.basemap')}>
               <label className="flex items-center gap-2 text-[12px] text-[var(--text-2)]">
                 <input
                   type="checkbox"
@@ -180,18 +182,17 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   onChange={(e) => setSvgIncludeBasemap(e.target.checked)}
                   className="accent-[var(--accent)]"
                 />
-                Embed basemap &amp; data as a raster image
+                {t('export.embedBasemap')}
               </label>
             </Field>
             <div className="mt-3 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
-              Annotations, hatch fills, text, and map furniture export as editable vectors. Effects
-              (halos, blend modes) and detailed pin glyphs are flattened.
+              {t('export.svgNote')}
             </div>
           </>
         )}
 
         {format === 'png' && (
-          <Field label="Background">
+          <Field label={t('export.background')}>
             <div className="flex flex-wrap items-center gap-1">
               {(['white', 'transparent'] as const).map((mode) => {
                 const active = bgMode === mode;
@@ -206,7 +207,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                         : 'border border-[var(--divider)] bg-[var(--hover)] text-[var(--text-2)] hover:text-[var(--text)]'
                     }`}
                   >
-                    {mode}
+                    {mode === 'white' ? t('export.white') : t('export.transparent')}
                   </button>
                 );
               })}
@@ -216,7 +217,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 onClick={() => setBgPickerOpen((prev) => !prev)}
                 aria-haspopup="dialog"
                 aria-expanded={bgPickerOpen}
-                aria-label="Custom background color"
+                aria-label={t('export.customBackground')}
                 className={`h-7 w-7 rounded-full border transition-transform hover:scale-105 ${
                   bgMode === 'custom'
                     ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]'
@@ -242,12 +243,12 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
         {format === 'jpeg' && background === 'transparent' && (
           <div className="mt-3 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
-            JPEG does not support transparency, so this export will use a white background.
+            {t('export.jpegTransparency')}
           </div>
         )}
 
         {format === 'jpeg' && (
-          <Field label={`Quality (${Math.round(quality * 100)}%)`}>
+          <Field label={t('export.quality', { percent: Math.round(quality * 100) })}>
             <input
               type="range"
               min={0.5}
@@ -262,8 +263,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
 
         <div className="mt-4 flex items-center justify-between rounded-[9px] bg-[var(--hover)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
           <div className="flex flex-col gap-1">
-            <span>Frame {project.exportFrame.width} × {project.exportFrame.height}px</span>
-            <span>Margin {margin}px · Background {background}</span>
+            <span>{t('export.frame', { width: project.exportFrame.width, height: project.exportFrame.height })}</span>
+            <span>{t('export.marginBackground', { margin, background })}</span>
           </div>
           <span data-testid="export-output-size" className="mono shrink-0 font-semibold text-[var(--text)]">
             {outW} × {outH}
@@ -277,7 +278,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             disabled={busy}
             className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
           >
-            Cancel
+            {t('export.cancel')}
           </button>
           <button
             type="button"
@@ -286,7 +287,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             className="flex items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-on-accent)] transition-[filter] hover:brightness-105 disabled:opacity-60"
           >
             <Download size={13} />
-            {busy ? 'Exporting…' : 'Export'}
+            {busy ? t('export.exporting') : t('title.export')}
           </button>
         </div>
       </div>

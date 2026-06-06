@@ -11,6 +11,9 @@ import { StatusBar } from './StatusBar';
 import { ToastHost } from './ToastHost';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { useDocumentTitle } from './useDocumentTitle';
+import { SettingsDialog } from './SettingsDialog';
+import { useUiStore } from './uiStore';
+import { useLocale } from '@/i18n/useLocale';
 
 /**
  * Top-level layout: a full-bleed glass window with titlebar / workspace /
@@ -27,6 +30,9 @@ export function AppShell() {
   useEffect(() => installHistoryCapture(), []);
   const showTabs = useSessionsStore((s) => s.sessions.length > 1);
   const mode = useDocumentStore((s) => s.project.mode);
+  const t = useLocale((s) => s.t);
+  const settingsOpen = useUiStore((s) => s.settingsDialogOpen);
+  const closeSettings = useUiStore((s) => s.closeSettingsDialog);
   const [chromeSettling, setChromeSettling] = useState(false);
   const mounted = useRef(false);
   const rows = showTabs ? '44px 36px minmax(0, 1fr) 28px' : '44px 0px minmax(0, 1fr) 28px';
@@ -86,7 +92,7 @@ export function AppShell() {
   return (
     <div
       role="application"
-      aria-label="GeoCarto"
+      aria-label={t('app.ariaLabel')}
       className="window-anim glass relative grid h-full overflow-hidden transition-[grid-template-rows] duration-200 ease-out"
       style={{
         gridTemplateRows: rows,
@@ -100,6 +106,7 @@ export function AppShell() {
       <Workspace chromeSettling={chromeSettling} />
       <StatusBar />
       <ToastHost />
+      <SettingsDialog open={settingsOpen} onClose={closeSettings} />
       <KeyboardShortcuts />
     </div>
   );

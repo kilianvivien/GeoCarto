@@ -7,6 +7,17 @@ import { useEditStore } from '@/state/editStore';
 import { EditAttributePanel } from '@/layers/EditAttributePanel';
 import { Swatches } from '@/ui/Swatches';
 import { FILL_PATTERNS } from '@/ui/swatchPalette';
+import { useLocale } from '@/i18n/useLocale';
+
+function fillPatternLabel(value: string, t: ReturnType<typeof useLocale.getState>['t']): string {
+  if (value === 'none') return t('pattern.solid');
+  if (value === 'diagonal') return t('pattern.diagonal');
+  if (value === 'crosshatch') return t('pattern.crosshatch');
+  if (value === 'horizontal') return t('pattern.horizontal');
+  if (value === 'vertical') return t('pattern.vertical');
+  if (value === 'dots') return t('pattern.dots');
+  return value;
+}
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -17,15 +28,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 function FeatureAttributes({ entries }: { entries: [string, unknown][] }) {
+  const t = useLocale((s) => s.t);
   const [open, setOpen] = useState(false);
   return (
     <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="flex cursor-pointer list-none items-center justify-between rounded-[7px] py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
-        Attributes
-        <span className="text-[11px] normal-case tracking-normal">{open ? 'Hide' : 'Show'}</span>
+        {t('attributes.attributes')}
+        <span className="text-[11px] normal-case tracking-normal">{open ? t('attributes.hide') : t('attributes.show')}</span>
       </summary>
       {entries.length === 0 ? (
-        <div className="mt-2 text-[12px] text-[var(--text-3)]">This feature has no properties.</div>
+        <div className="mt-2 text-[12px] text-[var(--text-3)]">{t('attributes.noProperties')}</div>
       ) : (
         <div className="mt-2 flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
           {entries.map(([key, value]) => (
@@ -44,6 +56,7 @@ function FeatureAttributes({ entries }: { entries: [string, unknown][] }) {
 
 /** Properties pane — feature attributes when a feature is picked, else layer info. */
 export function AttributeInspector() {
+  const t = useLocale((s) => s.t);
   const feature = useDocumentStore((s) => s.selectedFeature);
   const layers = useDocumentStore((s) => s.project.layers);
   const selectedLayerId = useDocumentStore((s) => s.selectedLayerId);
@@ -77,22 +90,23 @@ export function AttributeInspector() {
             hatchSpacing: layer.style.hatchSpacing,
           })
         : null;
+    const featureLabel = labelForFeature(feature.properties);
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <Eyebrow>Feature</Eyebrow>
+          <Eyebrow>{t('attributes.feature')}</Eyebrow>
           <div className="mt-1 text-[13px] font-semibold text-[var(--text)]">
-            {labelForFeature(feature.properties)}
+            {featureLabel === 'Selected feature' ? t('attributes.selectedFeature') : featureLabel}
           </div>
           <div className="mt-0.5 truncate text-[11.5px] text-[var(--text-3)]">
-            {layer?.name ?? 'Unknown layer'}
+            {layer?.name ?? t('attributes.unknownLayer')}
           </div>
         </div>
         {layer && (
           <div className={`flex flex-col gap-2 ${layer.locked || !fillKey ? 'opacity-65' : ''}`}>
-            <Eyebrow>Feature Style</Eyebrow>
+            <Eyebrow>{t('attributes.featureStyle')}</Eyebrow>
             <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-              Fill
+              {t('attributes.fill')}
               <Swatches
                 value={featureFillStyle?.fillColor ?? layer.style.fillColor}
                 disabled={layer.locked || !fillKey}
@@ -111,7 +125,7 @@ export function AttributeInspector() {
               />
             </div>
             <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-              Hatch
+              {t('attributes.hatch')}
               <select
                 aria-label="Feature fill pattern"
                 value={featureFillStyle?.fillPattern ?? layer.style.fillPattern}
@@ -132,7 +146,7 @@ export function AttributeInspector() {
               >
                 {FILL_PATTERNS.map((pattern) => (
                   <option key={pattern.value} value={pattern.value}>
-                    {pattern.label}
+                    {fillPatternLabel(pattern.value, t)}
                   </option>
                 ))}
               </select>
@@ -140,7 +154,7 @@ export function AttributeInspector() {
             {featureFillStyle?.fillPattern !== 'none' && (
               <>
                 <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-                  Hatch color
+                  {t('attributes.hatchColor')}
                   <Swatches
                     value={featureFillStyle?.hatchColor ?? layer.style.hatchColor}
                     disabled={layer.locked || !fillKey}
@@ -159,7 +173,7 @@ export function AttributeInspector() {
                   />
                 </div>
                 <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-                  Density
+                  {t('attributes.density')}
                   <input
                     aria-label="Feature hatch spacing"
                     type="number"
@@ -195,20 +209,20 @@ export function AttributeInspector() {
               }}
               className="self-start rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Reset fill
+              {t('attributes.resetFill')}
             </button>
             {!fillKey && (
               <div className="text-[11.5px] text-[var(--text-3)]">
-                This feature has no stable ID for saved fill overrides.
+                {t('attributes.noFillId')}
               </div>
             )}
           </div>
         )}
         {layer && (
           <div className={`flex flex-col gap-2 ${layer.locked ? 'opacity-65' : ''}`}>
-            <Eyebrow>Layer Stroke</Eyebrow>
+            <Eyebrow>{t('attributes.layerStroke')}</Eyebrow>
             <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-              Stroke
+              {t('attributes.stroke')}
               <Swatches
                 value={layer.style.strokeColor}
                 disabled={layer.locked}
@@ -216,7 +230,7 @@ export function AttributeInspector() {
               />
             </div>
             <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-              Width
+              {t('attributes.width')}
               <input
                 aria-label="Layer stroke width"
                 type="number"
@@ -242,15 +256,15 @@ export function AttributeInspector() {
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <Eyebrow>Layer</Eyebrow>
+          <Eyebrow>{t('attributes.layer')}</Eyebrow>
           <div className="mt-1 text-[13px] font-semibold text-[var(--text)]">{layer.name}</div>
         </div>
         <div className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
           {[
-            ['Geometry', layer.geometry],
-            ['Features', String(layer.featureCount)],
-            ['Visible', layer.visible ? 'yes' : 'no'],
-            ['Locked', layer.locked ? 'yes' : 'no'],
+            [t('attributes.geometry'), layer.geometry],
+            [t('attributes.features'), String(layer.featureCount)],
+            [t('attributes.visible'), layer.visible ? t('attributes.yes') : t('attributes.no')],
+            [t('attributes.locked'), layer.locked ? t('attributes.yes') : t('attributes.no')],
           ].map(([key, value]) => (
             <div key={key} className="grid grid-cols-[88px_1fr] gap-2 px-1.5 py-1">
               <span className="text-[11.5px] text-[var(--text-3)]">{key}</span>
@@ -259,9 +273,9 @@ export function AttributeInspector() {
           ))}
         </div>
         <div className={`flex flex-col gap-2 ${disabled ? 'opacity-65' : ''}`}>
-          <Eyebrow>Layer Style</Eyebrow>
+          <Eyebrow>{t('attributes.layerStyle')}</Eyebrow>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Render
+            {t('attributes.render')}
             <select
               aria-label="Layer render strategy"
               value={layer.renderStrategy ?? 'vector'}
@@ -271,12 +285,12 @@ export function AttributeInspector() {
               }
               className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
             >
-              <option value="vector">Vector</option>
-              <option value="heatmap">Heatmap</option>
+              <option value="vector">{t('attributes.vector')}</option>
+              <option value="heatmap">{t('attributes.heatmap')}</option>
             </select>
           </label>
           <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Fill
+            {t('attributes.fill')}
             <Swatches
               value={layer.style.fillColor}
               disabled={disabled}
@@ -284,7 +298,7 @@ export function AttributeInspector() {
             />
           </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Fill opacity
+            {t('attributes.fillOpacity')}
             <input
               aria-label="Layer fill opacity"
               type="number"
@@ -298,7 +312,7 @@ export function AttributeInspector() {
             />
           </label>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Hatch
+            {t('attributes.hatch')}
             <select
               aria-label="Layer fill pattern"
               value={layer.style.fillPattern}
@@ -308,7 +322,7 @@ export function AttributeInspector() {
             >
               {FILL_PATTERNS.map((pattern) => (
                 <option key={pattern.value} value={pattern.value}>
-                  {pattern.label}
+                  {fillPatternLabel(pattern.value, t)}
                 </option>
               ))}
             </select>
@@ -316,7 +330,7 @@ export function AttributeInspector() {
           {layer.style.fillPattern !== 'none' && (
             <>
               <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-                Hatch color
+                {t('attributes.hatchColor')}
                 <Swatches
                   value={layer.style.hatchColor}
                   disabled={disabled}
@@ -324,7 +338,7 @@ export function AttributeInspector() {
                 />
               </div>
               <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-                Density
+                {t('attributes.density')}
                 <input
                   aria-label="Layer hatch spacing"
                   type="number"
@@ -339,7 +353,7 @@ export function AttributeInspector() {
             </>
           )}
           <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Stroke
+            {t('attributes.stroke')}
             <Swatches
               value={layer.style.strokeColor}
               disabled={disabled}
@@ -347,7 +361,7 @@ export function AttributeInspector() {
             />
           </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Stroke width
+            {t('attributes.strokeWidth')}
             <input
               aria-label="Layer stroke width"
               type="number"
@@ -361,7 +375,7 @@ export function AttributeInspector() {
             />
           </label>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Show points
+            {t('attributes.showPoints')}
             <input
               aria-label="Show layer point features"
               type="checkbox"
@@ -372,7 +386,7 @@ export function AttributeInspector() {
             />
           </label>
           <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Point
+            {t('attributes.point')}
             <Swatches
               value={layer.style.pointColor}
               disabled={disabled}
@@ -380,7 +394,7 @@ export function AttributeInspector() {
             />
           </div>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
-            Point size
+            {t('attributes.pointSize')}
             <input
               aria-label="Layer point radius"
               type="number"
@@ -395,7 +409,7 @@ export function AttributeInspector() {
           </label>
         </div>
         <div className="text-[11.5px] text-[var(--text-3)]">
-          Click a feature on the map to inspect its attributes.
+          {t('attributes.inspectFeatureHelp')}
         </div>
       </div>
     );
@@ -403,7 +417,7 @@ export function AttributeInspector() {
 
   return (
     <div className="text-[12px] text-[var(--text-3)]">
-      Select a layer or click a feature to see its properties.
+      {t('attributes.selectLayerHelp')}
     </div>
   );
 }

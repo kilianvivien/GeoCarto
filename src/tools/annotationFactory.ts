@@ -4,6 +4,8 @@ import type {
   AnnotationKind,
   AnnotationStyle,
 } from '@/project/cartoproj';
+import { translate } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
 interface CreateAnnotationInput {
   kind: AnnotationKind;
@@ -13,29 +15,29 @@ interface CreateAnnotationInput {
   style: AnnotationStyle;
 }
 
-const TITLE: Record<AnnotationKind, string> = {
-  text: 'Text',
-  rectangle: 'Rectangle',
-  ellipse: 'Ellipse',
-  line: 'Line',
-  arrow: 'Arrow',
-  polygon: 'Polygon',
-  pin: 'Pin',
-  measurement: 'Measurement',
-  image: 'Image',
-  legend: 'Legend',
-  comment: 'Comment',
-  titleblock: 'Title block',
-  sourcecredit: 'Source credit',
-  scalebar: 'Scale bar',
-  northarrow: 'North arrow',
+const TITLE: Record<AnnotationKind, TranslationKey> = {
+  text: 'tool.text',
+  rectangle: 'tool.rectangle',
+  ellipse: 'tool.ellipse',
+  line: 'annotation.line',
+  arrow: 'annotation.arrow',
+  polygon: 'annotation.polygon',
+  pin: 'tool.pin',
+  measurement: 'annotation.measurement',
+  image: 'annotation.image',
+  legend: 'annotation.legend',
+  comment: 'annotation.comment',
+  titleblock: 'annotation.titleBlock',
+  sourcecredit: 'annotation.sourceCredit',
+  scalebar: 'annotation.scaleBar',
+  northarrow: 'annotation.northArrow',
 };
 
 function base({ kind, anchorMode, position, geoAnchor, style }: CreateAnnotationInput) {
   return {
     id: crypto.randomUUID(),
     kind,
-    name: TITLE[kind],
+    name: translate(TITLE[kind]),
     visible: true,
     locked: false,
     anchorMode,
@@ -51,7 +53,7 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
   const seed = base(input);
   switch (input.kind) {
     case 'text':
-      return { ...seed, kind: 'text', text: 'Label', width: 180 };
+      return { ...seed, kind: 'text', text: translate('sample.label'), width: 180 };
     case 'rectangle':
       return { ...seed, kind: 'rectangle', width: 160, height: 96, cornerRadius: 10 };
     case 'ellipse':
@@ -63,7 +65,7 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
     case 'polygon':
       return { ...seed, kind: 'polygon', points: [0, -58, 55, 40, -55, 40], closed: true };
     case 'pin':
-      return { ...seed, kind: 'pin', label: 'Place', size: 28 };
+      return { ...seed, kind: 'pin', label: translate('sample.place'), size: 28 };
     case 'measurement':
       return {
         ...seed,
@@ -88,16 +90,16 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
       return {
         ...seed,
         kind: 'legend',
-        title: 'Legend',
+        title: translate('sample.legendTitle'),
         entries: [
           {
-            label: 'Sample entry',
+            label: translate('sample.legendEntry'),
             swatchColor: '#007aff',
             fillStyle: { fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             visible: true,
           },
           {
-            label: 'Another entry',
+            label: translate('sample.legendAnotherEntry'),
             swatchColor: '#ff9500',
             fillStyle: { fillColor: '#ff9500', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             visible: true,
@@ -114,9 +116,15 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
         createdAt: new Date().toISOString(),
       };
     case 'titleblock':
-      return { ...seed, kind: 'titleblock', title: 'Map title', subtitle: 'Subtitle or description', width: 320 };
+      return {
+        ...seed,
+        kind: 'titleblock',
+        title: translate('sample.mapTitle'),
+        subtitle: translate('sample.mapSubtitle'),
+        width: 320,
+      };
     case 'sourcecredit':
-      return { ...seed, kind: 'sourcecredit', text: 'Source: …', width: 280 };
+      return { ...seed, kind: 'sourcecredit', text: translate('sample.sourceCredit'), width: 280 };
     case 'scalebar':
       return { ...seed, kind: 'scalebar', unitSystem: 'metric', maxWidth: 140 };
     case 'northarrow':

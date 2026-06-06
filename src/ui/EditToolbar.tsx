@@ -1,25 +1,27 @@
 import { MousePointer2, MapPin, Spline, Hexagon, Check, type LucideIcon } from 'lucide-react';
 import { useDocumentStore } from '@/state/documentStore';
 import { useEditStore, type EditTool } from '@/state/editStore';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
-const EDIT_TOOLS: { tool: EditTool; label: string; hint: string; icon: LucideIcon }[] = [
+const EDIT_TOOLS: { tool: EditTool; labelKey: TranslationKey; hintKey: TranslationKey; icon: LucideIcon }[] = [
   {
     tool: 'select',
-    label: 'Select & edit',
-    hint: 'Click a shape to select it, then drag its points to reshape, or drag the middle dots to add points',
+    labelKey: 'edit.select',
+    hintKey: 'edit.selectHint',
     icon: MousePointer2,
   },
-  { tool: 'point', label: 'Draw point', hint: 'Click on the map to drop a point', icon: MapPin },
+  { tool: 'point', labelKey: 'edit.point', hintKey: 'edit.pointHint', icon: MapPin },
   {
     tool: 'line',
-    label: 'Draw line',
-    hint: 'Click to add each point along the line; double-click to finish',
+    labelKey: 'edit.line',
+    hintKey: 'edit.lineHint',
     icon: Spline,
   },
   {
     tool: 'polygon',
-    label: 'Draw polygon',
-    hint: 'Click each corner; double-click (or click the first point) to close the shape',
+    labelKey: 'edit.polygon',
+    hintKey: 'edit.polygonHint',
     icon: Hexagon,
   },
 ];
@@ -30,6 +32,7 @@ const EDIT_TOOLS: { tool: EditTool; label: string; hint: string; icon: LucideIco
  * mode; the normal annotation tool rail keeps working for everything else.
  */
 export function EditToolbar() {
+  const t = useLocale((s) => s.t);
   const editingLayerId = useEditStore((s) => s.editingLayerId);
   const activeTool = useEditStore((s) => s.activeTool);
   const layerName = useDocumentStore((s) =>
@@ -42,15 +45,17 @@ export function EditToolbar() {
     <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex justify-center">
       <div
         role="toolbar"
-        aria-label="Vector editing tools"
+        aria-label={t('edit.toolbar')}
         className="glass pointer-events-auto flex items-center gap-1 bg-[var(--glass-strong)] p-1 shadow-[0_12px_36px_rgba(0,0,0,0.24)]"
       >
         <span className="max-w-[160px] truncate px-2 text-[11.5px] font-medium text-[var(--text-2)]">
-          {layerName ?? 'Editing'}
+          {layerName ?? t('edit.editing')}
         </span>
         <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
-        {EDIT_TOOLS.map(({ tool, label, hint, icon: Icon }) => {
+        {EDIT_TOOLS.map(({ tool, labelKey, hintKey, icon: Icon }) => {
           const isActive = activeTool === tool;
+          const label = t(labelKey);
+          const hint = t(hintKey);
           return (
             <button
               key={tool}
@@ -74,12 +79,12 @@ export function EditToolbar() {
         <button
           type="button"
           data-edit-tool="done"
-          title="Finish editing this layer"
+          title={t('edit.doneTitle')}
           onClick={() => useEditStore.getState().exitEdit()}
           className="flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
         >
           <Check size={15} />
-          Done
+          {t('edit.done')}
         </button>
       </div>
     </div>

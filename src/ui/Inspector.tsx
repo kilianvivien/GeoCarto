@@ -6,17 +6,20 @@ import { AnnotationInspector } from '@/tools/AnnotationInspector';
 import { StylePanel } from './StylePanel';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
 type PaneKey = 'properties' | 'layers' | 'style';
 
-const TABS: { key: PaneKey; label: string; icon: LucideIcon }[] = [
-  { key: 'properties', label: 'Properties', icon: SlidersHorizontal },
-  { key: 'layers', label: 'Layers', icon: Layers },
-  { key: 'style', label: 'Style', icon: Palette },
+const TABS: { key: PaneKey; labelKey: TranslationKey; icon: LucideIcon }[] = [
+  { key: 'properties', labelKey: 'inspector.properties', icon: SlidersHorizontal },
+  { key: 'layers', labelKey: 'inspector.layers', icon: Layers },
+  { key: 'style', labelKey: 'inspector.style', icon: Palette },
 ];
 
 /** Right-hand inspector (design.md §4.4). */
 export function Inspector() {
+  const t = useLocale((s) => s.t);
   const [pane, setPane] = useState<PaneKey>('layers');
   const activeTool = useToolStore((s) => s.activeTool);
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
@@ -37,6 +40,7 @@ export function Inspector() {
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = pane === tab.key;
+          const label = t(tab.labelKey);
           return (
             <button
               key={tab.key}
@@ -51,7 +55,7 @@ export function Inspector() {
               }`}
             >
               <Icon size={13} />
-              {tab.label}
+              {label}
             </button>
           );
         })}

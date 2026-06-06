@@ -5,6 +5,7 @@ import type { GeoJsonLayer } from '@/project/cartoproj';
 import { FEATURE_FILL_PROPERTY, labelForFeature } from '@/layers/geojsonFeatureStyle';
 import { useDocumentStore } from '@/state/documentStore';
 import { hintHistoryLabel } from '@/state/historyStore';
+import { useLocale } from '@/i18n/useLocale';
 
 interface Row {
   key: string;
@@ -51,6 +52,7 @@ export function EditAttributePanel({
   layer: GeoJsonLayer;
   feature: Feature | null;
 }) {
+  const t = useLocale((s) => s.t);
   const featureId = feature?.id;
   const [rows, setRows] = useState<Row[]>(() => rowsFromProperties(feature?.properties ?? null));
 
@@ -65,11 +67,11 @@ export function EditAttributePanel({
     return (
       <div className="flex flex-col gap-3">
         <div>
-          <Eyebrow>Editing</Eyebrow>
+          <Eyebrow>{t('attributes.editing')}</Eyebrow>
           <div className="mt-1 text-[13px] font-semibold text-[var(--text)]">{layer.name}</div>
         </div>
         <div className="text-[12px] text-[var(--text-3)]">
-          Select a feature on the map to edit its attributes, or use the draw tools to add one.
+          {t('attributes.selectFeatureHelp')}
         </div>
       </div>
     );
@@ -88,50 +90,49 @@ export function EditAttributePanel({
     hintHistoryLabel('Edit feature attributes');
     useDocumentStore.getState().updateFeatureProperties(layer.id, featureId, properties);
   };
+  const featureLabel = labelForFeature(feature.properties ?? {});
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Eyebrow>Feature</Eyebrow>
+        <Eyebrow>{t('attributes.feature')}</Eyebrow>
         <div className="mt-1 text-[13px] font-semibold text-[var(--text)]">
-          {labelForFeature(feature.properties ?? {})}
+          {featureLabel === 'Selected feature' ? t('attributes.selectedFeature') : featureLabel}
         </div>
         <div className="mt-0.5 truncate text-[11.5px] text-[var(--text-3)]">{layer.name}</div>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Eyebrow>Attributes</Eyebrow>
+        <Eyebrow>{t('attributes.attributes')}</Eyebrow>
         <p className="text-[11px] leading-snug text-[var(--text-3)]">
-          Information stored with this shape — for example a <span className="text-[var(--text-2)]">name</span>,
-          a category, or a number. These show up when you click the feature and can label or
-          style it.
+          {t('attributes.help')}
         </p>
         {rows.length === 0 ? (
           <div className="rounded-[8px] border border-dashed border-[var(--divider)] px-2 py-3 text-center text-[11px] text-[var(--text-3)]">
-            No attributes yet.
+            {t('attributes.noneYet')}
           </div>
         ) : (
           <div className="grid grid-cols-[1fr_1fr_auto] gap-1 px-1 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3)]">
-            <span>Field</span>
-            <span>Value</span>
+            <span>{t('attributes.field')}</span>
+            <span>{t('attributes.value')}</span>
             <span className="w-7" />
           </div>
         )}
         {rows.map((row, index) => (
           <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-center gap-1">
             <input
-              aria-label={`Attribute ${index + 1} name`}
+              aria-label={`${t('attributes.field')} ${index + 1}`}
               value={row.key}
-              placeholder="e.g. name"
+              placeholder={t('attributes.namePlaceholder')}
               onChange={(e) =>
                 commit(rows.map((r, i) => (i === index ? { ...r, key: e.target.value } : r)))
               }
               className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
             />
             <input
-              aria-label={`Attribute ${index + 1} value`}
+              aria-label={`${t('attributes.value')} ${index + 1}`}
               value={row.value}
-              placeholder="e.g. City Hall"
+              placeholder={t('attributes.valuePlaceholder')}
               onChange={(e) =>
                 commit(rows.map((r, i) => (i === index ? { ...r, value: e.target.value } : r)))
               }
@@ -139,8 +140,8 @@ export function EditAttributePanel({
             />
             <button
               type="button"
-              aria-label={`Delete attribute ${row.key || index + 1}`}
-              title="Delete attribute"
+              aria-label={`${t('attributes.delete')} ${row.key || index + 1}`}
+              title={t('attributes.delete')}
               onClick={() => commit(rows.filter((_, i) => i !== index))}
               className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
             >
@@ -154,7 +155,7 @@ export function EditAttributePanel({
           className="mt-1 flex items-center gap-1.5 self-start rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
         >
           <Plus size={13} />
-          Add field
+          {t('attributes.addField')}
         </button>
       </div>
     </div>

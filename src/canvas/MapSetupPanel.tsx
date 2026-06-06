@@ -6,6 +6,8 @@ import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { BasemapSublayerToggles } from '@/basemap/BasemapSublayerToggles';
 import { useNotices } from '@/ui/notices';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 import { useMapInstance } from './mapInstance';
 import { frameZoomDelta } from './compositionFrame';
 
@@ -17,11 +19,27 @@ const ASPECT_PRESETS: { label: string; width: number; height: number }[] = [
   { label: '3:4', width: 1200, height: 1600 },
 ];
 
-const BUILT_INS: { preset: BuiltInBasemapPreset; name: string; description: string }[] = [
-  { preset: 'editorial-light', name: 'Editorial Light', description: 'Bright OSM-derived map for most outputs.' },
-  { preset: 'editorial-dark', name: 'Editorial Dark', description: 'Dark editorial base for contrast-heavy graphics.' },
-  { preset: 'minimal-grey', name: 'Minimal Grey', description: 'Quiet grey geography for annotation-heavy maps.' },
-  { preset: 'print-bw', name: 'Print B&W', description: 'High-contrast monochrome draft base.' },
+const BUILT_INS: { preset: BuiltInBasemapPreset; labelKey: TranslationKey; descriptionKey: TranslationKey }[] = [
+  {
+    preset: 'editorial-light',
+    labelKey: 'basemap.editorialLight',
+    descriptionKey: 'basemap.editorialLightDescription',
+  },
+  {
+    preset: 'editorial-dark',
+    labelKey: 'basemap.editorialDark',
+    descriptionKey: 'basemap.editorialDarkDescription',
+  },
+  {
+    preset: 'minimal-grey',
+    labelKey: 'basemap.minimalGrey',
+    descriptionKey: 'basemap.minimalGreyDescription',
+  },
+  {
+    preset: 'print-bw',
+    labelKey: 'basemap.printBw',
+    descriptionKey: 'basemap.printBwDescription',
+  },
 ];
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -33,12 +51,11 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function builtinConfig(preset: BuiltInBasemapPreset): BasemapConfig {
-  const item = BUILT_INS.find((candidate) => candidate.preset === preset) ?? BUILT_INS[0];
+function builtinConfig(preset: BuiltInBasemapPreset, name: string): BasemapConfig {
   return {
     kind: 'builtin',
     preset,
-    name: item.name,
+    name,
     attribution: 'Protomaps © OpenStreetMap',
     sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
   };
@@ -51,6 +68,7 @@ const linkButton = 'text-[12px] font-semibold text-[var(--accent)] transition-co
 
 /** Required first-run composition setup before annotation editing is enabled. */
 export function MapSetupPanel() {
+  const t = useLocale((s) => s.t);
   const mode = useDocumentStore((s) => s.project.mode);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
@@ -82,11 +100,11 @@ export function MapSetupPanel() {
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       const isImage = file.type.startsWith('image/');
       if (isPdf) {
-        push('PDF basemaps are planned for Phase 2 export hardening.', 'error');
+        push(t('setup.pdfBasemapPlanned'), 'error');
         return;
       }
       if (!isImage) {
-        push('Choose a PNG, JPEG, or WebP basemap file.', 'error');
+        push(t('setup.chooseImageBasemap'), 'error');
         return;
       }
       const dataUrl = await fileToDataUrl(file);
@@ -99,7 +117,7 @@ export function MapSetupPanel() {
           dataUrl,
           attribution: file.name,
         },
-        `Using "${file.name}" as a static basemap`,
+        t('setup.staticBasemapSelected', { name: file.name }),
       );
     });
     input.click();
@@ -109,8 +127,8 @@ export function MapSetupPanel() {
     const url = styleUrl.trim();
     if (!url) return;
     chooseBasemap(
-      { kind: 'style-url', name: 'Custom style', url, attribution: 'Custom MapLibre style' },
-      'Custom style URL selected',
+      { kind: 'style-url', name: t('setup.customStyleName'), url, attribution: t('style.customAttribution') },
+      t('setup.customStyleSelected'),
     );
   };
 
@@ -120,18 +138,18 @@ export function MapSetupPanel() {
     chooseBasemap(
       {
         kind: 'pmtiles-url',
-        name: 'Custom PMTiles',
+        name: t('setup.customPmtilesName'),
         url,
         preset: 'editorial-light',
         attribution: 'Custom PMTiles',
         sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
       },
-      'Custom PMTiles URL selected',
+      t('setup.customPmtilesSelected'),
     );
   };
 
   const selectLocalPmtiles = () => {
-    push('Local PMTiles files are Phase 2 because blob URLs cannot survive save/reopen.', 'error');
+    push(t('setup.localPmtilesPlanned'), 'error');
   };
 
   /** Zoom the map so the composition box fills the canvas, then lock that view. */
@@ -158,12 +176,16 @@ export function MapSetupPanel() {
       className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 text-[12px] font-semibold text-[var(--text-on-accent)] shadow-[0_4px_14px_var(--accent-soft)] transition-transform hover:scale-[1.03] active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100"
     >
       <LockKeyhole size={14} />
-      Lock Map Area
+      {t('setup.lockMapArea')}
     </button>
   );
 
   const transition =
     'transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none motion-reduce:transform-none';
+  const collapsedBasemapName =
+    basemap.kind === 'builtin'
+      ? t(BUILT_INS.find((item) => item.preset === basemap.preset)?.labelKey ?? 'basemap.editorialLight')
+      : basemap.name;
 
   return (
     <div className="pointer-events-none absolute inset-x-4 top-4 z-30">
@@ -182,9 +204,9 @@ export function MapSetupPanel() {
                 <Map size={15} className="text-[var(--accent)]" />
               </div>
               <div>
-                <div className="text-[13px] font-semibold">Set up map</div>
+                <div className="text-[13px] font-semibold">{t('setup.title')}</div>
                 <div className="mt-0.5 text-[11.5px] leading-snug text-[var(--text-2)]">
-                  Choose a basemap, frame the composition area, then lock it before editing.
+                  {t('setup.description')}
                 </div>
               </div>
             </div>
@@ -194,8 +216,8 @@ export function MapSetupPanel() {
                 type="button"
                 onClick={() => setCollapsed(true)}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-                title="Minimize"
-                aria-label="Minimize map setup"
+                title={t('setup.minimize')}
+                aria-label={t('setup.minimizeAria')}
               >
                 <ChevronDown size={16} />
               </button>
@@ -203,36 +225,37 @@ export function MapSetupPanel() {
           </div>
 
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Built-in basemaps
+            {t('setup.builtInBasemaps')}
           </div>
           <div className="grid gap-2 md:grid-cols-4">
             {BUILT_INS.map((item) => {
               const active = basemap.kind === 'builtin' && basemap.preset === item.preset;
+              const name = t(item.labelKey);
               return (
                 <button
                   key={item.preset}
                   type="button"
-                  onClick={() => chooseBasemap(builtinConfig(item.preset), `${item.name} basemap selected`)}
+                  onClick={() => chooseBasemap(builtinConfig(item.preset, name), t('setup.basemapSelected', { name }))}
                   className={`${active ? cardActive : cardBase} p-3 text-left`}
                 >
                   <div className="flex items-center gap-2 text-[12px] font-semibold">
                     {active ? <Check size={14} className="text-[var(--accent)]" /> : <Globe2 size={14} />}
-                    {item.name}
+                    {name}
                   </div>
-                  <div className="mt-2 text-[11px] leading-snug text-[var(--text-2)]">{item.description}</div>
+                  <div className="mt-2 text-[11px] leading-snug text-[var(--text-2)]">{t(item.descriptionKey)}</div>
                 </button>
               );
             })}
           </div>
 
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Custom source
+            {t('setup.customSource')}
           </div>
           <div className="grid gap-2 md:grid-cols-3">
             <div className={`${cardBase} p-3`}>
               <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
                 <Link2 size={14} />
-                Style JSON URL
+                {t('setup.styleJsonUrl')}
               </div>
               <input
                 value={styleUrl}
@@ -242,14 +265,14 @@ export function MapSetupPanel() {
                 className="mb-2 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)]"
               />
               <button type="button" onClick={applyStyleUrl} className={linkButton}>
-                Use style URL
+                {t('setup.useStyleUrl')}
               </button>
             </div>
 
             <div className={`${cardBase} p-3`}>
               <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
                 <Globe2 size={14} />
-                PMTiles URL
+                {t('setup.pmtilesUrl')}
               </div>
               <input
                 value={pmtilesUrl}
@@ -259,17 +282,17 @@ export function MapSetupPanel() {
                 className="mb-2 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)]"
               />
               <button type="button" onClick={applyPmtilesUrl} className={linkButton}>
-                Use PMTiles
+                {t('setup.usePmtiles')}
               </button>
               <span className="mx-2 text-[var(--text-3)]">·</span>
               <button
                 type="button"
                 onClick={selectLocalPmtiles}
                 disabled
-                title="Phase 2: local PMTiles file persistence"
+                title={t('setup.localPmtilesTitle')}
                 className={`${linkButton} disabled:cursor-not-allowed disabled:opacity-45`}
               >
-                File in Phase 2
+                {t('setup.fileInPhase2')}
               </button>
             </div>
 
@@ -280,10 +303,10 @@ export function MapSetupPanel() {
             >
               <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
                 <FileImage size={14} />
-                Image or PDF
+                {t('setup.imageOrPdf')}
               </div>
               <div className="text-[11px] leading-snug text-[var(--text-2)]">
-                Use a PNG, JPEG, or WebP as a visual static basemap.
+                {t('setup.staticBasemapDescription')}
               </div>
             </button>
           </div>
@@ -291,14 +314,14 @@ export function MapSetupPanel() {
           {(basemap.kind === 'builtin' || basemap.kind === 'pmtiles-url') && (
             <>
               <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-                Basemap sub-layers
+                {t('setup.basemapSublayers')}
               </div>
               <BasemapSublayerToggles />
             </>
           )}
 
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Composition frame
+            {t('setup.compositionFrame')}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {ASPECT_PRESETS.map((preset) => {
@@ -348,13 +371,13 @@ export function MapSetupPanel() {
             type="button"
             onClick={() => setCollapsed(false)}
             className="flex items-center gap-2 rounded-full px-1 text-left transition-colors hover:text-[var(--accent)]"
-            title="Expand map setup"
+            title={t('setup.expand')}
           >
             <Map size={14} className="text-[var(--text-3)]" />
-            <span className="max-w-[180px] truncate text-[12px] font-semibold">{basemap.name}</span>
+            <span className="max-w-[180px] truncate text-[12px] font-semibold">{collapsedBasemapName}</span>
             <ChevronDown size={14} className="-rotate-90 text-[var(--text-3)]" />
           </button>
-          <span className="hidden text-[11px] text-[var(--text-3)] sm:inline">Frame the area, then lock</span>
+          <span className="hidden text-[11px] text-[var(--text-3)] sm:inline">{t('setup.frameThenLock')}</span>
           {lockButton}
         </div>
       </div>

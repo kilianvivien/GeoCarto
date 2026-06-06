@@ -17,51 +17,102 @@ import type {
 } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
-import { TOOL_BY_KEY, useToolStore, toolToAnnotationKind } from '@/state/toolStore';
+import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useUiStore } from '@/ui/uiStore';
 import {
   legendEntryFill,
   legendSwatchBackground,
   legendSwatchBackgroundSize,
 } from '@/style/legendSwatches';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
 const FONTS = ['Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia'];
-const FILL_PATTERNS: { value: FillPattern; label: string }[] = [
-  { value: 'none', label: 'Solid' },
-  { value: 'diagonal', label: 'Diagonal hatch' },
-  { value: 'crosshatch', label: 'Crosshatch' },
-  { value: 'horizontal', label: 'Horizontal hatch' },
-  { value: 'vertical', label: 'Vertical hatch' },
-  { value: 'dots', label: 'Dot hatch' },
+const FILL_PATTERNS: { value: FillPattern; labelKey: TranslationKey }[] = [
+  { value: 'none', labelKey: 'pattern.solid' },
+  { value: 'diagonal', labelKey: 'pattern.diagonal' },
+  { value: 'crosshatch', labelKey: 'pattern.crosshatch' },
+  { value: 'horizontal', labelKey: 'pattern.horizontal' },
+  { value: 'vertical', labelKey: 'pattern.vertical' },
+  { value: 'dots', labelKey: 'pattern.dots' },
 ];
-const BRUSH_PRESETS: { value: BrushPreset; label: string; width: number }[] = [
-  { value: 'round', label: 'Round', width: 2 },
-  { value: 'marker', label: 'Marker', width: 5 },
-  { value: 'pencil', label: 'Pencil', width: 2 },
-  { value: 'highlighter', label: 'Highlighter', width: 6 },
+const BRUSH_PRESETS: { value: BrushPreset; labelKey: TranslationKey; width: number }[] = [
+  { value: 'round', labelKey: 'brush.round', width: 2 },
+  { value: 'marker', labelKey: 'brush.marker', width: 5 },
+  { value: 'pencil', labelKey: 'brush.pencil', width: 2 },
+  { value: 'highlighter', labelKey: 'brush.highlighter', width: 6 },
 ];
-const STROKE_PATTERNS: { value: StrokePattern; label: string }[] = [
-  { value: 'solid', label: 'Solid' },
-  { value: 'dotted', label: 'Dotted' },
-  { value: 'dashed', label: 'Dashed' },
+const STROKE_PATTERNS: { value: StrokePattern; labelKey: TranslationKey }[] = [
+  { value: 'solid', labelKey: 'pattern.solid' },
+  { value: 'dotted', labelKey: 'strokePattern.dotted' },
+  { value: 'dashed', labelKey: 'strokePattern.dashed' },
 ];
-const BLEND_MODES: { value: BlendMode; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'multiply', label: 'Multiply' },
-  { value: 'screen', label: 'Screen' },
-  { value: 'overlay', label: 'Overlay' },
+const BLEND_MODES: { value: BlendMode; labelKey: TranslationKey }[] = [
+  { value: 'normal', labelKey: 'blend.normal' },
+  { value: 'multiply', labelKey: 'blend.multiply' },
+  { value: 'screen', labelKey: 'blend.screen' },
+  { value: 'overlay', labelKey: 'blend.overlay' },
 ];
-const PIN_ICONS: { value: PinIcon; label: string }[] = [
-  { value: 'dot', label: 'Dot' },
-  { value: 'ring', label: 'Ring' },
-  { value: 'flag', label: 'Flag' },
-  { value: 'star', label: 'Star' },
-  { value: 'triangle', label: 'Triangle' },
-  { value: 'square', label: 'Square' },
-  { value: 'diamond', label: 'Diamond' },
-  { value: 'cross', label: 'Cross' },
-  { value: 'target', label: 'Target' },
+const PIN_ICONS: { value: PinIcon; labelKey: TranslationKey }[] = [
+  { value: 'dot', labelKey: 'pinIcon.dot' },
+  { value: 'ring', labelKey: 'pinIcon.ring' },
+  { value: 'flag', labelKey: 'pinIcon.flag' },
+  { value: 'star', labelKey: 'pinIcon.star' },
+  { value: 'triangle', labelKey: 'pinIcon.triangle' },
+  { value: 'square', labelKey: 'pinIcon.square' },
+  { value: 'diamond', labelKey: 'pinIcon.diamond' },
+  { value: 'cross', labelKey: 'pinIcon.cross' },
+  { value: 'target', labelKey: 'pinIcon.target' },
 ];
+
+const ANNOTATION_KIND_LABELS: Record<AnnotationKind, TranslationKey> = {
+  text: 'tool.text',
+  rectangle: 'tool.rectangle',
+  ellipse: 'tool.ellipse',
+  line: 'annotation.line',
+  arrow: 'annotation.arrow',
+  polygon: 'annotation.polygon',
+  pin: 'tool.pin',
+  measurement: 'annotation.measurement',
+  image: 'annotation.image',
+  legend: 'annotation.legend',
+  comment: 'annotation.comment',
+  titleblock: 'annotation.titleBlock',
+  sourcecredit: 'annotation.sourceCredit',
+  scalebar: 'annotation.scaleBar',
+  northarrow: 'annotation.northArrow',
+};
+
+const DEFAULT_ANNOTATION_NAMES: Record<AnnotationKind, string> = {
+  text: 'Text',
+  // Localized factory output can match these too; this keeps generated names
+  // display-localized without touching explicit user renames.
+  rectangle: 'Rectangle',
+  ellipse: 'Ellipse',
+  line: 'Line',
+  arrow: 'Arrow',
+  polygon: 'Polygon',
+  pin: 'Pin',
+  measurement: 'Measurement',
+  image: 'Image',
+  legend: 'Legend',
+  comment: 'Comment',
+  titleblock: 'Title block',
+  sourcecredit: 'Source credit',
+  scalebar: 'Scale bar',
+  northarrow: 'North arrow',
+};
+
+function kindLabel(kind: AnnotationKind, t: ReturnType<typeof useLocale.getState>['t']): string {
+  return t(ANNOTATION_KIND_LABELS[kind]);
+}
+
+function annotationDisplayName(annotation: Annotation, t: ReturnType<typeof useLocale.getState>['t']): string {
+  const localizedDefault = kindLabel(annotation.kind, t);
+  return annotation.name === DEFAULT_ANNOTATION_NAMES[annotation.kind] || annotation.name === localizedDefault
+    ? kindLabel(annotation.kind, t)
+    : annotation.name;
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -116,6 +167,7 @@ function AnchorControl({
   value: AnnotationAnchorMode;
   onChange: (mode: AnnotationAnchorMode) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
     <div className="grid grid-cols-2 gap-1 rounded-[8px] bg-[var(--glass-thin)] p-1">
       {(['canvas', 'map'] as const).map((mode) => (
@@ -123,11 +175,11 @@ function AnchorControl({
           key={mode}
           type="button"
           onClick={() => onChange(mode)}
-          className={`rounded-[6px] px-2 py-1.5 text-[11.5px] capitalize ${
+          className={`rounded-[6px] px-2 py-1.5 text-[11.5px] ${
             value === mode ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-2)]'
           }`}
         >
-          Pin to {mode}
+          {mode === 'canvas' ? t('annotation.pinToCanvas') : t('annotation.pinToMap')}
         </button>
       ))}
     </div>
@@ -143,6 +195,7 @@ function FillControls({
   sampleTargetAnnotationId?: string;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   const pendingAnnotationFillSample = useUiStore((s) => s.pendingAnnotationFillSample);
   const startAnnotationFillSample = useUiStore((s) => s.startAnnotationFillSample);
   const cancelAnnotationFillSample = useUiStore((s) => s.cancelAnnotationFillSample);
@@ -150,7 +203,7 @@ function FillControls({
     sampleTargetAnnotationId !== undefined &&
     pendingAnnotationFillSample?.annotationId === sampleTargetAnnotationId;
   return (
-    <Section title="Fill">
+    <Section title={t('annotation.fill')}>
       <div className="grid grid-cols-[1fr_28px] items-center gap-1.5">
         <Swatches value={style.fillColor} onChange={(fillColor) => onChange({ fillColor })} />
         <button
@@ -161,9 +214,9 @@ function FillControls({
             else startAnnotationFillSample(sampleTargetAnnotationId);
           }}
           disabled={!sampleTargetAnnotationId}
-          aria-label="Pick fill from shape"
+          aria-label={t('annotation.pickFill')}
           aria-pressed={picking}
-          title="Pick fill from shape"
+          title={t('annotation.pickFill')}
           className={`flex h-7 w-7 items-center justify-center rounded-[7px] border border-[var(--divider)] hover:bg-[var(--hover)] disabled:opacity-40 ${
             picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
           }`}
@@ -171,24 +224,24 @@ function FillControls({
           <Pipette size={13} />
         </button>
       </div>
-      <Row label="Hatch">
+      <Row label={t('annotation.hatch')}>
         <Select
           value={style.fillPattern}
           onChange={(e) => onChange({ fillPattern: e.target.value as FillPattern })}
         >
           {FILL_PATTERNS.map((pattern) => (
             <option key={pattern.value} value={pattern.value}>
-              {pattern.label}
+              {t(pattern.labelKey)}
             </option>
           ))}
         </Select>
       </Row>
       {style.fillPattern !== 'none' && (
         <>
-          <Row label="Hatch color">
+          <Row label={t('annotation.hatchColor')}>
             <Swatches value={style.hatchColor} onChange={(hatchColor) => onChange({ hatchColor })} />
           </Row>
-          <Row label="Density">
+          <Row label={t('annotation.density')}>
             <Input
               type="number"
               min={4}
@@ -210,12 +263,13 @@ function StrokeControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
-    <Section title="Stroke">
-      <Row label="Color">
+    <Section title={t('annotation.stroke')}>
+      <Row label={t('annotation.color')}>
         <Swatches value={style.strokeColor} onChange={(strokeColor) => onChange({ strokeColor })} />
       </Row>
-      <Row label="Width">
+      <Row label={t('annotation.width')}>
         <Input
           type="number"
           min={0}
@@ -224,14 +278,14 @@ function StrokeControls({
           onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
         />
       </Row>
-      <Row label="Pattern">
+      <Row label={t('annotation.pattern')}>
         <Select
           value={style.strokePattern}
           onChange={(e) => onChange({ strokePattern: e.target.value as StrokePattern })}
         >
           {STROKE_PATTERNS.map((pattern) => (
             <option key={pattern.value} value={pattern.value}>
-              {pattern.label}
+              {t(pattern.labelKey)}
             </option>
           ))}
         </Select>
@@ -247,16 +301,17 @@ function TextStyleControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
-    <Section title="Text">
-      <Row label="Font">
+    <Section title={t('annotation.text')}>
+      <Row label={t('annotation.font')}>
         <Select value={style.fontFamily} onChange={(e) => onChange({ fontFamily: e.target.value })}>
           {FONTS.map((font) => (
             <option key={font}>{font}</option>
           ))}
         </Select>
       </Row>
-      <Row label="Size">
+      <Row label={t('annotation.size')}>
         <Input
           type="number"
           min={8}
@@ -265,7 +320,7 @@ function TextStyleControls({
           onChange={(e) => onChange({ textSize: Number(e.target.value) })}
         />
       </Row>
-      <Row label="Color">
+      <Row label={t('annotation.color')}>
         <Swatches value={style.textColor} onChange={(textColor) => onChange({ textColor })} />
       </Row>
     </Section>
@@ -279,19 +334,20 @@ function PinStyleControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
-    <Section title="Pin">
-      <Row label="Color">
+    <Section title={t('annotation.pin')}>
+      <Row label={t('annotation.color')}>
         <Swatches value={style.pinColor} onChange={(pinColor) => onChange({ pinColor })} />
       </Row>
-      <Row label="Icon">
+      <Row label={t('annotation.icon')}>
         <Select
           value={style.pinIcon}
           onChange={(e) => onChange({ pinIcon: e.target.value as PinIcon })}
         >
           {PIN_ICONS.map((icon) => (
             <option key={icon.value} value={icon.value}>
-              {icon.label}
+              {t(icon.labelKey)}
             </option>
           ))}
         </Select>
@@ -307,9 +363,10 @@ function CommentStyleControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
-    <Section title="Comment Marker">
-      <Row label="Color">
+    <Section title={t('annotation.commentMarker')}>
+      <Row label={t('annotation.color')}>
         <Swatches value={style.pinColor} onChange={(pinColor) => onChange({ pinColor })} />
       </Row>
     </Section>
@@ -323,6 +380,7 @@ function EffectsControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   const haloOn = style.haloWidth > 0;
   const shadowOn = style.shadowBlur > 0 || style.shadowOffsetX !== 0 || style.shadowOffsetY !== 0;
   const [open, setOpen] = useState(haloOn || shadowOn || style.blendMode !== 'normal');
@@ -334,12 +392,12 @@ function EffectsControls({
         aria-expanded={open}
         className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)]"
       >
-        <span>Effects</span>
+        <span>{t('annotation.effects')}</span>
         <span className="text-[12px]">{open ? '−' : '+'}</span>
       </button>
       {open && (
         <div className="flex flex-col gap-2">
-          <Row label="Halo">
+          <Row label={t('annotation.halo')}>
             <Input
               type="number"
               min={0}
@@ -349,11 +407,11 @@ function EffectsControls({
             />
           </Row>
           {style.haloWidth > 0 && (
-            <Row label="Halo color">
+            <Row label={t('annotation.haloColor')}>
               <Swatches value={style.haloColor} onChange={(haloColor) => onChange({ haloColor })} />
             </Row>
           )}
-          <Row label="Shadow">
+          <Row label={t('annotation.shadow')}>
             <Input
               type="number"
               min={0}
@@ -364,10 +422,10 @@ function EffectsControls({
           </Row>
           {shadowOn && (
             <>
-              <Row label="Shadow color">
+              <Row label={t('annotation.shadowColor')}>
                 <Swatches value={style.shadowColor} onChange={(shadowColor) => onChange({ shadowColor })} />
               </Row>
-              <Row label="Offset X">
+              <Row label={t('annotation.offsetX')}>
                 <Input
                   type="number"
                   min={-32}
@@ -376,7 +434,7 @@ function EffectsControls({
                   onChange={(e) => onChange({ shadowOffsetX: Number(e.target.value) })}
                 />
               </Row>
-              <Row label="Offset Y">
+              <Row label={t('annotation.offsetY')}>
                 <Input
                   type="number"
                   min={-32}
@@ -387,14 +445,14 @@ function EffectsControls({
               </Row>
             </>
           )}
-          <Row label="Blend">
+          <Row label={t('annotation.blend')}>
             <Select
               value={style.blendMode}
               onChange={(e) => onChange({ blendMode: e.target.value as BlendMode })}
             >
               {BLEND_MODES.map((mode) => (
                 <option key={mode.value} value={mode.value}>
-                  {mode.label}
+                  {t(mode.labelKey)}
                 </option>
               ))}
             </Select>
@@ -487,9 +545,10 @@ function BrushPresetControls({
   style: AnnotationStyle;
   onChange: (patch: Partial<AnnotationStyle>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   return (
-    <Section title="Brush">
-      <Row label="Preset">
+    <Section title={t('annotation.brush')}>
+      <Row label={t('annotation.preset')}>
         <Select
           value={style.brushPreset ?? 'round'}
           onChange={(e) => {
@@ -500,7 +559,7 @@ function BrushPresetControls({
         >
           {BRUSH_PRESETS.map((preset) => (
             <option key={preset.value} value={preset.value}>
-              {preset.label}
+              {t(preset.labelKey)}
             </option>
           ))}
         </Select>
@@ -518,18 +577,19 @@ function GeometryControls({
   disabled: boolean;
   onChange: (patch: Partial<Annotation>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   switch (annotation.kind) {
     case 'text':
       return (
-        <Section title="Text Box">
-          <Row label="Text">
+        <Section title={t('annotation.textBox')}>
+          <Row label={t('annotation.text')}>
             <Input
               value={annotation.text}
               disabled={disabled}
               onChange={(e) => onChange({ text: e.target.value } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Width">
+          <Row label={t('annotation.width')}>
             <Input
               type="number"
               min={24}
@@ -542,8 +602,8 @@ function GeometryControls({
       );
     case 'rectangle':
       return (
-        <Section title="Rectangle">
-          <Row label="Width">
+        <Section title={t('tool.rectangle')}>
+          <Row label={t('annotation.width')}>
             <Input
               type="number"
               min={4}
@@ -552,7 +612,7 @@ function GeometryControls({
               onChange={(e) => onChange({ width: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Height">
+          <Row label={t('annotation.height')}>
             <Input
               type="number"
               min={4}
@@ -561,7 +621,7 @@ function GeometryControls({
               onChange={(e) => onChange({ height: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Radius">
+          <Row label={t('annotation.radius')}>
             <Input
               type="number"
               min={0}
@@ -574,8 +634,8 @@ function GeometryControls({
       );
     case 'ellipse':
       return (
-        <Section title="Ellipse">
-          <Row label="Radius X">
+        <Section title={t('tool.ellipse')}>
+          <Row label={t('annotation.radiusX')}>
             <Input
               type="number"
               min={2}
@@ -584,7 +644,7 @@ function GeometryControls({
               onChange={(e) => onChange({ radiusX: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Radius Y">
+          <Row label={t('annotation.radiusY')}>
             <Input
               type="number"
               min={2}
@@ -597,15 +657,15 @@ function GeometryControls({
       );
     case 'pin':
       return (
-        <Section title="Marker">
-          <Row label="Label">
+        <Section title={t('annotation.marker')}>
+          <Row label={t('annotation.label')}>
             <Input
               value={annotation.label}
               disabled={disabled}
               onChange={(e) => onChange({ label: e.target.value } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Size">
+          <Row label={t('annotation.size')}>
             <Input
               type="number"
               min={8}
@@ -620,14 +680,14 @@ function GeometryControls({
     case 'line':
     case 'arrow':
       return (
-        <Section title={annotation.kind === 'arrow' ? 'Arrow' : 'Line'}>
-          <Hint>Drag the canvas handles to adjust endpoints and length.</Hint>
+        <Section title={annotation.kind === 'arrow' ? t('annotation.arrow') : t('annotation.line')}>
+          <Hint>{t('annotation.dragEndpointsHint')}</Hint>
         </Section>
       );
     case 'measurement':
       return (
-        <Section title="Measurement">
-          <Row label="Units">
+        <Section title={t('annotation.measurement')}>
+          <Row label={t('annotation.units')}>
             <Select
               value={annotation.unitSystem}
               disabled={disabled}
@@ -635,23 +695,23 @@ function GeometryControls({
                 onChange({ unitSystem: e.target.value as 'metric' | 'imperial' } as Partial<Annotation>)
               }
             >
-              <option value="metric">Metric</option>
-              <option value="imperial">Imperial</option>
+              <option value="metric">{t('unit.metric')}</option>
+              <option value="imperial">{t('unit.imperial')}</option>
             </Select>
           </Row>
-          <Hint>Use the ruler tool to place two or more anchored measurement points.</Hint>
+          <Hint>{t('annotation.rulerHint')}</Hint>
         </Section>
       );
     case 'polygon':
       return (
-        <Section title="Polygon">
-          <Hint>Drag the canvas handles to scale the polygon.</Hint>
+        <Section title={t('annotation.polygon')}>
+          <Hint>{t('annotation.polygonHint')}</Hint>
         </Section>
       );
     case 'image':
       return (
-        <Section title="Image">
-          <Row label="Width">
+        <Section title={t('annotation.image')}>
+          <Row label={t('annotation.width')}>
             <Input
               type="number"
               min={8}
@@ -660,7 +720,7 @@ function GeometryControls({
               onChange={(e) => onChange({ width: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Height">
+          <Row label={t('annotation.height')}>
             <Input
               type="number"
               min={8}
@@ -669,15 +729,15 @@ function GeometryControls({
               onChange={(e) => onChange({ height: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Hint>Drop a PNG/JPEG/SVG onto the canvas to add more images.</Hint>
+          <Hint>{t('annotation.imageHint')}</Hint>
         </Section>
       );
     case 'legend':
       return <LegendEntriesEditor annotation={annotation} disabled={disabled} onChange={onChange} />;
     case 'comment':
       return (
-        <Section title="Comment">
-          <Row label="Text">
+        <Section title={t('annotation.comment')}>
+          <Row label={t('annotation.text')}>
             <textarea
               value={annotation.text}
               disabled={disabled}
@@ -685,20 +745,20 @@ function GeometryControls({
               className="min-w-0 h-20 resize-none rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
             />
           </Row>
-          <Hint>Comments pin to a geographic location and move with the map.</Hint>
+          <Hint>{t('annotation.commentHint')}</Hint>
         </Section>
       );
     case 'titleblock':
       return (
-        <Section title="Title block">
-          <Row label="Title">
+        <Section title={t('annotation.titleBlock')}>
+          <Row label={t('annotation.title')}>
             <Input
               value={annotation.title}
               disabled={disabled}
               onChange={(e) => onChange({ title: e.target.value } as Partial<Annotation>)}
             />
           </Row>
-          <Row label="Subtitle">
+          <Row label={t('annotation.subtitle')}>
             <Input
               value={annotation.subtitle}
               disabled={disabled}
@@ -709,8 +769,8 @@ function GeometryControls({
       );
     case 'sourcecredit':
       return (
-        <Section title="Source credit">
-          <Row label="Text">
+        <Section title={t('annotation.sourceCredit')}>
+          <Row label={t('annotation.text')}>
             <Input
               value={annotation.text}
               disabled={disabled}
@@ -721,8 +781,8 @@ function GeometryControls({
       );
     case 'scalebar':
       return (
-        <Section title="Scale bar">
-          <Row label="Units">
+        <Section title={t('annotation.scaleBar')}>
+          <Row label={t('annotation.units')}>
             <Select
               value={annotation.unitSystem}
               disabled={disabled}
@@ -730,11 +790,11 @@ function GeometryControls({
                 onChange({ unitSystem: e.target.value as 'metric' | 'imperial' } as Partial<Annotation>)
               }
             >
-              <option value="metric">Metric</option>
-              <option value="imperial">Imperial</option>
+              <option value="metric">{t('unit.metric')}</option>
+              <option value="imperial">{t('unit.imperial')}</option>
             </Select>
           </Row>
-          <Row label="Max width">
+          <Row label={t('annotation.maxWidth')}>
             <Input
               type="number"
               min={40}
@@ -744,13 +804,13 @@ function GeometryControls({
               onChange={(e) => onChange({ maxWidth: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Hint>The bar snaps to a round distance and tracks the map zoom.</Hint>
+          <Hint>{t('annotation.scaleBarHint')}</Hint>
         </Section>
       );
     case 'northarrow':
       return (
-        <Section title="North arrow">
-          <Row label="Size">
+        <Section title={t('annotation.northArrow')}>
+          <Row label={t('annotation.size')}>
             <Input
               type="number"
               min={16}
@@ -760,7 +820,7 @@ function GeometryControls({
               onChange={(e) => onChange({ size: Number(e.target.value) } as Partial<Annotation>)}
             />
           </Row>
-          <Hint>The arrow rotates to follow the map bearing.</Hint>
+          <Hint>{t('annotation.northArrowHint')}</Hint>
         </Section>
       );
   }
@@ -781,6 +841,7 @@ function LegendEntryRow({
   onUpdate: (patch: Partial<LegendEntry>) => void;
   onRemove: () => void;
 }) {
+  const t = useLocale((s) => s.t);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const pendingLegendFillSample = useUiStore((s) => s.pendingLegendFillSample);
@@ -833,7 +894,7 @@ function LegendEntryRow({
         disabled={disabled}
         aria-label={`Sample selected shape fill for entry ${index + 1}`}
         aria-pressed={picking}
-        title="Pick shape fill"
+        title={t('annotation.pickShapeFill')}
         className={`flex h-6 w-6 items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
           picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
         }`}
@@ -862,6 +923,7 @@ function LegendEntriesEditor({
   disabled: boolean;
   onChange: (patch: Partial<Annotation>) => void;
 }) {
+  const t = useLocale((s) => s.t);
   const layers = useDocumentStore((s) => s.project.layers);
   const setEntries = (next: LegendEntry[]) =>
     onChange({ entries: next } as Partial<Annotation>);
@@ -875,7 +937,7 @@ function LegendEntriesEditor({
     setEntries([
       ...annotation.entries,
       {
-        label: 'New entry',
+        label: t('annotation.newEntry'),
         swatchColor: '#34c759',
         fillStyle: { fillColor: '#34c759', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
         visible: true,
@@ -897,15 +959,15 @@ function LegendEntriesEditor({
     );
 
   return (
-    <Section title="Legend">
-      <Row label="Title">
+    <Section title={t('annotation.legend')}>
+      <Row label={t('annotation.title')}>
         <Input
           value={annotation.title}
           disabled={disabled}
           onChange={(e) => onChange({ title: e.target.value } as Partial<Annotation>)}
         />
       </Row>
-      <Row label="Width">
+      <Row label={t('annotation.width')}>
         <Input
           type="number"
           min={80}
@@ -934,7 +996,7 @@ function LegendEntriesEditor({
           disabled={disabled}
           className="flex items-center gap-1 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
         >
-          <Plus size={11} /> Add row
+          <Plus size={11} /> {t('annotation.addRow')}
         </button>
         <button
           type="button"
@@ -942,7 +1004,7 @@ function LegendEntriesEditor({
           disabled={disabled || layers.length === 0}
           className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
         >
-          Sync from layers
+          {t('annotation.syncFromLayers')}
         </button>
       </div>
     </Section>
@@ -950,21 +1012,22 @@ function LegendEntriesEditor({
 }
 
 function ToolDefaults() {
+  const t = useLocale((s) => s.t);
   const activeTool = useToolStore((s) => s.activeTool);
   const anchorMode = useToolStore((s) => s.defaultAnchorMode);
   const style = useToolStore((s) => s.defaultStyle);
   const { setDefaultAnchorMode, updateDefaultStyle } = useToolStore.getState();
   const kind = toolToAnnotationKind(activeTool);
-  const toolName = TOOL_BY_KEY[activeTool].name;
+  const toolName = t(`tool.${activeTool}`);
 
   if (!kind) {
     return (
       <div className="flex flex-col gap-3 text-[12px] text-[var(--text-3)]">
         <div className="flex items-center gap-2 text-[var(--text-2)]">
           <MousePointer2 size={16} />
-          <span className="font-semibold text-[var(--text)]">No annotation tool selected</span>
+          <span className="font-semibold text-[var(--text)]">{t('annotation.noTool')}</span>
         </div>
-        Pick a drawing tool to set annotation defaults, or select an annotation on the canvas.
+        {t('annotation.noToolHelp')}
       </div>
     );
   }
@@ -976,13 +1039,17 @@ function ToolDefaults() {
           <Palette size={15} />
         </span>
         <div>
-          <div className="text-[13px] font-semibold text-[var(--text)]">{toolName} defaults</div>
+          <div className="text-[13px] font-semibold text-[var(--text)]">
+            {t('annotation.defaults', { name: toolName })}
+          </div>
           <div className="text-[11px] text-[var(--text-3)]">
-            Applied to the next {activeTool === 'paint' ? 'stroke you draw' : 'object you place'}.
+            {activeTool === 'paint'
+              ? t('annotation.defaultsHelpStroke')
+              : t('annotation.defaultsHelpObject')}
           </div>
         </div>
       </div>
-      <Section title="Anchor">
+      <Section title={t('annotation.anchor')}>
         <AnchorControl value={anchorMode} onChange={setDefaultAnchorMode} />
       </Section>
       {activeTool === 'paint' && <BrushPresetControls style={style} onChange={updateDefaultStyle} />}
@@ -992,6 +1059,7 @@ function ToolDefaults() {
 }
 
 function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
+  const t = useLocale((s) => s.t);
   const map = useMapInstance((s) => s.map);
   const { updateAnnotation, updateAnnotationStyle } = useDocumentStore.getState();
   const disabled = annotation.locked;
@@ -1022,22 +1090,25 @@ function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
       <div className="rounded-[10px] bg-[var(--accent-soft)] p-3">
         <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--accent)]">
           {disabled ? <Lock size={15} /> : <MapPinned size={15} />}
-          {annotation.name}
+          {annotationDisplayName(annotation, t)}
         </div>
         <div className="mt-1 text-[11px] capitalize text-[var(--text-3)]">
-          {annotation.kind} · pinned to {annotation.anchorMode}
+          {t('annotation.pinnedTo', {
+            kind: kindLabel(annotation.kind, t),
+            anchor: annotation.anchorMode === 'canvas' ? t('annotation.pinToCanvas') : t('annotation.pinToMap'),
+          })}
         </div>
       </div>
 
-      <Section title="Selection">
-        <Row label="Name">
+      <Section title={t('annotation.selection')}>
+        <Row label={t('annotation.name')}>
           <Input
             value={annotation.name}
             disabled={disabled}
             onChange={(e) => updateAnnotation(annotation.id, { name: e.target.value } as Partial<Annotation>)}
           />
         </Row>
-        <Row label="Opacity">
+        <Row label={t('annotation.opacity')}>
           <Input
             type="number"
             min={0}
@@ -1058,7 +1129,7 @@ function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
         onChange={(patch) => updateAnnotation(annotation.id, patch)}
       />
 
-      <Section title="Anchor">
+      <Section title={t('annotation.anchor')}>
         <AnchorControl value={annotation.anchorMode} onChange={setAnchorMode} />
       </Section>
 

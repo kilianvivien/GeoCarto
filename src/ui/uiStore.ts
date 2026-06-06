@@ -2,10 +2,13 @@ import { create } from 'zustand';
 
 interface UiState {
   exportDialogOpen: boolean;
+  settingsDialogOpen: boolean;
   pendingLegendFillSample: { legendId: string; entryIndex: number } | null;
   pendingAnnotationFillSample: { annotationId: string } | null;
   openExportDialog: () => void;
   closeExportDialog: () => void;
+  openSettingsDialog: () => void;
+  closeSettingsDialog: () => void;
   startLegendFillSample: (legendId: string, entryIndex: number) => void;
   cancelLegendFillSample: () => void;
   startAnnotationFillSample: (annotationId: string) => void;
@@ -16,10 +19,13 @@ interface UiState {
 /** Ephemeral UI state (transient dialogs, etc.) — not persisted. */
 export const useUiStore = create<UiState>((set) => ({
   exportDialogOpen: false,
+  settingsDialogOpen: false,
   pendingLegendFillSample: null,
   pendingAnnotationFillSample: null,
   openExportDialog: () => set({ exportDialogOpen: true }),
   closeExportDialog: () => set({ exportDialogOpen: false }),
+  openSettingsDialog: () => set({ settingsDialogOpen: true }),
+  closeSettingsDialog: () => set({ settingsDialogOpen: false }),
   startLegendFillSample: (legendId, entryIndex) =>
     set({ pendingLegendFillSample: { legendId, entryIndex }, pendingAnnotationFillSample: null }),
   cancelLegendFillSample: () => set({ pendingLegendFillSample: null }),

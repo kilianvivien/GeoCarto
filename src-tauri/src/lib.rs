@@ -27,6 +27,7 @@ const APP_COMMAND_IDS: &[&str] = &[
     "toggle-theme",
     "toggle-snap",
     "toggle-map-lock",
+    "open-settings",
     "open-github",
     "zoom-in",
     "zoom-out",
@@ -81,6 +82,8 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             Some("About GeoCarto"),
             Some(about_metadata()),
         )?)
+        .separator()
+        .item(&item(app, "open-settings", "Settings...", Some("CmdOrCtrl+,"))?)
         .separator()
         .services()
         .separator()

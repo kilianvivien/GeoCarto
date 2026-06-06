@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDocumentStore } from '@/state/documentStore';
+import { useLocale } from '@/i18n/useLocale';
 import { computeFrameBox } from './compositionFrame';
 
 /**
@@ -8,6 +9,7 @@ import { computeFrameBox } from './compositionFrame';
  * follows `project.exportFrame`, and the locked view is zoomed to match it.
  */
 export function ExportFrame() {
+  const t = useLocale((s) => s.t);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -37,7 +39,7 @@ export function ExportFrame() {
           }}
         >
           <span className="mono absolute -top-[22px] left-0 rounded-full bg-black/75 px-2 py-0.5 text-[10px] tracking-wide text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
-            Composition area
+            {t('frame.compositionArea')}
           </span>
         </div>
       )}

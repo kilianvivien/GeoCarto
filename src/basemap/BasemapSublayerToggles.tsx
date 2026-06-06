@@ -1,13 +1,15 @@
 import type { BasemapSublayerKey } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
-const SUBLAYER_ORDER: { key: BasemapSublayerKey; label: string }[] = [
-  { key: 'roads', label: 'Roads' },
-  { key: 'labels', label: 'Labels' },
-  { key: 'water', label: 'Water' },
-  { key: 'landuse', label: 'Landuse' },
-  { key: 'buildings', label: 'Buildings' },
-  { key: 'boundaries', label: 'Boundaries' },
+const SUBLAYER_ORDER: { key: BasemapSublayerKey; labelKey: TranslationKey }[] = [
+  { key: 'roads', labelKey: 'sublayer.roads' },
+  { key: 'labels', labelKey: 'sublayer.labels' },
+  { key: 'water', labelKey: 'sublayer.water' },
+  { key: 'landuse', labelKey: 'sublayer.landuse' },
+  { key: 'buildings', labelKey: 'sublayer.buildings' },
+  { key: 'boundaries', labelKey: 'sublayer.boundaries' },
 ];
 
 /**
@@ -16,6 +18,7 @@ const SUBLAYER_ORDER: { key: BasemapSublayerKey; label: string }[] = [
  * sources are opaque, so per-layer filtering would be misleading.
  */
 export function BasemapSublayerToggles({ compact = false }: { compact?: boolean }) {
+  const t = useLocale((s) => s.t);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const setBasemapSublayer = useDocumentStore((s) => s.setBasemapSublayer);
 
@@ -25,12 +28,13 @@ export function BasemapSublayerToggles({ compact = false }: { compact?: boolean 
   return (
     <div
       role="group"
-      aria-label="Basemap sub-layers"
+      aria-label={t('status.basemapSublayers')}
       data-testid="basemap-sublayers"
       className={`flex flex-wrap ${compact ? 'gap-1' : 'gap-1.5'}`}
     >
-      {SUBLAYER_ORDER.map(({ key, label }) => {
+      {SUBLAYER_ORDER.map(({ key, labelKey }) => {
         const on = sublayers[key];
+        const label = t(labelKey);
         return (
           <button
             key={key}

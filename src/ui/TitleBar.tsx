@@ -29,6 +29,7 @@ import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
+import { useLocale } from '@/i18n/useLocale';
 
 function IconButton({
   label,
@@ -64,6 +65,7 @@ function IconButton({
 
 /** App title bar — global actions (design.md §4.1). */
 export function TitleBar() {
+  const t = useLocale((s) => s.t);
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggleTheme);
   const mode = useDocumentStore((s) => s.project.mode);
@@ -92,10 +94,10 @@ export function TitleBar() {
       const next = saveAs ? await saveProjectAs(project) : await saveProjectToDisk(project, currentFile);
       markSaved(next);
       void rememberRecentProject(next);
-      push(`Saved ${next.name}`);
+      push(t('toast.savedFile', { name: next.name }));
     } catch (error) {
       if (error instanceof UserCancelledError) return;
-      push(error instanceof Error ? error.message : 'Save failed.', 'error');
+      push(error instanceof Error ? error.message : t('toast.saveFailed'), 'error');
     }
   };
 
@@ -112,16 +114,16 @@ export function TitleBar() {
       const { project, file: opened } = await openProjectFromDisk();
       openProjectInNewTab(project, opened);
       void rememberRecentProject(opened);
-      push(`Opened ${opened.name}`);
+      push(t('toast.openedFile', { name: opened.name }));
     } catch (error) {
       if (error instanceof UserCancelledError) return;
-      push(error instanceof Error ? error.message : 'Open failed.', 'error');
+      push(error instanceof Error ? error.message : t('toast.openFailed'), 'error');
     }
   };
 
   const handleNew = () => {
     createNewProject();
-    push('Created new project');
+    push(t('toast.createdProject'));
   };
 
   const [sharing, setSharing] = useState(false);
@@ -141,20 +143,20 @@ export function TitleBar() {
       };
       if (navAny.canShare && navAny.canShare({ files: [file] }) && navAny.share) {
         await navAny.share({ files: [file], title: result.fileName });
-        push(`Shared ${result.fileName}`);
+        push(t('toast.sharedFile', { name: result.fileName }));
         return;
       }
       if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': result.blob })]);
-        push(`Copied ${result.fileName} to clipboard`);
+        push(t('toast.copiedFile', { name: result.fileName }));
         return;
       }
       const { downloadBlob } = await import('@/export/raster');
       const saved = await downloadBlob(result.blob, result.fileName);
-      if (saved) push(`Downloaded ${result.fileName}`);
+      if (saved) push(t('toast.downloadedFile', { name: result.fileName }));
     } catch (error) {
       if ((error as Error).name === 'AbortError') return; // User cancelled the share sheet.
-      push(error instanceof Error ? error.message : 'Share failed.', 'error');
+      push(error instanceof Error ? error.message : t('toast.shareFailed'), 'error');
     } finally {
       setSharing(false);
     }
@@ -191,7 +193,7 @@ export function TitleBar() {
     >
       {!desktopShell && (
         <div
-          aria-label="GeoCarto app"
+          aria-label={t('app.ariaLabel')}
           className="flex shrink-0 items-center gap-2.5 rounded-full px-1.5 py-1 text-[14px] font-semibold text-[var(--text)]"
         >
           <img
@@ -200,7 +202,7 @@ export function TitleBar() {
             draggable={false}
             className="h-6 w-6 rounded-[6px] shadow-[0_1px_2px_rgba(0,0,0,0.18)]"
           />
-          <span className="hidden sm:inline">GeoCarto Web</span>
+          <span className="hidden sm:inline">{t('app.webName')}</span>
         </div>
       )}
       <div className="mx-auto flex items-center gap-2 rounded-full px-3 py-1 text-[13px] transition-colors hover:bg-[var(--hover)]">
@@ -209,7 +211,7 @@ export function TitleBar() {
           <input
             ref={nameInputRef}
             autoFocus
-            aria-label="Rename project"
+            aria-label={t('title.renameProject')}
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             onBlur={commitRename}
@@ -230,41 +232,41 @@ export function TitleBar() {
         ) : (
           <button
             type="button"
-            aria-label="Rename project"
+            aria-label={t('title.renameProject')}
             onClick={() => setEditingName(true)}
             onDoubleClick={() => setEditingName(true)}
             className="cursor-text font-medium text-[var(--text)]"
-            title="Click to rename"
+            title={t('title.clickToRename')}
           >
             {displayName}
           </button>
         )}
-        <span className="mono text-[var(--text-3)]">— {dirty ? 'Edited' : 'Saved'}</span>
+        <span className="mono text-[var(--text-3)]">— {dirty ? t('title.edited') : t('title.saved')}</span>
       </div>
 
       <div className="flex items-center gap-1">
-        <IconButton label="New project" onClick={handleNew}>
+        <IconButton label={t('title.newProject')} onClick={handleNew}>
           <FilePlus2 size={16} />
         </IconButton>
-        <IconButton label="Open project (⌘O)" onClick={handleOpen}>
+        <IconButton label={t('title.openProject')} onClick={handleOpen}>
           <FolderOpen size={16} />
         </IconButton>
         <RecentsMenu />
-        <IconButton label="Save project (⌘S)" onClick={() => void handleSave(false)}>
+        <IconButton label={t('title.saveProject')} onClick={() => void handleSave(false)}>
           <Save size={16} />
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
-        <IconButton label="Undo (⌘Z)" disabled={!canUndo} onClick={() => undo()}>
+        <IconButton label={t('title.undo')} disabled={!canUndo} onClick={() => undo()}>
           <Undo2 size={16} />
         </IconButton>
-        <IconButton label="Redo (⌘⇧Z)" disabled={!canRedo} onClick={() => redo()}>
+        <IconButton label={t('title.redo')} disabled={!canRedo} onClick={() => redo()}>
           <Redo2 size={16} />
         </IconButton>
         <IconButton
           label={
             snapActive
-              ? 'Snap on — disable smart guides + grid'
-              : 'Snap off — enable smart guides + grid'
+              ? t('title.snapOn')
+              : t('title.snapOff')
           }
           active={snapActive}
           onClick={toggleMasterSnap}
@@ -273,13 +275,13 @@ export function TitleBar() {
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
         <IconButton
-          label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          label={theme === 'dark' ? t('title.lightTheme') : t('title.darkTheme')}
           onClick={toggleTheme}
         >
           {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
         </IconButton>
         <IconButton
-          label={sharing ? 'Sharing…' : 'Share map (PNG)'}
+          label={sharing ? t('title.sharing') : t('title.shareMap')}
           disabled={mode !== 'editing' || sharing}
           onClick={() => void handleShare()}
         >
@@ -291,24 +293,24 @@ export function TitleBar() {
           className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--glass-thin)] px-3 text-[12px] font-medium text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
         >
           {mode === 'editing' ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
-          {mode === 'editing' ? 'Unlock Map' : 'Lock Map'}
+          {mode === 'editing' ? t('title.unlockMap') : t('title.lockMap')}
         </button>
         <button
           type="button"
           onClick={openExport}
           disabled={mode !== 'editing'}
-          title="Export (⌘E)"
+          title={t('title.exportShortcut')}
           className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-[12px] font-medium text-[var(--text-on-accent)] transition-[filter] hover:brightness-105 disabled:opacity-50"
         >
           <Download size={14} />
-          Export
+          {t('title.export')}
         </button>
         <a
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="View source on GitHub"
-          title="View source on GitHub"
+          aria-label={t('title.github')}
+          title={t('title.github')}
           onClick={(e) => {
             // In the desktop shell, route through the OS opener so the webview
             // doesn't navigate away from the app; the web build uses the anchor.

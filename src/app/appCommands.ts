@@ -12,6 +12,7 @@ import { useViewportStore } from '@/state/viewportStore';
 import { useNotices } from '@/ui/notices';
 import { useTheme } from '@/ui/useTheme';
 import { useUiStore } from '@/ui/uiStore';
+import { translate } from '@/i18n/useLocale';
 
 export type AppCommand =
   | 'new-project'
@@ -30,6 +31,7 @@ export type AppCommand =
   | 'toggle-theme'
   | 'toggle-snap'
   | 'toggle-map-lock'
+  | 'open-settings'
   | 'open-github'
   | 'zoom-in'
   | 'zoom-out'
@@ -43,10 +45,10 @@ async function saveProject(saveAs: boolean): Promise<void> {
     const next = saveAs ? await saveProjectAs(project) : await saveProjectToDisk(project, file);
     markSaved(next);
     void rememberRecentProject(next);
-    push(`Saved ${next.name}`);
+    push(translate('toast.savedFile', { name: next.name }));
   } catch (error) {
     if (error instanceof UserCancelledError) return;
-    push(error instanceof Error ? error.message : 'Save failed.', 'error');
+    push(error instanceof Error ? error.message : translate('toast.saveFailed'), 'error');
   }
 }
 
@@ -56,10 +58,10 @@ async function openProject(): Promise<void> {
     const { project, file } = await openProjectFromDisk();
     openProjectInNewTab(project, file);
     void rememberRecentProject(file);
-    push(`Opened ${file.name}`);
+    push(translate('toast.openedFile', { name: file.name }));
   } catch (error) {
     if (error instanceof UserCancelledError) return;
-    push(error instanceof Error ? error.message : 'Open failed.', 'error');
+    push(error instanceof Error ? error.message : translate('toast.openFailed'), 'error');
   }
 }
 
@@ -81,21 +83,21 @@ async function sharePng(): Promise<void> {
 
     if (navAny.canShare && navAny.canShare({ files: [file] }) && navAny.share) {
       await navAny.share({ files: [file], title: result.fileName });
-      push(`Shared ${result.fileName}`);
+      push(translate('toast.sharedFile', { name: result.fileName }));
       return;
     }
     if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': result.blob })]);
-      push(`Copied ${result.fileName} to clipboard`);
+      push(translate('toast.copiedFile', { name: result.fileName }));
       return;
     }
 
     const { downloadBlob } = await import('@/export/raster');
     const saved = await downloadBlob(result.blob, result.fileName);
-    if (saved) push(`Downloaded ${result.fileName}`);
+    if (saved) push(translate('toast.downloadedFile', { name: result.fileName }));
   } catch (error) {
     if ((error as Error).name === 'AbortError') return;
-    push(error instanceof Error ? error.message : 'Share failed.', 'error');
+    push(error instanceof Error ? error.message : translate('toast.shareFailed'), 'error');
   }
 }
 
@@ -141,7 +143,7 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
   switch (command) {
     case 'new-project':
       createNewProject();
-      push('Created new project');
+      push(translate('toast.createdProject'));
       break;
     case 'open-project':
       await openProject();
@@ -193,6 +195,9 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
       break;
     case 'toggle-map-lock':
       toggleMapLock();
+      break;
+    case 'open-settings':
+      useUiStore.getState().openSettingsDialog();
       break;
     case 'open-github':
       await openExternalUrl(REPO_URL);

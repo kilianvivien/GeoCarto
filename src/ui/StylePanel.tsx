@@ -11,12 +11,14 @@ import { useDocumentStore } from '@/state/documentStore';
 import { BasemapSublayerToggles } from '@/basemap/BasemapSublayerToggles';
 import { PAGE_PRESETS, PAGE_PRESET_BY_KEY, detectPreset } from '@/export/pagePresets';
 import { ColorPickerPopover } from './ColorPickerPopover';
+import { useLocale } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
-const BUILT_INS: { preset: BuiltInBasemapPreset; name: string; tint: string }[] = [
-  { preset: 'editorial-light', name: 'Editorial Light', tint: 'linear-gradient(135deg,#f5f7fa,#dbe3ee 60%,#b9c6d9)' },
-  { preset: 'editorial-dark', name: 'Editorial Dark', tint: 'linear-gradient(135deg,#1f2937,#0f172a 60%,#020617)' },
-  { preset: 'minimal-grey', name: 'Minimal Grey', tint: 'linear-gradient(135deg,#dcdee2,#a3a8b1 60%,#6b7280)' },
-  { preset: 'print-bw', name: 'Print B&W', tint: 'linear-gradient(135deg,#ffffff,#9ca3af 60%,#111827)' },
+const BUILT_INS: { preset: BuiltInBasemapPreset; labelKey: TranslationKey; tint: string }[] = [
+  { preset: 'editorial-light', labelKey: 'basemap.editorialLight', tint: 'linear-gradient(135deg,#f5f7fa,#dbe3ee 60%,#b9c6d9)' },
+  { preset: 'editorial-dark', labelKey: 'basemap.editorialDark', tint: 'linear-gradient(135deg,#1f2937,#0f172a 60%,#020617)' },
+  { preset: 'minimal-grey', labelKey: 'basemap.minimalGrey', tint: 'linear-gradient(135deg,#dcdee2,#a3a8b1 60%,#6b7280)' },
+  { preset: 'print-bw', labelKey: 'basemap.printBw', tint: 'linear-gradient(135deg,#ffffff,#9ca3af 60%,#111827)' },
 ];
 
 const DPI_PRESETS: { value: number; label: string }[] = [
@@ -90,17 +92,19 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 function BasemapPresetGrid() {
+  const t = useLocale((s) => s.t);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const setBasemap = useDocumentStore((s) => s.setBasemap);
   return (
     <div className="grid grid-cols-2 gap-1.5">
       {BUILT_INS.map((item) => {
         const active = basemap.kind === 'builtin' && basemap.preset === item.preset;
+        const name = t(item.labelKey);
         return (
           <button
             key={item.preset}
             type="button"
-            onClick={() => setBasemap(builtinConfig(item.preset, item.name))}
+            onClick={() => setBasemap(builtinConfig(item.preset, name))}
             aria-pressed={active}
             data-testid={`basemap-preset-${item.preset}`}
             className={`relative overflow-hidden rounded-[10px] border px-2 py-3 text-left transition-colors ${
@@ -115,7 +119,7 @@ function BasemapPresetGrid() {
               style={{ background: item.tint }}
             />
             <div className="relative text-[11.5px] font-semibold text-[var(--text)] drop-shadow-sm">
-              {item.name}
+              {name}
             </div>
           </button>
         );
@@ -125,6 +129,7 @@ function BasemapPresetGrid() {
 }
 
 function StyleJsonImport() {
+  const t = useLocale((s) => s.t);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const setBasemap = useDocumentStore((s) => s.setBasemap);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -142,7 +147,7 @@ function StyleJsonImport() {
     try {
       parsed = JSON.parse(rawJson);
     } catch (err) {
-      setError(`Could not parse JSON: ${(err as Error).message}`);
+      setError(t('style.parseError', { message: (err as Error).message }));
       return;
     }
     if (
@@ -151,14 +156,14 @@ function StyleJsonImport() {
       (parsed as { version?: unknown }).version !== 8 ||
       !Array.isArray((parsed as { layers?: unknown }).layers)
     ) {
-      setError('Not a MapLibre style: needs "version": 8 and a "layers" array.');
+      setError(t('style.invalidMapLibre'));
       return;
     }
     setBasemap({
       kind: 'style-json',
       name: sourceName,
       styleJson: rawJson,
-      attribution: 'Custom MapLibre style',
+      attribution: t('style.customAttribution'),
     });
   };
 
@@ -180,21 +185,21 @@ function StyleJsonImport() {
           className="flex items-center gap-1.5 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text)] transition-colors hover:bg-[var(--hover)]"
         >
           <FileJson size={13} />
-          Import file…
+          {t('style.importFile')}
         </button>
         <button
           type="button"
-          onClick={() => draft && apply(draft, 'Pasted style')}
+          onClick={() => draft && apply(draft, t('style.pastedStyle'))}
           disabled={!draft.trim()}
           className="rounded-[7px] bg-[var(--accent)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--text-on-accent)] transition-[filter] hover:brightness-105 disabled:opacity-50"
         >
-          Apply paste
+          {t('style.applyPaste')}
         </button>
       </div>
       <textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
-        placeholder='Paste a MapLibre style JSON ({ "version": 8, "sources": …, "layers": … })'
+        placeholder={t('style.pastePlaceholder')}
         spellCheck={false}
         className="h-24 resize-y rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 font-mono text-[11px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
       />
@@ -212,7 +217,7 @@ function StyleJsonImport() {
       )}
       {basemap.kind === 'style-json' && !error && (
         <div className="text-[11px] text-[var(--text-3)]">
-          Using custom style: <span className="text-[var(--text)]">{basemap.name}</span>
+          {t('style.usingCustom')} <span className="text-[var(--text)]">{basemap.name}</span>
         </div>
       )}
     </div>
@@ -220,6 +225,7 @@ function StyleJsonImport() {
 }
 
 function PageSettings() {
+  const t = useLocale((s) => s.t);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const {
     setExportFramePreset,
@@ -261,26 +267,26 @@ function PageSettings() {
 
   return (
     <div className="flex flex-col gap-2">
-      <Row label="Preset">
+      <Row label={t('style.preset')}>
         <Select value={detected} onChange={(event) => applyPreset(event.target.value as PagePresetKey)}>
-          <optgroup label="Print">
+          <optgroup label={t('style.print')}>
             {PAGE_PRESETS.filter((preset) => preset.family === 'print').map((preset) => (
               <option key={preset.key} value={preset.key}>
                 {preset.label}
               </option>
             ))}
           </optgroup>
-          <optgroup label="Screen">
+          <optgroup label={t('style.screen')}>
             {PAGE_PRESETS.filter((preset) => preset.family === 'screen').map((preset) => (
               <option key={preset.key} value={preset.key}>
                 {preset.label}
               </option>
             ))}
           </optgroup>
-          <option value="custom">Custom…</option>
+          <option value="custom">{t('export.custom')}…</option>
         </Select>
       </Row>
-      <Row label="Width">
+      <Row label={t('style.width')}>
         <NumberInput
           min={64}
           value={exportFrame.width}
@@ -290,7 +296,7 @@ function PageSettings() {
           }}
         />
       </Row>
-      <Row label="Height">
+      <Row label={t('style.height')}>
         <NumberInput
           min={64}
           value={exportFrame.height}
@@ -306,10 +312,10 @@ function PageSettings() {
           onClick={swapOrientation}
           className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2.5 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
         >
-          Swap orientation
+          {t('style.swapOrientation')}
         </button>
       </div>
-      <Row label="Margin (px)">
+      <Row label={t('style.marginPx')}>
         <NumberInput
           min={0}
           max={400}
@@ -317,7 +323,7 @@ function PageSettings() {
           onChange={(event) => setExportFrameMargin(Math.max(0, Number(event.target.value) || 0))}
         />
       </Row>
-      <Row label="DPI scale">
+      <Row label={t('style.dpiScale')}>
         <Select
           value={DPI_PRESETS.some((preset) => preset.value === dpiScale) ? String(dpiScale) : 'custom'}
           onChange={(event) => {
@@ -331,11 +337,11 @@ function PageSettings() {
               {preset.label}
             </option>
           ))}
-          <option value="custom">Custom…</option>
+          <option value="custom">{t('export.custom')}…</option>
         </Select>
       </Row>
       {!DPI_PRESETS.some((preset) => preset.value === dpiScale) && (
-        <Row label="Custom DPI">
+        <Row label={t('style.customDpi')}>
           <NumberInput
             min={0.25}
             max={8}
@@ -348,7 +354,7 @@ function PageSettings() {
         </Row>
       )}
       <div className="grid grid-cols-[88px_1fr] items-start gap-2 text-[12px] text-[var(--text-2)]">
-        <span className="pt-1">Background</span>
+        <span className="pt-1">{t('style.background')}</span>
         <div className="flex flex-wrap items-center gap-1">
           {(['white', 'transparent'] as const).map((mode) => {
             const active = bgMode === mode;
@@ -361,13 +367,13 @@ function PageSettings() {
                     ? setExportFrameBackground('white')
                     : setExportFrameBackground('transparent')
                 }
-                className={`rounded-[6px] px-2 py-1 text-[11px] capitalize transition-colors ${
+                className={`rounded-[6px] px-2 py-1 text-[11px] transition-colors ${
                   active
                     ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                     : 'text-[var(--text-2)] hover:bg-[var(--hover)]'
                 }`}
               >
-                {mode}
+                {mode === 'white' ? t('export.white') : t('export.transparent')}
               </button>
             );
           })}
@@ -377,7 +383,7 @@ function PageSettings() {
             onClick={() => setBgPickerOpen((prev) => !prev)}
             aria-haspopup="dialog"
             aria-expanded={bgPickerOpen}
-            aria-label="Custom background color"
+            aria-label={t('export.customBackground')}
             className={`relative flex h-6 w-6 items-center justify-center rounded-[6px] border transition-transform hover:scale-105 ${
               bgMode === 'custom'
                 ? 'border-[var(--accent)] ring-2 ring-[var(--accent-ring)]'
@@ -400,7 +406,10 @@ function PageSettings() {
         </div>
       </div>
       <div className="rounded-[8px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-2.5 py-1.5 text-[11px] text-[var(--text-3)]">
-        Output: {Math.round(exportFrame.width * dpiScale)} × {Math.round(exportFrame.height * dpiScale)} px
+        {t('style.output', {
+          width: Math.round(exportFrame.width * dpiScale),
+          height: Math.round(exportFrame.height * dpiScale),
+        })}
       </div>
     </div>
   );
@@ -411,6 +420,7 @@ function PageSettings() {
  * panel handles everything that belongs to the whole project.
  */
 export function StylePanel() {
+  const t = useLocale((s) => s.t);
   const [openBasemap, setOpenBasemap] = useState(true);
   const [openSublayers, setOpenSublayers] = useState(true);
   const [openCustomStyle, setOpenCustomStyle] = useState(false);
@@ -420,14 +430,14 @@ export function StylePanel() {
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
-        <SectionHeader title="Basemap" open={openBasemap} onToggle={() => setOpenBasemap((prev) => !prev)} />
+        <SectionHeader title={t('style.basemap')} open={openBasemap} onToggle={() => setOpenBasemap((prev) => !prev)} />
         {openBasemap && <BasemapPresetGrid />}
       </section>
 
       {(basemap.kind === 'builtin' || basemap.kind === 'pmtiles-url') && (
         <section className="flex flex-col gap-2">
           <SectionHeader
-            title="Sub-layers"
+            title={t('style.sublayers')}
             open={openSublayers}
             onToggle={() => setOpenSublayers((prev) => !prev)}
           />
@@ -437,7 +447,7 @@ export function StylePanel() {
 
       <section className="flex flex-col gap-2">
         <SectionHeader
-          title="Custom MapLibre style"
+          title={t('style.customMapLibre')}
           open={openCustomStyle}
           onToggle={() => setOpenCustomStyle((prev) => !prev)}
         />
@@ -445,7 +455,7 @@ export function StylePanel() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <SectionHeader title="Page" open={openPage} onToggle={() => setOpenPage((prev) => !prev)} />
+        <SectionHeader title={t('style.page')} open={openPage} onToggle={() => setOpenPage((prev) => !prev)} />
         {openPage && <PageSettings />}
       </section>
     </div>

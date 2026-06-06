@@ -34,10 +34,11 @@ import { useEditStore } from '@/state/editStore';
 import { hintDiscreteHistoryLabel } from '@/state/historyStore';
 import { featureCollectionToLayer } from '@/import/geojson';
 import { pickAndImportGeoJson } from '@/import/importLayers';
+import { translate, useLocale } from '@/i18n/useLocale';
 
 /** Create an empty vector layer and drop straight into edit mode to draw it. */
 function createBlankLayer() {
-  const layer = featureCollectionToLayer('New layer', { type: 'FeatureCollection', features: [] });
+  const layer = featureCollectionToLayer(translate('layer.new'), { type: 'FeatureCollection', features: [] });
   useDocumentStore.getState().addLayer(layer);
   useEditStore.getState().enterEdit(layer.id);
   useEditStore.getState().setTool('polygon');
@@ -69,6 +70,7 @@ const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
 };
 
 function LayerRow({ layerId }: { layerId: string }) {
+  const t = useLocale((s) => s.t);
   const layer = useDocumentStore((s) => s.project.layers.find((l) => l.id === layerId));
   const selected = useDocumentStore((s) => s.selectedLayerId === layerId);
   const layerCount = useDocumentStore((s) => s.project.layers.length);
@@ -129,7 +131,7 @@ function LayerRow({ layerId }: { layerId: string }) {
         }`}
       >
         <RowButton
-          label={isEditingVectors ? 'Finish editing features' : 'Edit features'}
+          label={isEditingVectors ? t('layer.finishEditing') : t('layer.editFeatures')}
           disabled={!canMutate}
           active={isEditingVectors}
           onClick={() => {
@@ -141,32 +143,32 @@ function LayerRow({ layerId }: { layerId: string }) {
           <PenLine size={13} />
         </RowButton>
         <RowButton
-          label={layer.visible ? 'Hide layer' : 'Show layer'}
+          label={layer.visible ? t('layer.hide') : t('layer.show')}
           onClick={() => setLayerVisible(layer.id, !layer.visible)}
         >
           {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
         </RowButton>
         <RowButton
-          label={layer.locked ? 'Unlock layer' : 'Lock layer'}
+          label={layer.locked ? t('layer.unlock') : t('layer.lock')}
           onClick={() => setLayerLocked(layer.id, !layer.locked)}
         >
           {layer.locked ? <Lock size={13} /> : <LockOpen size={13} />}
         </RowButton>
         <RowButton
-          label="Move up"
+          label={t('layer.moveUp')}
           disabled={!canMutate || index === layerCount - 1}
           onClick={() => moveLayer(layer.id, 'up')}
         >
           <ChevronUp size={13} />
         </RowButton>
-        <RowButton label="Move down" disabled={!canMutate || index === 0} onClick={() => moveLayer(layer.id, 'down')}>
+        <RowButton label={t('layer.moveDown')} disabled={!canMutate || index === 0} onClick={() => moveLayer(layer.id, 'down')}>
           <ChevronDown size={13} />
         </RowButton>
         <RowButton
-          label="Delete layer"
+          label={t('layer.delete')}
           disabled={!canMutate}
           onClick={() => {
-            if (!window.confirm(`Delete layer “${layer.name}”? You can undo this with ⌘Z.`)) return;
+            if (!window.confirm(t('layer.deleteConfirm', { name: layer.name }))) return;
             hintDiscreteHistoryLabel('Delete layer');
             if (useEditStore.getState().editingLayerId === layer.id) useEditStore.getState().exitEdit();
             removeLayer(layer.id);
@@ -180,6 +182,7 @@ function LayerRow({ layerId }: { layerId: string }) {
 }
 
 function AnnotationRow({ annotationId }: { annotationId: string }) {
+  const t = useLocale((s) => s.t);
   const annotation = useDocumentStore((s) =>
     s.project.annotations.find((item) => item.id === annotationId),
   );
@@ -241,33 +244,33 @@ function AnnotationRow({ annotationId }: { annotationId: string }) {
       <span className="mono text-[10px] capitalize text-[var(--text-3)]">{annotation.kind}</span>
       <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-aria-[selected=true]:opacity-100">
         <RowButton
-          label={annotation.visible ? 'Hide annotation' : 'Show annotation'}
+          label={annotation.visible ? t('annotation.hide') : t('annotation.show')}
           onClick={() => setAnnotationVisible(annotation.id, !annotation.visible)}
         >
           {annotation.visible ? <Eye size={13} /> : <EyeOff size={13} />}
         </RowButton>
         <RowButton
-          label={annotation.locked ? 'Unlock annotation' : 'Lock annotation'}
+          label={annotation.locked ? t('annotation.unlock') : t('annotation.lock')}
           onClick={() => setAnnotationLocked(annotation.id, !annotation.locked)}
         >
           {annotation.locked ? <Lock size={13} /> : <LockOpen size={13} />}
         </RowButton>
         <RowButton
-          label="Move up"
+          label={t('layer.moveUp')}
           disabled={index === annotationCount - 1}
           onClick={() => moveAnnotation(annotation.id, 'up')}
         >
           <ChevronUp size={13} />
         </RowButton>
         <RowButton
-          label="Move down"
+          label={t('layer.moveDown')}
           disabled={index === 0}
           onClick={() => moveAnnotation(annotation.id, 'down')}
         >
           <ChevronDown size={13} />
         </RowButton>
         <RowButton
-          label="Delete annotation"
+          label={t('annotation.delete')}
           disabled={annotation.locked}
           onClick={() => {
             hintDiscreteHistoryLabel('Delete annotation');
@@ -316,6 +319,7 @@ function RowButton({
 
 /** Layer panel — the Figma-style tree of imported layers (design.md §4.4.2). */
 export function LayerPanel() {
+  const t = useLocale((s) => s.t);
   const layers = useDocumentStore((s) => s.project.layers);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const mode = useDocumentStore((s) => s.project.mode);
@@ -325,13 +329,13 @@ export function LayerPanel() {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
-          Layers
+          {t('layer.layers')}
         </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
-            aria-label="New layer"
-            title="New layer — draw your own features"
+            aria-label={t('layer.new')}
+            title={t('layer.newTitle')}
             disabled={locked}
             onClick={createBlankLayer}
             className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
@@ -340,8 +344,8 @@ export function LayerPanel() {
           </button>
           <button
             type="button"
-            aria-label="Import data"
-            title="Import GeoJSON, TopoJSON, KML, GPX, or Shapefile"
+            aria-label={t('layer.import')}
+            title={t('layer.importTitle')}
             disabled={locked}
             onClick={pickAndImportGeoJson}
             className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
@@ -354,7 +358,7 @@ export function LayerPanel() {
       {annotations.length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
-            Annotations
+            {t('layer.annotations')}
           </span>
           <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
             {[...annotations].reverse().map((annotation) => (
@@ -368,26 +372,26 @@ export function LayerPanel() {
         <div className="flex flex-col gap-2 rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] p-3 text-center">
           {locked ? (
             <div className="py-2 text-[11.5px] text-[var(--text-3)]">
-              Lock the map area to start adding layers.
+              {t('layer.lockToStart')}
             </div>
           ) : (
             <>
-              <div className="text-[11.5px] text-[var(--text-3)]">No layers yet.</div>
+              <div className="text-[11.5px] text-[var(--text-3)]">{t('layer.none')}</div>
               <button
                 type="button"
                 onClick={createBlankLayer}
                 className="flex items-center justify-center gap-1.5 rounded-[8px] bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
               >
                 <Plus size={14} />
-                New layer
+                {t('layer.new')}
               </button>
               <button
                 type="button"
-                title="GeoJSON, TopoJSON, KML, GPX, or Shapefile"
+                title={t('layer.importTitle')}
                 onClick={pickAndImportGeoJson}
                 className="text-[11px] text-[var(--text-3)] underline-offset-2 transition-colors hover:text-[var(--text-2)] hover:underline"
               >
-                Import a file
+                {t('layer.importFile')}
               </button>
             </>
           )}

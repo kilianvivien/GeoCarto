@@ -42,6 +42,7 @@ import { legendEntryFill, legendFillFromStyle } from '@/style/legendSwatches';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
 import { useUiStore } from '@/ui/uiStore';
+import { useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
 import { layerIdFromRenderId, layerRenderIds } from './syncLayers';
 
@@ -1023,6 +1024,7 @@ function formatMeasurement(annotation: Extract<Annotation, { kind: 'measurement'
 }
 
 function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () => void }) {
+  const t = useLocale((s) => s.t);
   const annotation = useDocumentStore((s) =>
     s.project.annotations.find((item): item is CommentAnnotation => item.id === editorId && item.kind === 'comment'),
   );
@@ -1038,7 +1040,7 @@ function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () =
   return (
     <div
       role="dialog"
-      aria-label="Edit comment"
+      aria-label={t('comment.edit')}
       className="absolute z-30 flex w-56 flex-col gap-1.5 rounded-[10px] border border-[var(--divider)] bg-[var(--glass-strong)] p-2 shadow-[0_12px_36px_rgba(0,0,0,0.32)] backdrop-blur-xl"
       style={{ left: pos.x + 20, top: pos.y - 10 }}
       onPointerDown={(event) => event.stopPropagation()}
@@ -1046,7 +1048,7 @@ function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () =
       <textarea
         autoFocus
         value={draft}
-        placeholder="Add a comment…"
+        placeholder={t('comment.placeholder')}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
@@ -1066,14 +1068,14 @@ function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () =
           onClick={onClose}
           className="rounded-[6px] px-2 py-1 text-[11px] text-[var(--text-2)] hover:bg-[var(--hover)]"
         >
-          Cancel
+          {t('comment.cancel')}
         </button>
         <button
           type="button"
           onClick={commit}
           className="rounded-[6px] bg-[var(--accent)] px-2 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
         >
-          Save
+          {t('comment.save')}
         </button>
       </div>
     </div>
