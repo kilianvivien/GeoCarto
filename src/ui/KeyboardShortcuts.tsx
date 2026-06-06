@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { isTauri } from '@/app/platform';
 import { useDocumentStore } from '@/state/documentStore';
+import { useEditStore } from '@/state/editStore';
+import { hintHistoryLabel } from '@/state/historyStore';
 import { SHORTCUT_TO_TOOL } from '@/state/toolStore';
 import { type AppCommand, runAppCommand } from '@/app/appCommands';
 
@@ -83,6 +85,14 @@ export function KeyboardShortcuts() {
       if (useDocumentStore.getState().project.mode !== 'editing') return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        const edit = useEditStore.getState();
+        if (edit.editingLayerId && edit.selectedFeatureId != null) {
+          event.preventDefault();
+          hintHistoryLabel('Delete feature');
+          useDocumentStore.getState().removeFeature(edit.editingLayerId, edit.selectedFeatureId);
+          edit.selectFeature(null);
+          return;
+        }
         if (useDocumentStore.getState().selectedAnnotationId) {
           event.preventDefault();
           await runAppCommand('delete-selection');
@@ -91,6 +101,10 @@ export function KeyboardShortcuts() {
       }
 
       if (event.key === 'Escape') {
+        if (useEditStore.getState().editingLayerId) {
+          useEditStore.getState().exitEdit();
+          return;
+        }
         useDocumentStore.getState().selectAnnotation(null);
         return;
       }

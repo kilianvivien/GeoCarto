@@ -4,6 +4,9 @@ import { Maximize2, Minus, Plus } from 'lucide-react';
 import { MapView } from './MapView';
 import { ExportFrame } from './ExportFrame';
 import { GeoJsonLayers } from './GeoJsonLayers';
+import { VectorEditor } from './VectorEditor';
+import { FeatureContextMenu } from './FeatureContextMenu';
+import { EditToolbar } from '@/ui/EditToolbar';
 import { DeckOverlay } from './DeckOverlay';
 import { AnnotationStage } from './AnnotationStage';
 import { StaticBasemapOverlay } from './StaticBasemapOverlay';
@@ -252,11 +255,14 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
         <MapView />
         <StaticBasemapOverlay />
         <GeoJsonLayers />
+        <VectorEditor />
         <DeckOverlay />
         {mode === 'mapSetup' && <ExportFrame />}
         <AnnotationStage />
       </div>
       <MapSetupPanel />
+      <EditToolbar />
+      <FeatureContextMenu />
       {canInspect && (
         <ViewZoomControls
           anchor={() => {

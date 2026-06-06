@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { FillPattern } from '@/project/cartoproj';
 import { DEFAULT_GEOJSON_STYLE } from '@/project/cartoproj';
-import { featureFillKey, labelForFeature } from '@/layers/geojsonFeatureStyle';
+import { FEATURE_FILL_PROPERTY, featureFillKey, labelForFeature } from '@/layers/geojsonFeatureStyle';
 import { useDocumentStore } from '@/state/documentStore';
+import { useEditStore } from '@/state/editStore';
+import { EditAttributePanel } from '@/layers/EditAttributePanel';
 import { Swatches } from '@/ui/Swatches';
 import { FILL_PATTERNS } from '@/ui/swatchPalette';
 
@@ -47,10 +49,24 @@ export function AttributeInspector() {
   const selectedLayerId = useDocumentStore((s) => s.selectedLayerId);
   const updateLayerStyle = useDocumentStore((s) => s.updateLayerStyle);
   const setLayerRenderStrategy = useDocumentStore((s) => s.setLayerRenderStrategy);
+  const editingLayerId = useEditStore((s) => s.editingLayerId);
+  const selectedFeatureId = useEditStore((s) => s.selectedFeatureId);
+
+  // While the vector editor is active, the inspector edits feature attributes.
+  if (editingLayerId) {
+    const editingLayer = layers.find((l) => l.id === editingLayerId);
+    if (editingLayer) {
+      const editingFeature =
+        editingLayer.data.features.find((f) => f.id === selectedFeatureId) ?? null;
+      return <EditAttributePanel layer={editingLayer} feature={editingFeature} />;
+    }
+  }
 
   if (feature) {
     const layer = layers.find((l) => l.id === feature.layerId);
-    const entries = Object.entries(feature.properties);
+    const entries = Object.entries(feature.properties).filter(
+      ([key]) => key !== FEATURE_FILL_PROPERTY,
+    );
     const fillKey = feature.fillKey ?? featureFillKey(feature.properties);
     const featureFillStyle =
       fillKey && layer

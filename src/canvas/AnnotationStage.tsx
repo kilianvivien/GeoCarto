@@ -32,6 +32,7 @@ import type {
   TitleBlockAnnotation,
 } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { useEditStore } from '@/state/editStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
@@ -1095,6 +1096,7 @@ export function AnnotationStage() {
   const selectedAnnotationId = useDocumentStore((s) => s.selectedAnnotationId);
   const selectedAnnotationIds = useDocumentStore((s) => s.selectedAnnotationIds);
   const mode = useDocumentStore((s) => s.project.mode);
+  const editingVectors = useEditStore((s) => s.editingLayerId !== null);
   const pendingLegendFillSample = useUiStore((s) => s.pendingLegendFillSample);
   const pendingAnnotationFillSample = useUiStore((s) => s.pendingAnnotationFillSample);
   const { addAnnotation, moveAnnotations, selectAnnotation, selectFeature, setSelectedAnnotations, toggleAnnotationSelection, updateAnnotation } =
@@ -1137,8 +1139,12 @@ export function AnnotationStage() {
   const lastMultiSelectionRef = useRef<string[]>([]);
   const textEditorRef = useRef<HTMLTextAreaElement>(null);
 
+  // While the vector editor owns the map, the annotation overlay must let pointer
+  // events fall through to terra-draw beneath it — otherwise no shape can be
+  // clicked, selected, or dragged.
   const capturesPointer =
     mode === 'editing' &&
+    !editingVectors &&
     (activeTool === 'move' ||
       activeTool === 'marquee' ||
       activeTool === 'ruler' ||

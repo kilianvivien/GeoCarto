@@ -4,7 +4,7 @@ import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { rememberRecentProject } from '@/project/recents';
 import { useDocumentStore } from '@/state/documentStore';
-import { useHistoryStore } from '@/state/historyStore';
+import { hintDiscreteHistoryLabel, useHistoryStore } from '@/state/historyStore';
 import { useSessionsStore } from '@/state/sessionsStore';
 import { isToolEnabled, type ToolKey, useToolStore } from '@/state/toolStore';
 import { useViewTransformStore } from '@/state/viewTransformStore';
@@ -173,7 +173,10 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
     case 'delete-selection':
       {
         const { selectedAnnotationId, removeAnnotation } = useDocumentStore.getState();
-        if (selectedAnnotationId) removeAnnotation(selectedAnnotationId);
+        if (selectedAnnotationId) {
+          hintDiscreteHistoryLabel('Delete annotation');
+          removeAnnotation(selectedAnnotationId);
+        }
       }
       break;
     case 'group-selection':

@@ -25,6 +25,7 @@ import {
 import { useNotices } from './notices';
 import { TOOL_DEFINITIONS, useToolStore, type ToolDefinition } from '@/state/toolStore';
 import { useDocumentStore } from '@/state/documentStore';
+import { useEditStore } from '@/state/editStore';
 import { insertFurniture, type FurnitureKind } from '@/tools/insertFurniture';
 
 const FURNITURE_ITEMS: { kind: FurnitureKind; label: string; icon: LucideIcon }[] = [
@@ -67,8 +68,11 @@ export function ToolRail() {
   const active = useToolStore((s) => s.activeTool);
   const setActiveTool = useToolStore((s) => s.setActiveTool);
   const mode = useDocumentStore((s) => s.project.mode);
+  const editingVectors = useEditStore((s) => s.editingLayerId !== null);
   const push = useNotices((s) => s.push);
-  const setupDisabled = mode !== 'editing';
+  // Annotation tools are unavailable while the vector editor owns the map — the
+  // two modes are mutually exclusive, and the rail dims to make that obvious.
+  const setupDisabled = mode !== 'editing' || editingVectors;
   const [insertOpen, setInsertOpen] = useState(false);
   const insertRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +94,10 @@ export function ToolRail() {
       push(tool.disabledReason ?? `${tool.name} is planned for Phase 2`, 'error');
       return;
     }
+    if (editingVectors) {
+      push('Finish editing the layer to use annotation tools', 'error');
+      return;
+    }
     if (setupDisabled) {
       push('Lock the map area before using annotation tools', 'error');
       return;
@@ -104,7 +112,11 @@ export function ToolRail() {
       role="toolbar"
       aria-label="Tools"
       aria-orientation="vertical"
-      className="glass relative z-[5] m-1.5 flex flex-col items-center gap-1 p-2"
+      aria-disabled={editingVectors}
+      title={editingVectors ? 'Editing a layer — finish editing to use annotation tools' : undefined}
+      className={`glass relative z-[5] m-1.5 flex flex-col items-center gap-1 p-2 transition-opacity ${
+        editingVectors ? 'opacity-40' : ''
+      }`}
     >
       {TOOL_GROUPS.map((group, groupIndex) => (
         <div key={groupIndex} className="flex flex-col items-center gap-1">
@@ -153,8 +165,18 @@ export function ToolRail() {
           aria-haspopup="menu"
           aria-expanded={insertOpen}
           disabled={setupDisabled}
-          title={setupDisabled ? 'Lock the map area before inserting furniture' : 'Insert — title, credit, scale bar, north arrow'}
+          title={
+            editingVectors
+              ? 'Finish editing the layer to insert furniture'
+              : setupDisabled
+                ? 'Lock the map area before inserting furniture'
+                : 'Insert — title, credit, scale bar, north arrow'
+          }
           onClick={() => {
+            if (editingVectors) {
+              push('Finish editing the layer to insert furniture', 'error');
+              return;
+            }
             if (setupDisabled) {
               push('Lock the map area before inserting furniture', 'error');
               return;

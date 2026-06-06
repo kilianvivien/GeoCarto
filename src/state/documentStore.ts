@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import type { Feature, FeatureCollection } from 'geojson';
+import { detectGeometry, ensureFeatureIdentity } from '@/import/geojson';
 import {
   createEmptyProject,
   type Annotation,
@@ -69,6 +71,17 @@ interface DocumentState {
   moveLayer: (id: string, direction: 'up' | 'down') => void;
   selectLayer: (id: string | null) => void;
   selectFeature: (feature: SelectedFeature | null) => void;
+  /** Assign stable top-level ids to features that lack one (vector-edit entry). */
+  ensureFeatureIds: (layerId: string) => void;
+  /** Replace a layer's features wholesale — the vector editor's geometry commit. */
+  commitLayerFeatures: (layerId: string, data: FeatureCollection) => void;
+  addFeature: (layerId: string, feature: Feature) => void;
+  removeFeature: (layerId: string, featureId: string | number) => void;
+  updateFeatureProperties: (
+    layerId: string,
+    featureId: string | number,
+    properties: Record<string, unknown>,
+  ) => void;
   addAnnotation: (annotation: Annotation) => void;
   removeAnnotation: (id: string) => void;
   renameAnnotation: (id: string, name: string) => void;
@@ -320,6 +333,61 @@ export const useDocumentStore = create<DocumentState>()(
           state.selectedAnnotationId = null;
           state.selectedAnnotationIds = [];
         }
+      }),
+
+    ensureFeatureIds: (layerId) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === layerId);
+        if (!layer || layer.locked) return;
+        if (!ensureFeatureIdentity(layer.data)) return;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    commitLayerFeatures: (layerId, data) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === layerId);
+        if (!layer || layer.locked) return;
+        layer.data = data;
+        layer.featureCount = data.features.length;
+        layer.geometry = detectGeometry(data);
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    addFeature: (layerId, feature) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === layerId);
+        if (!layer || layer.locked) return;
+        layer.data.features.push(feature);
+        layer.featureCount = layer.data.features.length;
+        layer.geometry = detectGeometry(layer.data);
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    removeFeature: (layerId, featureId) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === layerId);
+        if (!layer || layer.locked) return;
+        const before = layer.data.features.length;
+        layer.data.features = layer.data.features.filter((f) => f.id !== featureId);
+        if (layer.data.features.length === before) return;
+        layer.featureCount = layer.data.features.length;
+        layer.geometry = detectGeometry(layer.data);
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    updateFeatureProperties: (layerId, featureId, properties) =>
+      set((state) => {
+        const layer = state.project.layers.find((l) => l.id === layerId);
+        if (!layer || layer.locked) return;
+        const feature = layer.data.features.find((f) => f.id === featureId);
+        if (!feature) return;
+        feature.properties = properties;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
       }),
 
     addAnnotation: (annotation) =>

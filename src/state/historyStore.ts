@@ -131,6 +131,12 @@ export function hintHistoryLabel(label: string): void {
   nextHint = label;
 }
 
+/** Hint a label and prevent it from coalescing with the previous edit burst. */
+export function hintDiscreteHistoryLabel(label: string): void {
+  commitHistoryGroup();
+  hintHistoryLabel(label);
+}
+
 /** Used by undo/redo themselves so they don't push their own replay onto history. */
 export function suspendHistoryCapture<T>(fn: () => T): T {
   suspended = true;

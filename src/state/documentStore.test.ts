@@ -307,3 +307,108 @@ describe('documentStore', () => {
     expect(useDocumentStore.getState().project.annotations.map((item) => item.name)).toEqual(['Note']);
   });
 });
+
+function seedLayer(features: GeoJsonLayer['data']['features']): GeoJsonLayer {
+  const layer = makeLayer('Editable');
+  layer.data = { type: 'FeatureCollection', features };
+  layer.featureCount = features.length;
+  useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+  useDocumentStore.getState().addLayer(layer);
+  return layer;
+}
+
+describe('documentStore — vector-edit feature actions', () => {
+  beforeEach(() => {
+    useDocumentStore.setState({
+      project: createEmptyProject(),
+      selectedLayerId: null,
+      selectedAnnotationId: null,
+      selectedAnnotationIds: [],
+      selectedFeature: null,
+      dirty: false,
+      file: null,
+    });
+  });
+
+  it('ensureFeatureIds assigns ids only to features that lack one and is idempotent', () => {
+    const layer = seedLayer([
+      { type: 'Feature', id: 'keep', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } },
+      { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [1, 1] } },
+    ]);
+    useDocumentStore.getState().ensureFeatureIds(layer.id);
+    const stored = useDocumentStore.getState().project.layers[0].data.features;
+    expect(stored[0].id).toBe('keep');
+    expect(stored[1].id).toBeTruthy();
+
+    useDocumentStore.setState({ dirty: false });
+    useDocumentStore.getState().ensureFeatureIds(layer.id);
+    expect(useDocumentStore.getState().dirty).toBe(false); // no-op second time
+  });
+
+  it('commitLayerFeatures replaces data and recomputes featureCount + geometry (document is authoritative)', () => {
+    const layer = seedLayer([
+      { type: 'Feature', id: 'a', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } },
+    ]);
+    const next: GeoJsonLayer['data'] = {
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', id: 'a', properties: {}, geometry: { type: 'Point', coordinates: [9, 9] } },
+        { type: 'Feature', id: 'b', properties: {}, geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } },
+      ],
+    };
+    useDocumentStore.getState().commitLayerFeatures(layer.id, next);
+    const stored = useDocumentStore.getState().project.layers[0];
+    expect(stored.data).toBe(next); // the document, not terra-draw, holds the edit
+    expect(stored.featureCount).toBe(2);
+    expect(stored.geometry).toBe('mixed');
+  });
+
+  it('addFeature appends and removeFeature decrements featureCount', () => {
+    const layer = seedLayer([
+      { type: 'Feature', id: 'a', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } },
+    ]);
+    useDocumentStore.getState().addFeature(layer.id, {
+      type: 'Feature',
+      id: 'b',
+      properties: {},
+      geometry: { type: 'Point', coordinates: [1, 1] },
+    });
+    expect(useDocumentStore.getState().project.layers[0].featureCount).toBe(2);
+
+    useDocumentStore.getState().removeFeature(layer.id, 'a');
+    const stored = useDocumentStore.getState().project.layers[0];
+    expect(stored.featureCount).toBe(1);
+    expect(stored.data.features[0].id).toBe('b');
+  });
+
+  it('updateFeatureProperties replaces a feature’s properties', () => {
+    const layer = seedLayer([
+      { type: 'Feature', id: 'a', properties: { name: 'Old' }, geometry: { type: 'Point', coordinates: [0, 0] } },
+    ]);
+    useDocumentStore.getState().updateFeatureProperties(layer.id, 'a', { name: 'New', extra: 5 });
+    expect(useDocumentStore.getState().project.layers[0].data.features[0].properties).toEqual({
+      name: 'New',
+      extra: 5,
+    });
+  });
+
+  it('refuses every feature mutation on a locked layer', () => {
+    const layer = seedLayer([
+      { type: 'Feature', id: 'a', properties: {}, geometry: { type: 'Point', coordinates: [0, 0] } },
+    ]);
+    useDocumentStore.getState().setLayerLocked(layer.id, true);
+    const snapshot = useDocumentStore.getState().project.layers[0].data;
+
+    useDocumentStore.getState().addFeature(layer.id, {
+      type: 'Feature',
+      id: 'b',
+      properties: {},
+      geometry: { type: 'Point', coordinates: [1, 1] },
+    });
+    useDocumentStore.getState().removeFeature(layer.id, 'a');
+    useDocumentStore.getState().updateFeatureProperties(layer.id, 'a', { name: 'x' });
+    useDocumentStore.getState().commitLayerFeatures(layer.id, { type: 'FeatureCollection', features: [] });
+
+    expect(useDocumentStore.getState().project.layers[0].data).toBe(snapshot);
+  });
+});

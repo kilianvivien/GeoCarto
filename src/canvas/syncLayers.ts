@@ -1,10 +1,20 @@
 import type maplibregl from 'maplibre-gl';
+import type { FeatureCollection } from 'geojson';
 import type { FeatureFillStyle, GeoJsonLayer } from '@/project/cartoproj';
 import type { SelectedFeature } from '@/state/documentStore';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
 import { hatchTileImageData } from '@/style/annotationPatterns';
 
 const sourceId = (layerId: string) => `gc:${layerId}`;
+
+/**
+ * Tracks the `FeatureCollection` last pushed to each MapLibre source so we can
+ * `setData` when a layer's geometry changes (e.g. vector edits, undo/redo).
+ * Without this the source keeps its first-loaded geometry forever — edits commit
+ * to the document but never reach the map. Reference identity is enough: the
+ * document store produces a new collection only when the data actually changed.
+ */
+const lastSourceData = new Map<string, FeatureCollection>();
 export const layerRenderIds = (layerId: string) => ({
   fill: `gc:${layerId}:fill`,
   pattern: `gc:${layerId}:pattern`,
@@ -32,6 +42,7 @@ function addLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
   const src = sourceId(layer.id);
   const ids = layerRenderIds(layer.id);
   map.addSource(src, { type: 'geojson', data: layer.data });
+  lastSourceData.set(layer.id, layer.data);
   map.addLayer({
     id: ids.fill,
     type: 'fill',
@@ -99,11 +110,16 @@ function updateLayerGraphics(
   map: maplibregl.Map,
   layer: GeoJsonLayer,
   selectedFeature: SelectedFeature | null,
+  editingLayerId: string | null,
 ): void {
   const ids = layerRenderIds(layer.id);
   const { style } = layer;
+  // While a layer is open in the vector editor, terra-draw owns its visual — hide
+  // the canonical MapLibre render so the two don't draw on top of each other.
+  const editing = editingLayerId === layer.id;
   // Heatmap-strategy layers are drawn by the deck.gl overlay, not MapLibre.
-  const visibility = layer.visible && layer.renderStrategy !== 'heatmap' ? 'visible' : 'none';
+  const visibility =
+    !editing && layer.visible && layer.renderStrategy !== 'heatmap' ? 'visible' : 'none';
   const selectedFilter = selectedFeatureFilter(layer, selectedFeature);
 
   map.setPaintProperty(ids.fill, 'fill-color', fillColorExpression(layer));
@@ -191,6 +207,7 @@ function removeLayerGraphics(map: maplibregl.Map, layerId: string): void {
     if (map.getLayer(id)) map.removeLayer(id);
   }
   if (map.getSource(sourceId(layerId))) map.removeSource(sourceId(layerId));
+  lastSourceData.delete(layerId);
 }
 
 /** Reconcile MapLibre sources/layers with the document's GeoJSON layers. */
@@ -198,6 +215,7 @@ export function syncLayersToMap(
   map: maplibregl.Map,
   layers: GeoJsonLayer[],
   selectedFeature: SelectedFeature | null = null,
+  editingLayerId: string | null = null,
 ): void {
   if (!map.isStyleLoaded()) return;
 
@@ -215,8 +233,14 @@ export function syncLayersToMap(
     ) {
       removeLayerGraphics(map, layer.id);
     }
-    if (!map.getSource(sourceId(layer.id))) addLayerGraphics(map, layer);
-    updateLayerGraphics(map, layer, selectedFeature);
+    if (!map.getSource(sourceId(layer.id))) {
+      addLayerGraphics(map, layer);
+    } else if (lastSourceData.get(layer.id) !== layer.data) {
+      // Geometry changed in the document (vector edit, undo/redo) — refresh it.
+      (map.getSource(sourceId(layer.id)) as maplibregl.GeoJSONSource).setData(layer.data);
+      lastSourceData.set(layer.id, layer.data);
+    }
+    updateLayerGraphics(map, layer, selectedFeature, editingLayerId);
   }
 
   // layers[] is ordered bottom → top; moveLayer with no anchor lifts to the top.

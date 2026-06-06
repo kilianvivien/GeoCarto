@@ -1,5 +1,30 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { DEFAULT_GEOJSON_STYLE, type GeoJsonLayer, type GeometryKind } from '@/project/cartoproj';
+import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
+
+/**
+ * Give every feature a stable identity: a top-level `id` (so the vector editor can
+ * address it) and an `@id` property (the per-feature fill key). Done at import so
+ * shapes are individually styleable and editable out of the box — no manual ID
+ * wrangling. Returns whether anything changed. Mutates in place.
+ */
+export function ensureFeatureIdentity(fc: FeatureCollection): boolean {
+  let changed = false;
+  for (const feature of fc.features) {
+    if (feature.id === undefined || feature.id === null) {
+      feature.id = crypto.randomUUID();
+      changed = true;
+    }
+    if (feature.properties === null || feature.properties === undefined) {
+      feature.properties = {};
+    }
+    if (!feature.properties[FEATURE_FILL_PROPERTY]) {
+      feature.properties[FEATURE_FILL_PROPERTY] = String(feature.id);
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 /** Raised when a file cannot be read as usable GeoJSON. Message is user-facing. */
 export class GeoJsonImportError extends Error {}
@@ -65,6 +90,7 @@ export function detectGeometry(fc: FeatureCollection): GeometryKind {
 
 /** Wrap a normalized FeatureCollection in a ready-to-add GeoJSON layer. */
 export function featureCollectionToLayer(name: string, data: FeatureCollection): GeoJsonLayer {
+  ensureFeatureIdentity(data);
   return {
     id: crypto.randomUUID(),
     kind: 'geojson',

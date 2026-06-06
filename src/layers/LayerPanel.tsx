@@ -8,6 +8,8 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
+  PenLine,
+  Upload,
   MapPin,
   Spline,
   Hexagon,
@@ -28,7 +30,18 @@ import {
 } from 'lucide-react';
 import type { AnnotationKind, GeometryKind } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
+import { useEditStore } from '@/state/editStore';
+import { hintDiscreteHistoryLabel } from '@/state/historyStore';
+import { featureCollectionToLayer } from '@/import/geojson';
 import { pickAndImportGeoJson } from '@/import/importLayers';
+
+/** Create an empty vector layer and drop straight into edit mode to draw it. */
+function createBlankLayer() {
+  const layer = featureCollectionToLayer('New layer', { type: 'FeatureCollection', features: [] });
+  useDocumentStore.getState().addLayer(layer);
+  useEditStore.getState().enterEdit(layer.id);
+  useEditStore.getState().setTool('polygon');
+}
 
 const GEOMETRY_ICON: Record<GeometryKind, LucideIcon> = {
   point: MapPin,
@@ -62,6 +75,7 @@ function LayerRow({ layerId }: { layerId: string }) {
   const index = useDocumentStore((s) => s.project.layers.findIndex((l) => l.id === layerId));
   const { selectLayer, renameLayer, setLayerVisible, setLayerLocked, moveLayer, removeLayer } =
     useDocumentStore.getState();
+  const isEditingVectors = useEditStore((s) => s.editingLayerId === layerId);
 
   const [editing, setEditing] = useState(false);
 
@@ -109,7 +123,23 @@ function LayerRow({ layerId }: { layerId: string }) {
         </span>
       )}
       <span className="mono text-[10px] text-[var(--text-3)]">{layer.featureCount}</span>
-      <div className="flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-aria-[selected=true]:opacity-100">
+      <div
+        className={`flex items-center transition-opacity group-hover:opacity-100 group-aria-[selected=true]:opacity-100 ${
+          isEditingVectors ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <RowButton
+          label={isEditingVectors ? 'Finish editing features' : 'Edit features'}
+          disabled={!canMutate}
+          active={isEditingVectors}
+          onClick={() => {
+            const edit = useEditStore.getState();
+            if (isEditingVectors) edit.exitEdit();
+            else edit.enterEdit(layer.id);
+          }}
+        >
+          <PenLine size={13} />
+        </RowButton>
         <RowButton
           label={layer.visible ? 'Hide layer' : 'Show layer'}
           onClick={() => setLayerVisible(layer.id, !layer.visible)}
@@ -132,7 +162,16 @@ function LayerRow({ layerId }: { layerId: string }) {
         <RowButton label="Move down" disabled={!canMutate || index === 0} onClick={() => moveLayer(layer.id, 'down')}>
           <ChevronDown size={13} />
         </RowButton>
-        <RowButton label="Delete layer" disabled={!canMutate} onClick={() => removeLayer(layer.id)}>
+        <RowButton
+          label="Delete layer"
+          disabled={!canMutate}
+          onClick={() => {
+            if (!window.confirm(`Delete layer “${layer.name}”? You can undo this with ⌘Z.`)) return;
+            hintDiscreteHistoryLabel('Delete layer');
+            if (useEditStore.getState().editingLayerId === layer.id) useEditStore.getState().exitEdit();
+            removeLayer(layer.id);
+          }}
+        >
           <Trash2 size={13} />
         </RowButton>
       </div>
@@ -230,7 +269,10 @@ function AnnotationRow({ annotationId }: { annotationId: string }) {
         <RowButton
           label="Delete annotation"
           disabled={annotation.locked}
-          onClick={() => removeAnnotation(annotation.id)}
+          onClick={() => {
+            hintDiscreteHistoryLabel('Delete annotation');
+            removeAnnotation(annotation.id);
+          }}
         >
           <Trash2 size={13} />
         </RowButton>
@@ -243,24 +285,29 @@ function RowButton({
   label,
   onClick,
   disabled,
+  active,
   children,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  active?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      aria-pressed={active}
       title={label}
       disabled={disabled}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className="flex h-5 w-5 items-center justify-center rounded-[4px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:bg-transparent"
+      className={`flex h-5 w-5 items-center justify-center rounded-[4px] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:bg-transparent ${
+        active ? 'text-[var(--accent)]' : 'text-[var(--text-3)]'
+      }`}
     >
       {children}
     </button>
@@ -280,16 +327,28 @@ export function LayerPanel() {
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
           Layers
         </span>
-        <button
-          type="button"
-          aria-label="Import data"
-          title="Import GeoJSON, TopoJSON, KML, GPX, or Shapefile"
-          disabled={locked}
-          onClick={pickAndImportGeoJson}
-          className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Plus size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="New layer"
+            title="New layer — draw your own features"
+            disabled={locked}
+            onClick={createBlankLayer}
+            className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={14} />
+          </button>
+          <button
+            type="button"
+            aria-label="Import data"
+            title="Import GeoJSON, TopoJSON, KML, GPX, or Shapefile"
+            disabled={locked}
+            onClick={pickAndImportGeoJson}
+            className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Upload size={13} />
+          </button>
+        </div>
       </div>
 
       {annotations.length > 0 && (
@@ -306,16 +365,33 @@ export function LayerPanel() {
       )}
 
       {layers.length === 0 ? (
-        <button
-          type="button"
-          disabled={locked}
-          onClick={pickAndImportGeoJson}
-          className="rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-6 text-center text-[11.5px] text-[var(--text-3)] transition-colors hover:text-[var(--text-2)] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          No GeoJSON layers yet.
-          <br />
-          {locked ? 'Lock the map area before importing.' : 'Drop GeoJSON, TopoJSON, KML, GPX, or a zipped Shapefile, or click to import.'}
-        </button>
+        <div className="flex flex-col gap-2 rounded-[10px] border border-dashed border-[var(--divider)] bg-[var(--glass-thin)] p-3 text-center">
+          {locked ? (
+            <div className="py-2 text-[11.5px] text-[var(--text-3)]">
+              Lock the map area to start adding layers.
+            </div>
+          ) : (
+            <>
+              <div className="text-[11.5px] text-[var(--text-3)]">No layers yet.</div>
+              <button
+                type="button"
+                onClick={createBlankLayer}
+                className="flex items-center justify-center gap-1.5 rounded-[8px] bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[var(--text-on-accent)] transition-opacity hover:opacity-90"
+              >
+                <Plus size={14} />
+                New layer
+              </button>
+              <button
+                type="button"
+                title="GeoJSON, TopoJSON, KML, GPX, or Shapefile"
+                onClick={pickAndImportGeoJson}
+                className="text-[11px] text-[var(--text-3)] underline-offset-2 transition-colors hover:text-[var(--text-2)] hover:underline"
+              >
+                Import a file
+              </button>
+            </>
+          )}
+        </div>
       ) : (
         <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
           {[...layers].reverse().map((layer) => (
