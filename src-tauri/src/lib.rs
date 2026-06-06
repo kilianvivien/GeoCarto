@@ -53,9 +53,8 @@ const APP_COMMAND_IDS: &[&str] = &[
 /// store is the source of truth for the app language; it pushes the resolved
 /// locale to Rust via the `set_menu_locale` command, which rebuilds the menu.
 /// Predefined items default to the macOS/app-bundle language, which can differ
-/// from GeoCarto's in-app locale. Use Tauri's explicit text variants where the
-/// API supports it; macOS-owned items such as Services, Hide, Quit, and system
-/// text-service submenus still follow the system/app-bundle language.
+/// from GeoCarto's in-app locale. Use Tauri's explicit text variants so the
+/// native menu follows the app language chosen in the web shell.
 fn tr(lang: &str, en: &'static str, fr: &'static str) -> &'static str {
     if lang == "fr" {
         fr
@@ -112,13 +111,13 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
             Some("CmdOrCtrl+,"),
         )?)
         .separator()
-        .services()
+        .services_with_text(tr(lang, "Services", "Services"))
         .separator()
-        .hide()
-        .hide_others()
-        .show_all()
+        .hide_with_text(tr(lang, "Hide GeoCarto", "Masquer GeoCarto"))
+        .hide_others_with_text(tr(lang, "Hide Others", "Masquer les autres"))
+        .show_all_with_text(tr(lang, "Show All", "Tout afficher"))
         .separator()
-        .quit()
+        .quit_with_text(tr(lang, "Quit GeoCarto", "Quitter GeoCarto"))
         .build()?;
 
     let file_menu = SubmenuBuilder::new(app, tr(lang, "File", "Fichier"))
@@ -178,7 +177,12 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
         .build()?;
 
     let edit_menu = SubmenuBuilder::new(app, tr(lang, "Edit", "Édition"))
-        .item(&item(app, "undo", tr(lang, "Undo", "Annuler"), Some("CmdOrCtrl+Z"))?)
+        .item(&item(
+            app,
+            "undo",
+            tr(lang, "Undo", "Annuler"),
+            Some("CmdOrCtrl+Z"),
+        )?)
         .item(&item(
             app,
             "redo",
@@ -227,7 +231,11 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
         .item(&item(
             app,
             "toggle-map-lock",
-            tr(lang, "Lock/Unlock Map", "Verrouiller/Déverrouiller la carte"),
+            tr(
+                lang,
+                "Lock/Unlock Map",
+                "Verrouiller/Déverrouiller la carte",
+            ),
             Some("CmdOrCtrl+L"),
         )?)
         .separator()
@@ -258,30 +266,109 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
         .build()?;
 
     let tools_menu = SubmenuBuilder::new(app, tr(lang, "Tools", "Outils"))
-        .item(&item(app, "tool-move", tr(lang, "Move", "Déplacer"), Some("V"))?)
-        .item(&item(app, "tool-pan", tr(lang, "Pan", "Panoramique"), Some("H"))?)
+        .item(&item(
+            app,
+            "tool-move",
+            tr(lang, "Move", "Déplacer"),
+            Some("V"),
+        )?)
+        .item(&item(
+            app,
+            "tool-pan",
+            tr(lang, "Pan", "Panoramique"),
+            Some("H"),
+        )?)
         .separator()
-        .item(&item(app, "tool-pen", tr(lang, "Line", "Ligne"), Some("P"))?)
-        .item(&item(app, "tool-rectangle", tr(lang, "Rectangle", "Rectangle"), Some("R"))?)
-        .item(&item(app, "tool-ellipse", tr(lang, "Ellipse", "Ellipse"), Some("O"))?)
-        .item(&item(app, "tool-polygon", tr(lang, "Polygon", "Polygone"), Some("G"))?)
-        .item(&item(app, "tool-text", tr(lang, "Text", "Texte"), Some("T"))?)
-        .item(&item(app, "tool-pin", tr(lang, "Pin", "Épingle"), Some("I"))?)
-        .item(&item(app, "tool-arrow", tr(lang, "Arrow", "Flèche"), Some("A"))?)
+        .item(&item(
+            app,
+            "tool-pen",
+            tr(lang, "Line", "Ligne"),
+            Some("P"),
+        )?)
+        .item(&item(
+            app,
+            "tool-rectangle",
+            tr(lang, "Rectangle", "Rectangle"),
+            Some("R"),
+        )?)
+        .item(&item(
+            app,
+            "tool-ellipse",
+            tr(lang, "Ellipse", "Ellipse"),
+            Some("O"),
+        )?)
+        .item(&item(
+            app,
+            "tool-polygon",
+            tr(lang, "Polygon", "Polygone"),
+            Some("G"),
+        )?)
+        .item(&item(
+            app,
+            "tool-text",
+            tr(lang, "Text", "Texte"),
+            Some("T"),
+        )?)
+        .item(&item(
+            app,
+            "tool-pin",
+            tr(lang, "Pin", "Épingle"),
+            Some("I"),
+        )?)
+        .item(&item(
+            app,
+            "tool-arrow",
+            tr(lang, "Arrow", "Flèche"),
+            Some("A"),
+        )?)
         .separator()
-        .item(&item(app, "tool-marquee", tr(lang, "Marquee", "Sélection"), Some("M"))?)
-        .item(&item(app, "tool-ruler", tr(lang, "Ruler", "Règle"), Some("K"))?)
-        .item(&item(app, "tool-paint", tr(lang, "Brush", "Pinceau"), Some("B"))?)
-        .item(&item(app, "tool-image", tr(lang, "Image", "Image"), Some("J"))?)
-        .item(&item(app, "tool-legend", tr(lang, "Legend", "Légende"), Some("L"))?)
-        .item(&item(app, "tool-comment", tr(lang, "Comment", "Commentaire"), Some("C"))?)
+        .item(&item(
+            app,
+            "tool-marquee",
+            tr(lang, "Marquee", "Sélection"),
+            Some("M"),
+        )?)
+        .item(&item(
+            app,
+            "tool-ruler",
+            tr(lang, "Ruler", "Règle"),
+            Some("K"),
+        )?)
+        .item(&item(
+            app,
+            "tool-paint",
+            tr(lang, "Brush", "Pinceau"),
+            Some("B"),
+        )?)
+        .item(&item(
+            app,
+            "tool-image",
+            tr(lang, "Image", "Image"),
+            Some("J"),
+        )?)
+        .item(&item(
+            app,
+            "tool-legend",
+            tr(lang, "Legend", "Légende"),
+            Some("L"),
+        )?)
+        .item(&item(
+            app,
+            "tool-comment",
+            tr(lang, "Comment", "Commentaire"),
+            Some("C"),
+        )?)
         .build()?;
 
     let window_menu = SubmenuBuilder::new(app, tr(lang, "Window", "Fenêtre"))
         .minimize_with_text(tr(lang, "Minimize", "Réduire"))
         .maximize_with_text(tr(lang, "Zoom", "Agrandir/Réduire"))
         .separator()
-        .bring_all_to_front_with_text(tr(lang, "Bring All to Front", "Tout ramener au premier plan"))
+        .bring_all_to_front_with_text(tr(
+            lang,
+            "Bring All to Front",
+            "Tout ramener au premier plan",
+        ))
         .build()?;
 
     let help_menu = SubmenuBuilder::new(app, tr(lang, "Help", "Aide"))
