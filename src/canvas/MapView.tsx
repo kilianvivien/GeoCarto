@@ -4,6 +4,7 @@ import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { useNotices } from '@/ui/notices';
+import { translate, useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
 
 const BASEMAP_LOADING_NOTICE_DELAY_MS = 1_200;
@@ -23,6 +24,7 @@ export function MapView() {
   const basemap = useDocumentStore((s) => s.project.basemap);
   const projectViewport = useDocumentStore((s) => s.project.viewport);
   const mode = useDocumentStore((s) => s.project.mode);
+  const locale = useLocale((s) => s.locale);
   const isStaticBasemap = basemap.kind === 'static';
 
   const armBasemapLoadingNotice = useCallback((map: maplibregl.Map) => {
@@ -43,7 +45,7 @@ export function MapView() {
       const now = Date.now();
       if (now - lastLoadingNoticeAtRef.current < BASEMAP_LOADING_NOTICE_THROTTLE_MS) return;
       lastLoadingNoticeAtRef.current = now;
-      useNotices.getState().push('Basemap is loading, please wait...');
+      useNotices.getState().push(translate('basemap.loading'));
     }, BASEMAP_LOADING_NOTICE_DELAY_MS);
   }, []);
 
@@ -104,9 +106,11 @@ export function MapView() {
     }
     if (!isStaticBasemap && mapRef.current) {
       armBasemapLoadingNotice(mapRef.current);
-      mapRef.current.setStyle(buildBasemapStyle(basemap));
+      // `buildBasemapStyle` reads the active locale for built-in label language,
+      // so changing the app language also re-renders the basemap labels.
+      mapRef.current.setStyle(buildBasemapStyle(basemap, locale));
     }
-  }, [armBasemapLoadingNotice, basemap, isStaticBasemap]);
+  }, [armBasemapLoadingNotice, basemap, isStaticBasemap, locale]);
 
   useEffect(() => {
     const map = mapRef.current;

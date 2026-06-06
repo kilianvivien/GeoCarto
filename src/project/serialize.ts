@@ -5,6 +5,7 @@ import {
   DEFAULT_GEOJSON_STYLE,
   type CartoProject,
 } from './cartoproj';
+import { translate } from '@/i18n/useLocale';
 
 export class ProjectLoadError extends Error {
   constructor(message: string) {
@@ -26,30 +27,27 @@ function expect(condition: unknown, message: string): asserts condition {
 }
 
 function validateProject(value: unknown): asserts value is CartoProject {
-  expect(isObject(value), 'Project file is not a JSON object.');
-  expect(value.version === 1, `Unsupported project version: ${String(value.version)}.`);
-  expect(
-    value.mode === 'mapSetup' || value.mode === 'editing',
-    'Project mode must be "mapSetup" or "editing".',
-  );
+  expect(isObject(value), translate('errors.notJsonObject'));
+  expect(value.version === 1, translate('errors.unsupportedVersion', { version: String(value.version) }));
+  expect(value.mode === 'mapSetup' || value.mode === 'editing', translate('errors.invalidMode'));
 
   const meta = value.meta;
-  expect(isObject(meta), 'Project is missing meta block.');
-  expect(typeof meta.name === 'string', 'Project meta.name must be a string.');
-  expect(typeof meta.createdAt === 'string', 'Project meta.createdAt must be a string.');
-  expect(typeof meta.updatedAt === 'string', 'Project meta.updatedAt must be a string.');
+  expect(isObject(meta), translate('errors.missingMeta'));
+  expect(typeof meta.name === 'string', translate('errors.metaName'));
+  expect(typeof meta.createdAt === 'string', translate('errors.metaCreatedAt'));
+  expect(typeof meta.updatedAt === 'string', translate('errors.metaUpdatedAt'));
 
   const viewport = value.viewport;
-  expect(isObject(viewport), 'Project viewport missing.');
+  expect(isObject(viewport), translate('errors.viewportMissing'));
   expect(
     Array.isArray(viewport.center) &&
       viewport.center.length === 2 &&
       typeof viewport.center[0] === 'number' &&
       typeof viewport.center[1] === 'number',
-    'Viewport center must be [lng, lat].',
+    translate('errors.viewportCenter'),
   );
   for (const key of ['zoom', 'bearing', 'pitch'] as const) {
-    expect(typeof viewport[key] === 'number', `Viewport ${key} must be a number.`);
+    expect(typeof viewport[key] === 'number', translate('errors.viewportNumber', { key }));
   }
 
   const frame = value.exportFrame;
@@ -61,7 +59,7 @@ function validateProject(value: unknown): asserts value is CartoProject {
       typeof frame.height === 'number' &&
       Number.isFinite(frame.height) &&
       frame.height > 0,
-    'Export frame must be { width, height }.',
+    translate('errors.exportFrame'),
   );
   // Page settings (margin / background / dpiScale / preset) arrived after v1 ship.
   // Old documents don't have them — default sensibly so the new Style panel works.
@@ -82,7 +80,7 @@ function validateProject(value: unknown): asserts value is CartoProject {
   }
 
   if (!('basemap' in value)) value.basemap = { ...DEFAULT_BASEMAP };
-  expect(isObject(value.basemap), 'Project basemap missing.');
+  expect(isObject(value.basemap), translate('errors.basemapMissing'));
   // M11: built-in / pmtiles-url basemaps gained editorial sub-layer toggles.
   // Older v1 documents are missing the field — default to all visible.
   const basemapKind = (value.basemap as { kind?: unknown }).kind;
@@ -96,7 +94,7 @@ function validateProject(value: unknown): asserts value is CartoProject {
   if (!('lockedMapView' in value)) value.lockedMapView = null;
   if (!('annotations' in value)) value.annotations = [];
   if (!('annotationGroups' in value)) value.annotationGroups = [];
-  expect(Array.isArray(value.layers), 'Project layers must be an array.');
+  expect(Array.isArray(value.layers), translate('errors.layersArray'));
   // M12: layers gained a render strategy. Older documents default to vector.
   for (const layer of value.layers as unknown[]) {
     if (!isObject(layer)) continue;
@@ -117,11 +115,11 @@ function validateProject(value: unknown): asserts value is CartoProject {
       };
     }
   }
-  expect(Array.isArray(value.annotations), 'Project annotations must be an array.');
-  expect(Array.isArray(value.annotationGroups), 'Project annotationGroups must be an array.');
+  expect(Array.isArray(value.annotations), translate('errors.annotationsArray'));
+  expect(Array.isArray(value.annotationGroups), translate('errors.annotationGroupsArray'));
   expect(
     value.lockedMapView === null || isObject(value.lockedMapView),
-    'Project lockedMapView must be null or an object.',
+    translate('errors.lockedMapView'),
   );
   for (const annotation of value.annotations) {
     if (isObject(annotation) && isObject(annotation.style)) {
@@ -149,7 +147,7 @@ export function deserializeProject(json: string): CartoProject {
   try {
     parsed = JSON.parse(json);
   } catch (error) {
-    throw new ProjectLoadError(`Invalid JSON: ${(error as Error).message}`);
+    throw new ProjectLoadError(translate('errors.invalidJson', { message: (error as Error).message }));
   }
   validateProject(parsed);
   return parsed;

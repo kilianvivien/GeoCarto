@@ -4,7 +4,7 @@ import { useDocumentStore } from '@/state/documentStore';
 import { useEditStore } from '@/state/editStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { useMapInstance } from './mapInstance';
-import { useFeatureMenuStore } from './featureMenuStore';
+import { openFeatureMenuAtPoint } from './openFeatureMenu';
 import { layerIdFromRenderId, layerRenderIds, syncLayersToMap } from './syncLayers';
 
 /**
@@ -57,31 +57,20 @@ export function GeoJsonLayers() {
       selectFeature({ layerId, properties, fillKey: featureFillKey(properties) });
     };
     const onContextMenu = (e: maplibregl.MapMouseEvent) => {
-      // While editing, terra-draw owns right-click (vertex deletion etc.).
+      // While editing, terra-draw owns right-click (vertex deletion etc.). The
+      // Konva overlay's Stage handler covers the data-layer right-click in that
+      // mode (it captures the event before MapLibre sees it).
       if (editingLayerIdRef.current) return;
-      const ids = layersRef.current
-        .flatMap((l) => Object.values(layerRenderIds(l.id)))
-        .filter((id) => map.getLayer(id));
-      const hits = ids.length ? map.queryRenderedFeatures(e.point, { layers: ids }) : [];
-      if (hits.length === 0) {
-        useFeatureMenuStore.getState().close();
-        return;
+      const hit = openFeatureMenuAtPoint(
+        map,
+        e.point,
+        { x: e.originalEvent.clientX, y: e.originalEvent.clientY },
+      );
+      if (hit) {
+        // Suppress the browser menu and show our own.
+        e.preventDefault();
+        e.originalEvent.preventDefault();
       }
-      // Suppress the browser menu and show our own.
-      e.preventDefault();
-      e.originalEvent.preventDefault();
-      const hit = hits[0];
-      const layerId = layerIdFromRenderId(hit.layer.id);
-      const properties = hit.properties ?? {};
-      selectFeature({ layerId, properties, fillKey: featureFillKey(properties) });
-      const layer = layersRef.current.find((l) => l.id === layerId);
-      useFeatureMenuStore.getState().open({
-        x: e.originalEvent.clientX,
-        y: e.originalEvent.clientY,
-        layerId,
-        layerName: layer?.name ?? 'Layer',
-        locked: layer?.locked ?? false,
-      });
     };
 
     map.on('click', onClick);

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Pipette } from 'lucide-react';
+import { useLocale } from '@/i18n/useLocale';
 
 interface HSV {
   h: number; // 0-360
@@ -99,6 +100,7 @@ interface ColorPickerPopoverProps {
 }
 
 export function ColorPickerPopover({ open, anchorRef, value, onChange, onClose }: ColorPickerPopoverProps) {
+  const t = useLocale((s) => s.t);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [hsv, setHsv] = useState<HSV>(() => hsvFromHex(value));
   const [hexDraft, setHexDraft] = useState<string>(value);
@@ -223,7 +225,7 @@ export function ColorPickerPopover({ open, anchorRef, value, onChange, onClose }
     <div
       ref={containerRef}
       role="dialog"
-      aria-label="Pick a color"
+      aria-label={t('color.pick')}
       className="glass fixed z-[60] rounded-[var(--radius-md)] bg-[var(--surface-modal)] p-3 text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
       style={{ top: position.top, left: position.left, width: POPOVER_WIDTH }}
       onClick={(e) => e.stopPropagation()}
@@ -268,7 +270,7 @@ export function ColorPickerPopover({ open, anchorRef, value, onChange, onClose }
           style={{ background: previewColor }}
         />
         <input
-          aria-label="Hex color"
+          aria-label={t('color.hex')}
           value={hexDraft}
           onChange={(e) => handleHexChange(e.target.value)}
           spellCheck={false}
@@ -277,9 +279,9 @@ export function ColorPickerPopover({ open, anchorRef, value, onChange, onClose }
         {typeof window !== 'undefined' && window.EyeDropper && (
           <button
             type="button"
-            aria-label="Pick from screen"
+            aria-label={t('color.pickFromScreen')}
             onClick={pickWithEyedropper}
-            title="Pick from screen"
+            title={t('color.pickFromScreen')}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)]"
           >
             <Pipette size={13} />

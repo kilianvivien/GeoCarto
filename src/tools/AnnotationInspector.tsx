@@ -860,7 +860,7 @@ function LegendEntryRow({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Entry ${index + 1} color`}
+        aria-label={t('annotation.ariaEntryColor', { n: index + 1 })}
         className="relative h-6 w-6 rounded-[6px] border border-[var(--divider)] transition-transform hover:scale-105"
         style={{
           background: legendSwatchBackground(fill),
@@ -892,7 +892,7 @@ function LegendEntryRow({
           else startLegendFillSample(legendId, index);
         }}
         disabled={disabled}
-        aria-label={`Sample selected shape fill for entry ${index + 1}`}
+        aria-label={t('annotation.ariaSampleEntryFill', { n: index + 1 })}
         aria-pressed={picking}
         title={t('annotation.pickShapeFill')}
         className={`flex h-6 w-6 items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
@@ -905,7 +905,7 @@ function LegendEntryRow({
         type="button"
         onClick={onRemove}
         disabled={disabled}
-        aria-label={`Remove entry ${index + 1}`}
+        aria-label={t('annotation.ariaRemoveEntry', { n: index + 1 })}
         className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
       >
         <Trash2 size={12} />

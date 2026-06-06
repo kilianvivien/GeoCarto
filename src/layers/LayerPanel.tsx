@@ -9,6 +9,8 @@ import {
   ChevronDown,
   Trash2,
   PenLine,
+  Download,
+  DownloadCloud,
   Upload,
   MapPin,
   Spline,
@@ -34,6 +36,8 @@ import { useEditStore } from '@/state/editStore';
 import { hintDiscreteHistoryLabel } from '@/state/historyStore';
 import { featureCollectionToLayer } from '@/import/geojson';
 import { pickAndImportGeoJson } from '@/import/importLayers';
+import { exportAllLayersGeoJson, exportLayerGeoJson } from '@/export/geojson';
+import { useNotices } from '@/ui/notices';
 import { translate, useLocale } from '@/i18n/useLocale';
 
 /** Create an empty vector layer and drop straight into edit mode to draw it. */
@@ -141,6 +145,20 @@ function LayerRow({ layerId }: { layerId: string }) {
           }}
         >
           <PenLine size={13} />
+        </RowButton>
+        <RowButton
+          label={t('layer.export')}
+          disabled={layer.featureCount === 0}
+          onClick={() => {
+            const push = useNotices.getState().push;
+            void exportLayerGeoJson(layer)
+              .then((saved) => {
+                if (saved) push(t('layer.exported', { name: layer.name }));
+              })
+              .catch(() => push(t('layer.exportFailed'), 'error'));
+          }}
+        >
+          <Download size={13} />
         </RowButton>
         <RowButton
           label={layer.visible ? t('layer.hide') : t('layer.show')}
@@ -323,13 +341,31 @@ export function LayerPanel() {
   const layers = useDocumentStore((s) => s.project.layers);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const mode = useDocumentStore((s) => s.project.mode);
+  const projectName = useDocumentStore((s) => s.project.meta.name);
   const locked = mode !== 'editing';
+  const hasFeatures = layers.some((layer) => layer.featureCount > 0);
+
+  const exportAll = () => {
+    const push = useNotices.getState().push;
+    void exportAllLayersGeoJson(layers, projectName)
+      .then((result) => {
+        if (!result) {
+          push(t('layer.exportAllEmpty'), 'error');
+        } else if (result.saved) {
+          push(t('layer.exportedAll', { layers: result.layers, features: result.features }));
+        }
+      })
+      .catch(() => push(t('layer.exportFailed'), 'error'));
+  };
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
-          {t('layer.layers')}
+        <span
+          className="cursor-help text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]"
+          title={t('layer.dataHint')}
+        >
+          {t('layer.dataLayers')}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -352,12 +388,25 @@ export function LayerPanel() {
           >
             <Upload size={13} />
           </button>
+          <button
+            type="button"
+            aria-label={t('layer.exportAll')}
+            title={t('layer.exportAllTitle')}
+            disabled={locked || !hasFeatures}
+            onClick={exportAll}
+            className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[var(--glass-thin)] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <DownloadCloud size={13} />
+          </button>
         </div>
       </div>
 
       {annotations.length > 0 && (
         <div className="flex flex-col gap-1">
-          <span className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]">
+          <span
+            className="cursor-help px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-3)]"
+            title={t('layer.annotationsHint')}
+          >
             {t('layer.annotations')}
           </span>
           <div role="tree" className="flex flex-col gap-px rounded-[8px] bg-[var(--glass-thin)] p-1">
@@ -377,6 +426,7 @@ export function LayerPanel() {
           ) : (
             <>
               <div className="text-[11.5px] text-[var(--text-3)]">{t('layer.none')}</div>
+              <p className="text-[11px] leading-snug text-[var(--text-3)]">{t('layer.dataHint')}</p>
               <button
                 type="button"
                 onClick={createBlankLayer}

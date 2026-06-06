@@ -2,9 +2,11 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { FeatureCollection } from 'geojson';
 import {
   TerraDraw,
+  TerraDrawCircleMode,
   TerraDrawLineStringMode,
   TerraDrawPointMode,
   TerraDrawPolygonMode,
+  TerraDrawRectangleMode,
   TerraDrawSelectMode,
 } from 'terra-draw';
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
@@ -29,13 +31,15 @@ import type { EditTool } from '@/state/editStore';
  * initial bundle (the `bundle-budget` gate).
  */
 
-const EDIT_MODES = new Set(['point', 'linestring', 'polygon']);
+const EDIT_MODES = new Set(['point', 'linestring', 'polygon', 'rectangle', 'circle']);
 const COMMIT_DEBOUNCE_MS = 60;
 
 function modeForTool(tool: EditTool): string {
   if (tool === 'select') return 'select';
   if (tool === 'point') return 'point';
   if (tool === 'line') return 'linestring';
+  if (tool === 'rectangle') return 'rectangle';
+  if (tool === 'circle') return 'circle';
   return 'polygon';
 }
 
@@ -64,21 +68,40 @@ export function startVectorEditor(opts: {
   // emits don't echo back to the document as spurious commits / history steps.
   let suspended = false;
 
+  // Full set of edit affordances for line/area features: drag the whole shape,
+  // rotate/scale it, drag/add/delete individual vertices, and snap vertices to
+  // nearby points for precise alignment.
+  const editableFlags = {
+    feature: {
+      draggable: true,
+      rotateable: true,
+      scaleable: true,
+      coordinates: { midpoints: true, draggable: true, deletable: true, snappable: true },
+    },
+  };
+
   const draw = new TerraDraw({
     adapter: new TerraDrawMapLibreGLAdapter({ map }),
     modes: [
       new TerraDrawPointMode(),
       new TerraDrawLineStringMode(),
       new TerraDrawPolygonMode(),
+      new TerraDrawRectangleMode(),
+      new TerraDrawCircleMode(),
       new TerraDrawSelectMode({
+        // Hold R / S while dragging a selected shape to rotate / scale it.
+        // `delete: null` leaves feature deletion to the app (the document is the
+        // source of truth), so a Delete keypress doesn't remove it twice.
+        keyEvents: { deselect: 'Escape', delete: null, rotate: ['r'], scale: ['s'] },
         flags: {
           point: { feature: { draggable: true } },
-          linestring: {
-            feature: { draggable: true, coordinates: { midpoints: true, draggable: true, deletable: true } },
-          },
-          polygon: {
-            feature: { draggable: true, coordinates: { midpoints: true, draggable: true, deletable: true } },
-          },
+          linestring: editableFlags,
+          polygon: editableFlags,
+          // Rectangles/circles are polygons; until the next resync re-stamps their
+          // mode to `polygon`, terra-draw still keys their select flags by the
+          // drawing mode, so mirror the same affordances here.
+          rectangle: editableFlags,
+          circle: editableFlags,
         },
       }),
     ],

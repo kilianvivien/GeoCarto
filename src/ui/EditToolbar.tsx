@@ -1,6 +1,18 @@
-import { MousePointer2, MapPin, Spline, Hexagon, Check, type LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  MousePointer2,
+  MapPin,
+  Spline,
+  Hexagon,
+  Square,
+  Circle,
+  Trash2,
+  Check,
+  type LucideIcon,
+} from 'lucide-react';
 import { useDocumentStore } from '@/state/documentStore';
 import { useEditStore, type EditTool } from '@/state/editStore';
+import { hintHistoryLabel } from '@/state/historyStore';
 import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
 
@@ -24,6 +36,18 @@ const EDIT_TOOLS: { tool: EditTool; labelKey: TranslationKey; hintKey: Translati
     hintKey: 'edit.polygonHint',
     icon: Hexagon,
   },
+  {
+    tool: 'rectangle',
+    labelKey: 'edit.rectangle',
+    hintKey: 'edit.rectangleHint',
+    icon: Square,
+  },
+  {
+    tool: 'circle',
+    labelKey: 'edit.circle',
+    hintKey: 'edit.circleHint',
+    icon: Circle,
+  },
 ];
 
 /**
@@ -35,21 +59,54 @@ export function EditToolbar() {
   const t = useLocale((s) => s.t);
   const editingLayerId = useEditStore((s) => s.editingLayerId);
   const activeTool = useEditStore((s) => s.activeTool);
+  const selectedFeatureId = useEditStore((s) => s.selectedFeatureId);
   const layerName = useDocumentStore((s) =>
     s.project.layers.find((l) => l.id === editingLayerId)?.name,
   );
+  const [mounted, setMounted] = useState(Boolean(editingLayerId));
+  const [visible, setVisible] = useState(Boolean(editingLayerId));
+  const [lastLayerName, setLastLayerName] = useState<string | null>(layerName ?? null);
 
-  if (!editingLayerId) return null;
+  useEffect(() => {
+    if (layerName) setLastLayerName(layerName);
+  }, [layerName]);
+
+  useEffect(() => {
+    if (editingLayerId) {
+      setMounted(true);
+      const frame = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(frame);
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => setMounted(false), 160);
+    return () => window.clearTimeout(timer);
+  }, [editingLayerId]);
+
+  if (!mounted) return null;
+
+  const deleteSelected = () => {
+    const { editingLayerId: layerId, selectedFeatureId: featureId } = useEditStore.getState();
+    if (!layerId || featureId == null) return;
+    hintHistoryLabel('Delete feature');
+    useDocumentStore.getState().removeFeature(layerId, featureId);
+    useEditStore.getState().selectFeature(null);
+  };
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex justify-center">
+    <div
+      className={`pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none ${
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+      }`}
+    >
       <div
         role="toolbar"
         aria-label={t('edit.toolbar')}
-        className="glass pointer-events-auto flex items-center gap-1 bg-[var(--glass-strong)] p-1 shadow-[0_12px_36px_rgba(0,0,0,0.24)]"
+        className={`glass flex items-center gap-1 bg-[var(--glass-strong)] p-1 shadow-[0_12px_36px_rgba(0,0,0,0.24)] transition-transform duration-150 ease-out motion-reduce:transition-none ${
+          visible ? 'pointer-events-auto scale-100' : 'pointer-events-none scale-[0.98]'
+        }`}
       >
         <span className="max-w-[160px] truncate px-2 text-[11.5px] font-medium text-[var(--text-2)]">
-          {layerName ?? t('edit.editing')}
+          {layerName ?? lastLayerName ?? t('edit.editing')}
         </span>
         <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
         {EDIT_TOOLS.map(({ tool, labelKey, hintKey, icon: Icon }) => {
@@ -75,6 +132,18 @@ export function EditToolbar() {
             </button>
           );
         })}
+        <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
+        <button
+          type="button"
+          data-edit-tool="delete"
+          aria-label={`${t('edit.delete')}. ${t('edit.deleteHint')}`}
+          title={`${t('edit.delete')} — ${t('edit.deleteHint')}`}
+          disabled={selectedFeatureId == null}
+          onClick={deleteSelected}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--danger,#ff5f57)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <Trash2 size={15} />
+        </button>
         <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
         <button
           type="button"

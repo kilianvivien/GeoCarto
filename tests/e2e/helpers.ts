@@ -27,7 +27,7 @@ export async function expectNoConsoleErrors(page: Page) {
 export async function lockMap(page: Page) {
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Lock Map Area' }).click();
-  await expect(page.getByRole('button', { name: /Unlock Map/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unlock Map' })).toBeVisible();
 }
 
 export async function openProjectFixture(page: Page, name = 'reference.cartoproj') {
@@ -40,9 +40,10 @@ export async function openProjectFixture(page: Page, name = 'reference.cartoproj
 }
 
 export async function importGeoJsonFixture(page: Page, name = 'reference.geojson') {
+  await page.getByRole('tab', { name: 'Layers' }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.getByRole('button', { name: 'Import GeoJSON' }).click(),
+    page.getByRole('button', { name: 'Import data' }).click(),
   ]);
   await chooser.setFiles(fixturePath(name));
 }

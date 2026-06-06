@@ -7,6 +7,7 @@ import {
   importGeoJsonFile,
   toFeatureCollection,
 } from './geojson';
+import { translate } from '@/i18n/useLocale';
 
 /**
  * Supported import formats (Milestone 14). GeoJSON ships in Phase 1; the rest
@@ -36,20 +37,20 @@ export function formatForFile(file: File): ImportFormat | null {
 
 function baseName(file: File, ...exts: string[]): string {
   const pattern = new RegExp(`\\.(${exts.join('|')})$`, 'i');
-  return file.name.replace(pattern, '') || 'Layer';
+  return file.name.replace(pattern, '') || translate('layer.defaultName');
 }
 
 function parseXml(text: string, file: File): Document {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) {
-    throw new GeoJsonImportError(`"${file.name}" is not well-formed XML.`);
+    throw new GeoJsonImportError(translate('errors.notWellFormedXml', { file: file.name }));
   }
   return doc;
 }
 
 function ensureNonEmpty(fc: FeatureCollection, file: File): FeatureCollection {
   if (fc.features.length === 0) {
-    throw new GeoJsonImportError(`"${file.name}" contains no features.`);
+    throw new GeoJsonImportError(translate('errors.noFeatures', { file: file.name }));
   }
   return fc;
 }
@@ -60,11 +61,11 @@ async function parseTopoJson(file: File): Promise<GeoJsonLayer[]> {
   try {
     topology = JSON.parse(await file.text());
   } catch {
-    throw new GeoJsonImportError(`"${file.name}" is not valid JSON.`);
+    throw new GeoJsonImportError(translate('errors.notValidJson', { file: file.name }));
   }
   const objects = (topology as { objects?: Record<string, unknown> }).objects;
   if (!objects || typeof objects !== 'object') {
-    throw new GeoJsonImportError(`"${file.name}" has no TopoJSON objects.`);
+    throw new GeoJsonImportError(translate('errors.noTopoJson', { file: file.name }));
   }
   // Merge every object into one collection so a file maps to a single layer,
   // matching how the other formats behave.
@@ -99,7 +100,7 @@ async function parseShapefile(file: File): Promise<GeoJsonLayer[]> {
     result = (await shp(buffer)) as FeatureCollection | FeatureCollection[];
   } catch (error) {
     throw new GeoJsonImportError(
-      `Could not read shapefile "${file.name}": ${(error as Error).message}`,
+      translate('errors.shapefileRead', { file: file.name, error: (error as Error).message }),
     );
   }
   const collections = Array.isArray(result) ? result : [result];
@@ -110,7 +111,7 @@ async function parseShapefile(file: File): Promise<GeoJsonLayer[]> {
       return featureCollectionToLayer(name, fc);
     });
   if (layers.length === 0) {
-    throw new GeoJsonImportError(`"${file.name}" contains no shapefile features.`);
+    throw new GeoJsonImportError(translate('errors.noShapefileFeatures', { file: file.name }));
   }
   return layers;
 }
@@ -130,9 +131,7 @@ export async function importFileToLayers(file: File): Promise<GeoJsonLayer[]> {
     case 'shapefile':
       return parseShapefile(file);
     default:
-      throw new GeoJsonImportError(
-        `"${file.name}" is not a supported format (GeoJSON, TopoJSON, KML, GPX, or zipped Shapefile).`,
-      );
+      throw new GeoJsonImportError(translate('errors.unsupportedImportFormat', { file: file.name }));
   }
 }
 

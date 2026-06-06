@@ -215,6 +215,7 @@ export function MapSetupPanel() {
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
+                data-testid="map-setup-minimize"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
                 title={t('setup.minimize')}
                 aria-label={t('setup.minimizeAria')}

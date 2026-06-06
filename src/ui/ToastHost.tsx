@@ -1,10 +1,12 @@
 import { X } from 'lucide-react';
+import { useLocale } from '@/i18n/useLocale';
 import { useNotices } from './notices';
 
 /** Bottom-centered toast stack (design.md §6d). Lives inside the window. */
 export function ToastHost() {
   const notices = useNotices((s) => s.notices);
   const dismiss = useNotices((s) => s.dismiss);
+  const t = useLocale((s) => s.t);
 
   if (notices.length === 0) return null;
 
@@ -25,7 +27,7 @@ export function ToastHost() {
           <span className="text-[var(--text)]">{notice.message}</span>
           <button
             type="button"
-            aria-label="Dismiss"
+            aria-label={t('toast.dismiss')}
             onClick={() => dismiss(notice.id)}
             className="text-[var(--text-3)] transition-colors hover:text-[var(--text)]"
           >

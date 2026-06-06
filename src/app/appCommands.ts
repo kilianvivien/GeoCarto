@@ -104,7 +104,7 @@ async function sharePng(): Promise<void> {
 function closeActiveTab(): void {
   const { activeSessionId, closeSession } = useSessionsStore.getState();
   if (useDocumentStore.getState().dirty) {
-    const ok = window.confirm('This tab has unsaved changes. Close and discard?');
+    const ok = window.confirm(translate('tab.unsavedConfirm'));
     if (!ok) return;
   }
   closeSession(activeSessionId);
@@ -133,7 +133,7 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
   if (command.startsWith('tool-')) {
     const tool = command.slice(5) as ToolKey;
     if (!isToolEnabled(tool)) {
-      push('That tool is planned for Phase 2', 'error');
+      push(translate('command.phase2Planned'), 'error');
       return;
     }
     useToolStore.getState().setActiveTool(tool);
@@ -167,10 +167,10 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
       closeActiveTab();
       break;
     case 'undo':
-      if (!useHistoryStore.getState().undo()) push('Nothing to undo', 'error');
+      if (!useHistoryStore.getState().undo()) push(translate('command.nothingToUndo'), 'error');
       break;
     case 'redo':
-      if (!useHistoryStore.getState().redo()) push('Nothing to redo', 'error');
+      if (!useHistoryStore.getState().redo()) push(translate('command.nothingToRedo'), 'error');
       break;
     case 'delete-selection':
       {

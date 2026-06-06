@@ -127,7 +127,7 @@ export function AttributeInspector() {
             <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
               {t('attributes.hatch')}
               <select
-                aria-label="Feature fill pattern"
+                aria-label={t('attributes.ariaFillPattern')}
                 value={featureFillStyle?.fillPattern ?? layer.style.fillPattern}
                 disabled={layer.locked || !fillKey}
                 onChange={(event) => {
@@ -175,7 +175,7 @@ export function AttributeInspector() {
                 <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
                   {t('attributes.density')}
                   <input
-                    aria-label="Feature hatch spacing"
+                    aria-label={t('attributes.ariaHatchSpacing')}
                     type="number"
                     min={4}
                     max={40}
@@ -232,7 +232,7 @@ export function AttributeInspector() {
             <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
               {t('attributes.width')}
               <input
-                aria-label="Layer stroke width"
+                aria-label={t('attributes.ariaLayerStrokeWidth')}
                 type="number"
                 min={0}
                 max={24}
@@ -277,7 +277,7 @@ export function AttributeInspector() {
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             {t('attributes.render')}
             <select
-              aria-label="Layer render strategy"
+              aria-label={t('attributes.ariaRenderStrategy')}
               value={layer.renderStrategy ?? 'vector'}
               disabled={disabled}
               onChange={(event) =>
@@ -300,7 +300,7 @@ export function AttributeInspector() {
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             {t('attributes.fillOpacity')}
             <input
-              aria-label="Layer fill opacity"
+              aria-label={t('attributes.ariaFillOpacity')}
               type="number"
               min={0}
               max={1}
@@ -314,7 +314,7 @@ export function AttributeInspector() {
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             {t('attributes.hatch')}
             <select
-              aria-label="Layer fill pattern"
+              aria-label={t('attributes.ariaLayerFillPattern')}
               value={layer.style.fillPattern}
               disabled={disabled}
               onChange={(event) => updateLayerStyle(layer.id, { fillPattern: event.target.value as FillPattern })}
@@ -340,7 +340,7 @@ export function AttributeInspector() {
               <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
                 {t('attributes.density')}
                 <input
-                  aria-label="Layer hatch spacing"
+                  aria-label={t('attributes.ariaLayerHatchSpacing')}
                   type="number"
                   min={4}
                   max={40}
@@ -377,7 +377,7 @@ export function AttributeInspector() {
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             {t('attributes.showPoints')}
             <input
-              aria-label="Show layer point features"
+              aria-label={t('attributes.ariaShowPoints')}
               type="checkbox"
               checked={layer.style.showPoints}
               disabled={disabled}
@@ -396,7 +396,7 @@ export function AttributeInspector() {
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
             {t('attributes.pointSize')}
             <input
-              aria-label="Layer point radius"
+              aria-label={t('attributes.ariaPointRadius')}
               type="number"
               min={1}
               max={40}

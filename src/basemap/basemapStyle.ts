@@ -7,6 +7,8 @@ import type {
   BuiltInBasemapPreset,
 } from '@/project/cartoproj';
 import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
+import { useLocale } from '@/i18n/useLocale';
+import type { Locale } from '@/i18n/locales';
 
 /** Legacy same-origin PMTiles path; Vite dev and Vercel proxy it for local overrides. */
 export const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
@@ -74,8 +76,15 @@ export function applySublayerVisibility(
 /**
  * Build a MapLibre style for the editorial basemap from a Protomaps flavor.
  * Phase 1 uses the hosted demo archive; a bundled local sample comes later.
+ *
+ * `lang` controls the language of the built-in basemap's place/road labels and
+ * defaults to the app's active locale, so map labels follow the UI language.
+ * MapView rebuilds the style when the locale changes.
  */
-export function buildBasemapStyle(config: BasemapConfig): StyleSpecification | string {
+export function buildBasemapStyle(
+  config: BasemapConfig,
+  lang: Locale = useLocale.getState().locale,
+): StyleSpecification | string {
   if (config.kind === 'style-url') return config.url;
   if (config.kind === 'style-json') {
     // Trusted to be JSON-parseable — the StylePanel validates before assignment.
@@ -94,7 +103,7 @@ export function buildBasemapStyle(config: BasemapConfig): StyleSpecification | s
     config.kind === 'builtin' || config.kind === 'pmtiles-url'
       ? config.sublayers
       : DEFAULT_BASEMAP_SUBLAYERS;
-  const flavorLayers = layers(SOURCE, namedFlavor(PRESET_TO_FLAVOR[preset]), { lang: 'en' });
+  const flavorLayers = layers(SOURCE, namedFlavor(PRESET_TO_FLAVOR[preset]), { lang });
 
   return {
     version: 8,

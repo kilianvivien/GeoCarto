@@ -1,6 +1,7 @@
 import type { FeatureCollection } from 'geojson';
 import type { Viewport } from '@/state/viewportStore';
 import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
+import { translate } from '@/i18n/useLocale';
 
 /** Geometry families a GeoJSON layer can hold. */
 export type GeometryKind = 'point' | 'line' | 'polygon' | 'mixed';
@@ -442,7 +443,7 @@ export interface CartoProject {
 }
 
 /** Create a blank project document. */
-export function createEmptyProject(name = 'Untitled'): CartoProject {
+export function createEmptyProject(name = translate('common.untitled')): CartoProject {
   const now = new Date().toISOString();
   return {
     version: 1,

@@ -9,9 +9,10 @@ import { disableFileSystemAccess, importGeoJsonFixture, lockMap, openProjectFixt
 test('tab bar opens, switches, and closes project tabs', async ({ page }) => {
   await disableFileSystemAccess(page);
   await page.goto('/');
-  // Tab bar is hidden when only one project is open — the title bar handles
-  // single-document chrome.
-  await expect(page.getByTestId('tab-bar')).toHaveCount(0);
+  // The tab bar remains visible even with one project so the New Tab affordance
+  // is always discoverable.
+  await expect(page.getByTestId('tab-bar')).toBeVisible();
+  await expect(page.getByTestId('tab')).toHaveCount(1);
 
   // Open the reference fixture — lands in a new tab and the bar appears.
   await openProjectFixture(page);

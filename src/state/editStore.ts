@@ -3,7 +3,7 @@ import { hintHistoryLabel } from './historyStore';
 import { useDocumentStore } from './documentStore';
 
 /** The single-geometry sub-tools available inside vector edit mode. */
-export type EditTool = 'select' | 'point' | 'line' | 'polygon';
+export type EditTool = 'select' | 'point' | 'line' | 'polygon' | 'rectangle' | 'circle';
 
 /**
  * Vector edit-mode session state. This is pure UI/session state — like the tool

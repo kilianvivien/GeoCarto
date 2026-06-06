@@ -4,13 +4,15 @@ import { hintHistoryLabel } from '@/state/historyStore';
 import { useSessionsStore, sessionTitle, type ProjectSession } from '@/state/sessionsStore';
 import { useDocumentStore } from '@/state/documentStore';
 import { createNewProject } from '@/project/documentFlow';
+import { useLocale, translate } from '@/i18n/useLocale';
 import { useNotices } from './notices';
 
 function tabLabel(session: ProjectSession, isActive: boolean): string {
   if (isActive) {
     const live = useDocumentStore.getState();
-    const name = live.file?.name ?? live.project.meta.name ?? 'Untitled';
-    return name.replace(/\.cartoproj$/, '') || 'Untitled';
+    const fallback = translate('common.untitled');
+    const name = live.file?.name ?? live.project.meta.name ?? fallback;
+    return name.replace(/\.cartoproj$/, '') || fallback;
   }
   return sessionTitle(session);
 }
@@ -35,6 +37,7 @@ export function TabBar({ visible }: { visible: boolean }) {
   const liveName = useDocumentStore((s) => s.file?.name ?? s.project.meta.name);
   const liveDirty = useDocumentStore((s) => s.dirty);
   const push = useNotices((s) => s.push);
+  const t = useLocale((s) => s.t);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -72,14 +75,14 @@ export function TabBar({ visible }: { visible: boolean }) {
     const session = sessions.find((s) => s.id === id);
     if (!session) return;
     const dirty = tabDirty(session, isActive);
-    if (dirty && !window.confirm('This tab has unsaved changes. Close and discard?')) return;
+    if (dirty && !window.confirm(t('tab.unsavedConfirm'))) return;
     closeSession(id);
   };
 
   return (
     <div
       role="tablist"
-      aria-label="Project tabs"
+      aria-label={t('tab.projectTabs')}
       data-testid="tab-bar"
       aria-hidden={!visible}
       className={`flex h-9 items-end gap-1 overflow-hidden border-b border-[var(--divider)] bg-[var(--surface-base)] px-2 pt-1 transition-[opacity,transform] duration-200 ease-out ${
@@ -120,13 +123,13 @@ export function TabBar({ visible }: { visible: boolean }) {
                 ? 'border border-b-transparent border-[var(--divider)] bg-[var(--surface-overlay)] font-semibold text-[var(--text)] shadow-[0_-2px_0_inset_var(--accent)]'
                 : 'border border-transparent text-[var(--text-2)] hover:bg-[var(--hover)] hover:text-[var(--text)]'
             }`}
-            title={label + (dirty ? ' · unsaved' : '') + ' — double-click to rename'}
+            title={`${label}${dirty ? ` · ${t('tab.unsaved')}` : ''} — ${t('tab.doubleClickRename')}`}
           >
             {editingTabId === session.id ? (
               <input
                 ref={editInputRef}
                 autoFocus
-                aria-label="Rename project"
+                aria-label={t('tab.renameProject')}
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
                 onBlur={commitTabRename}
@@ -158,7 +161,7 @@ export function TabBar({ visible }: { visible: boolean }) {
             )}
             <span
               role="button"
-              aria-label={`Close ${label}`}
+              aria-label={t('tab.close', { label })}
               tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
@@ -173,11 +176,11 @@ export function TabBar({ visible }: { visible: boolean }) {
       })}
       <button
         type="button"
-        aria-label="New project tab"
-        title="New project tab"
+        aria-label={t('tab.newTab')}
+        title={t('tab.newTab')}
         onClick={() => {
           createNewProject();
-          push('Opened a new tab');
+          push(t('tab.openedNewTab'));
         }}
         className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-2)] hover:bg-[var(--hover)]"
       >

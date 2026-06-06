@@ -1,5 +1,6 @@
 import { useDocumentStore } from '@/state/documentStore';
 import { useNotices } from '@/ui/notices';
+import { translate } from '@/i18n/useLocale';
 import { GeoJsonImportError } from './geojson';
 import { IMPORT_ACCEPT, formatForFile, importFileToLayers } from './formats';
 
@@ -15,7 +16,7 @@ export async function importDataFiles(files: File[]): Promise<void> {
   let addedLayers = 0;
   for (const file of files) {
     if (!formatForFile(file)) {
-      push(`"${file.name}" is not a supported format.`, 'error');
+      push(translate('import.unsupportedFormat', { file: file.name }), 'error');
       continue;
     }
     try {
@@ -23,16 +24,18 @@ export async function importDataFiles(files: File[]): Promise<void> {
       for (const layer of layers) {
         addLayer(layer);
         addedLayers += 1;
-        push(`Imported "${layer.name}" — ${layer.featureCount} features`);
+        push(translate('import.imported', { layer: layer.name, count: layer.featureCount }));
       }
     } catch (error) {
       const message =
-        error instanceof GeoJsonImportError ? error.message : `Could not import "${file.name}".`;
+        error instanceof GeoJsonImportError
+          ? error.message
+          : translate('import.couldNotImport', { file: file.name });
       push(message, 'error');
     }
   }
 
-  if (addedLayers > 1) push(`${addedLayers} layers imported`);
+  if (addedLayers > 1) push(translate('import.layersImported', { n: addedLayers }));
 }
 
 /** Backwards-compatible alias retained for existing call sites. */

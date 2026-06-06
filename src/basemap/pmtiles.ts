@@ -3,6 +3,7 @@ import { FetchSource, PMTiles, Protocol, type RangeResponse, type Source } from 
 import { createStore, del, get, set } from 'idb-keyval';
 import { isTauri } from '@/app/platform';
 import { useNotices } from '@/ui/notices';
+import { translate } from '@/i18n/useLocale';
 import { DEFAULT_PMTILES_URL } from './basemapStyle';
 
 let registered = false;
@@ -91,11 +92,7 @@ function scheduleFailureNotice(): void {
   failureNoticeTimer = globalThis.setTimeout(() => {
     failureNoticeTimer = null;
     if (failureNoticeCycle !== cycle) return;
-    notifyBasemapIssue(
-      'failure',
-      'Basemap tiles could not load. Check your connection or choose another basemap.',
-      'error',
-    );
+    notifyBasemapIssue('failure', translate('basemap.tilesFailed'), 'error');
   }, BASEMAP_FAILURE_NOTICE_DELAY_MS);
 }
 
@@ -168,7 +165,7 @@ class RetryingSource implements Source {
         if (signal?.aborted) throw error;
         lastError = error;
         if (attempt === DEFAULT_PMTILES_RETRIES) break;
-        notifyBasemapIssue('retry', 'Issue loading map tiles. Retrying...');
+        notifyBasemapIssue('retry', translate('basemap.tilesRetry'));
         await wait(200 * 2 ** attempt, signal);
       }
     }
@@ -219,7 +216,7 @@ class CachedSource implements Source {
     } catch (error) {
       if (cached) {
         clearPendingFailureNotice();
-        notifyBasemapIssue('cached-fallback', 'Using cached map tiles while the network recovers.');
+        notifyBasemapIssue('cached-fallback', translate('basemap.tilesCached'));
         return fromCached(cached);
       }
       scheduleFailureNotice();

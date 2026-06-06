@@ -41,7 +41,7 @@ test('enter edit mode, edit a feature attribute, undo it, and exit', async ({ pa
   expect(firstId).toBeTruthy();
 
   // Editable attribute rows render for the selected feature.
-  const firstValue = page.getByLabel('Attribute 1 value');
+  const firstValue = page.getByLabel('Value 1');
   await expect(firstValue).toBeVisible();
   await firstValue.fill('Renamed in editor');
 
@@ -59,9 +59,9 @@ test('enter edit mode, edit a feature attribute, undo it, and exit', async ({ pa
   expect(await hasEdit()).toBe(true);
 
   // Add a new field and confirm an extra editable row appears.
-  const valueCount = await page.getByLabel(/Attribute \d+ value/).count();
+  const valueCount = await page.getByLabel(/Value \d+/).count();
   await page.getByRole('button', { name: 'Add field' }).click();
-  await expect(page.getByLabel(/Attribute \d+ value/)).toHaveCount(valueCount + 1);
+  await expect(page.getByLabel(/Value \d+/)).toHaveCount(valueCount + 1);
 
   // Undo reverts the attribute edit in the document.
   await page.keyboard.press('ControlOrMeta+z');

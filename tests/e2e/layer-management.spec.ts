@@ -16,6 +16,12 @@ test('create a blank layer, delete it with confirmation, and undo', async ({ pag
   // Create a blank layer; it drops straight into vector edit mode.
   await page.getByRole('button', { name: 'New layer' }).first().click();
   await expect(page.getByRole('toolbar', { name: 'Vector editing tools' })).toBeVisible();
+  await page.getByRole('button', { name: /Draw point/ }).click();
+  const canvas = page.locator('.maplibregl-canvas');
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await expect(page.getByTestId('feature-count')).toHaveText('1 feature');
   await page.getByRole('button', { name: 'Done' }).click();
 
   // Selecting the new layer switches the inspector to Properties; go back to Layers.

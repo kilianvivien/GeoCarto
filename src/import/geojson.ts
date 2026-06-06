@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { DEFAULT_GEOJSON_STYLE, type GeoJsonLayer, type GeometryKind } from '@/project/cartoproj';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
+import { translate } from '@/i18n/useLocale';
 
 /**
  * Give every feature a stable identity: a top-level `id` (so the vector editor can
@@ -42,7 +43,7 @@ const GEOMETRY_TYPES = new Set([
 /** Accept a FeatureCollection, a bare Feature, or a geometry; normalize to a FC. */
 export function toFeatureCollection(raw: unknown): FeatureCollection {
   if (!raw || typeof raw !== 'object') {
-    throw new GeoJsonImportError('File is not a GeoJSON object.');
+    throw new GeoJsonImportError(translate('errors.notGeoJsonObject'));
   }
   const type = (raw as { type?: unknown }).type;
   if (type === 'FeatureCollection') return raw as FeatureCollection;
@@ -55,9 +56,7 @@ export function toFeatureCollection(raw: unknown): FeatureCollection {
       features: [{ type: 'Feature', geometry: raw as Geometry, properties: {} }],
     };
   }
-  throw new GeoJsonImportError(
-    'Unrecognized GeoJSON — expected a FeatureCollection, Feature, or geometry.',
-  );
+  throw new GeoJsonImportError(translate('errors.unrecognizedGeoJson'));
 }
 
 function familyOf(geometryType: string): GeometryKind | null {
@@ -94,7 +93,7 @@ export function featureCollectionToLayer(name: string, data: FeatureCollection):
   return {
     id: crypto.randomUUID(),
     kind: 'geojson',
-    name: name || 'Layer',
+    name: name || translate('layer.defaultName'),
     visible: true,
     locked: false,
     geometry: detectGeometry(data),
@@ -116,11 +115,11 @@ export async function importGeoJsonFile(file: File): Promise<GeoJsonLayer> {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new GeoJsonImportError(`"${file.name}" is not valid JSON.`);
+    throw new GeoJsonImportError(translate('errors.notValidJson', { file: file.name }));
   }
   const data = toFeatureCollection(parsed);
   if (data.features.length === 0) {
-    throw new GeoJsonImportError(`"${file.name}" contains no features.`);
+    throw new GeoJsonImportError(translate('errors.noFeatures', { file: file.name }));
   }
   return featureCollectionToLayer(file.name.replace(/\.(geo)?json$/i, ''), data);
 }

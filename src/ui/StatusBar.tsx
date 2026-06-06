@@ -73,6 +73,7 @@ export function StatusBar() {
   const featureCount = useDocumentStore((s) =>
     s.project.layers.reduce((sum, l) => sum + l.featureCount, 0),
   );
+  const featureLabelKey = featureCount === 1 ? 'status.feature' : 'status.features';
 
   const [lng, lat] = cursor ?? viewport.center;
   const scale = scaleDenominator(viewport.zoom, viewport.center[1]);
@@ -103,7 +104,7 @@ export function StatusBar() {
         />
         <BasemapMenu />
         <span data-testid="feature-count">
-          {t('status.features', { count: localeNumber(featureCount) })}
+          {t(featureLabelKey, { count: localeNumber(featureCount) })}
         </span>
       </div>
       <div className="flex items-center gap-3">

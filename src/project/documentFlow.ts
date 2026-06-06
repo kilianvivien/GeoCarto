@@ -4,13 +4,11 @@ import type { DocumentFileBinding } from '@/state/documentStore';
 import { useDocumentStore } from '@/state/documentStore';
 import { suspendHistoryCapture, useHistoryStore } from '@/state/historyStore';
 import { activeSessionId, useSessionsStore } from '@/state/sessionsStore';
-
-const DIRTY_PROMPT =
-  'This project has unsaved changes. Continue and discard those changes?';
+import { translate } from '@/i18n/useLocale';
 
 export function confirmDiscardDirtyProject(): boolean {
   if (!useDocumentStore.getState().dirty) return true;
-  return window.confirm(DIRTY_PROMPT);
+  return window.confirm(translate('confirm.dirtyPrompt'));
 }
 
 /**

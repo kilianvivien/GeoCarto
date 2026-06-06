@@ -31,6 +31,7 @@ export function AppShell() {
   const showTabs = useSessionsStore((s) => s.sessions.length > 1);
   const mode = useDocumentStore((s) => s.project.mode);
   const t = useLocale((s) => s.t);
+  const locale = useLocale((s) => s.locale);
   const settingsOpen = useUiStore((s) => s.settingsDialogOpen);
   const closeSettings = useUiStore((s) => s.closeSettingsDialog);
   const [chromeSettling, setChromeSettling] = useState(false);
@@ -43,6 +44,20 @@ export function AppShell() {
       invoke('set_export_menu_enabled', { enabled: mode === 'editing' }),
     );
   }, [mode]);
+
+  // Push the resolved app locale to the native macOS menu so it rebuilds in the
+  // matching language. Keyed on locale alone — rebuilding is expensive, and the
+  // effect above already tracks the Export/Share enabled state on mode changes.
+  // Rebuilding resets that enabled state, so re-apply it (reading mode at fire
+  // time to avoid a needless rebuild whenever mode changes).
+  useEffect(() => {
+    if (!isTauri()) return;
+    void import('@tauri-apps/api/core').then(async ({ invoke }) => {
+      await invoke('set_menu_locale', { locale });
+      const editing = useDocumentStore.getState().project.mode === 'editing';
+      await invoke('set_export_menu_enabled', { enabled: editing });
+    });
+  }, [locale]);
 
   // Apply the macOS `sidebar` vibrancy at runtime, after the webview is alive,
   // rather than at native window creation (tauri.conf.json windowEffects): a

@@ -15,7 +15,7 @@ test('first run: shell, basemap, and navigation', async ({ page }) => {
   const mapCanvas = page.locator('.maplibregl-canvas');
   await expect(mapCanvas).toBeVisible();
 
-  await page.getByRole('button', { name: 'Minimize map setup' }).click();
+  await page.getByTestId('map-setup-minimize').click({ force: true });
 
   // Navigating the map updates the viewport store / status bar.
   const zoomReadout = page.getByTestId('zoom-readout');

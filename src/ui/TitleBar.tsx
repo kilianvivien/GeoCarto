@@ -162,7 +162,7 @@ export function TitleBar() {
     }
   };
 
-  const displayName = file?.name ?? `${projectName || 'Untitled'}.cartoproj`;
+  const displayName = file?.name ?? `${projectName || t('common.untitled')}.cartoproj`;
   const renameProject = useDocumentStore((s) => s.renameProject);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(projectName);
@@ -232,7 +232,7 @@ export function TitleBar() {
         ) : (
           <button
             type="button"
-            aria-label={t('title.renameProject')}
+            aria-label={t('title.editProjectName')}
             onClick={() => setEditingName(true)}
             onDoubleClick={() => setEditingName(true)}
             className="cursor-text font-medium text-[var(--text)]"

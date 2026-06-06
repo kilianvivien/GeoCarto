@@ -61,6 +61,7 @@ test('records Phase 1 performance smoke measurements', async ({ page }) => {
 
   page.once('dialog', (dialog) => dialog.accept());
   await openProjectFixture(page);
+  await page.getByRole('tab', { name: 'Layers' }).click();
   await expect(page.getByTestId('annotation-row')).toHaveCount(3);
 
   await page.getByRole('button', { name: 'Export', exact: true }).click();

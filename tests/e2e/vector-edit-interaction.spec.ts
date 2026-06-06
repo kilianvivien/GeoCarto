@@ -30,6 +30,7 @@ test('clicking a shape selects it and dragging a vertex commits geometry', async
   });
 
   await expect(page.getByRole('toolbar', { name: 'Vector editing tools' })).toBeVisible();
+  await page.waitForTimeout(250);
 
   const canvas = page.locator('.maplibregl-canvas');
   const box = (await canvas.boundingBox())!;

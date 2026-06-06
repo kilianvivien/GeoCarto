@@ -1,5 +1,6 @@
 import maplibregl from 'maplibre-gl';
 import { basename, isTauri } from '@/app/platform';
+import { translate } from '@/i18n/useLocale';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { syncLayersToMap } from '@/canvas/syncLayers';
 import { useMapInstance } from '@/canvas/mapInstance';
@@ -37,11 +38,11 @@ async function renderMapCanvas(
   outH: number,
 ): Promise<{ basemapCanvas: HTMLCanvasElement; mapAnchoredAnnotations: HTMLCanvasElement }> {
   const liveMap = useMapInstance.getState().map;
-  if (!liveMap) throw new ExportError('Map is not ready.');
+  if (!liveMap) throw new ExportError(translate('errors.mapNotReady'));
   const liveContainer = liveMap.getContainer();
   const liveW = liveContainer.clientWidth;
   const liveH = liveContainer.clientHeight;
-  if (liveW === 0 || liveH === 0) throw new ExportError('Map container has no size.');
+  if (liveW === 0 || liveH === 0) throw new ExportError(translate('errors.mapNoSize'));
 
   const renderW = liveW;
   const renderH = liveH;
@@ -67,7 +68,8 @@ async function renderMapCanvas(
     });
 
     await new Promise<void>((resolve, reject) => {
-      const onError = (e: { error?: Error }) => reject(new ExportError(e.error?.message ?? 'Basemap failed to load'));
+      const onError = (e: { error?: Error }) =>
+        reject(new ExportError(e.error?.message ?? translate('errors.basemapFailed')));
       map.once('error', onError);
       map.once('load', () => {
         map.off('error', onError);
@@ -90,7 +92,7 @@ async function renderMapCanvas(
     out.width = outW;
     out.height = outH;
     const ctx = out.getContext('2d');
-    if (!ctx) throw new ExportError('Could not allocate 2D context.');
+    if (!ctx) throw new ExportError(translate('errors.no2dContext'));
     ctx.drawImage(sourceCanvas, 0, 0, outW, outH);
 
     const mapAnchoredAnnotations = renderAnnotationsToCanvas({
@@ -114,22 +116,22 @@ async function renderStaticBasemapCanvas(
   outW: number,
   outH: number,
 ): Promise<HTMLCanvasElement> {
-  if (project.basemap.kind !== 'static') throw new ExportError('Not a static basemap.');
+  if (project.basemap.kind !== 'static') throw new ExportError(translate('errors.notStaticBasemap'));
   if (project.basemap.mediaType !== 'image') {
-    throw new ExportError('Export of PDF basemaps is not supported yet.');
+    throw new ExportError(translate('errors.pdfBasemapUnsupported'));
   }
   const img = new Image();
   img.crossOrigin = 'anonymous';
   await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
-    img.onerror = () => reject(new ExportError('Could not load static basemap image.'));
+    img.onerror = () => reject(new ExportError(translate('errors.staticImageLoad')));
     img.src = (project.basemap as { dataUrl: string }).dataUrl;
   });
   const canvas = document.createElement('canvas');
   canvas.width = outW;
   canvas.height = outH;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new ExportError('Could not allocate 2D context.');
+  if (!ctx) throw new ExportError(translate('errors.no2dContext'));
   // Fit the image into the output canvas preserving aspect (contain).
   const imgAspect = img.naturalWidth / img.naturalHeight;
   const outAspect = outW / outH;
@@ -175,7 +177,7 @@ export function effectiveExportSize(project: CartoProject, scale: number): { wid
 
 function fileNameFor(project: CartoProject, format: ExportFormat): string {
   const ext = format === 'png' ? 'png' : 'jpg';
-  const base = project.meta.name?.trim() || 'Untitled';
+  const base = project.meta.name?.trim() || translate('common.untitled');
   return `${base.replace(/\.cartoproj$/, '')}.${ext}`;
 }
 
@@ -185,13 +187,13 @@ function fileNameFor(project: CartoProject, format: ExportFormat): string {
  */
 export async function exportRaster(project: CartoProject, options: ExportOptions): Promise<ExportResult> {
   const { width: outW, height: outH } = effectiveExportSize(project, options.scale);
-  if (outW <= 0 || outH <= 0) throw new ExportError('Invalid output dimensions.');
+  if (outW <= 0 || outH <= 0) throw new ExportError(translate('errors.invalidDimensions'));
 
   const target = document.createElement('canvas');
   target.width = outW;
   target.height = outH;
   const ctx = target.getContext('2d');
-  if (!ctx) throw new ExportError('Could not allocate 2D context.');
+  if (!ctx) throw new ExportError(translate('errors.no2dContext'));
 
   fillBackground(ctx, outW, outH, options.format === 'jpeg' ? 'white' : options.background);
 
@@ -227,7 +229,7 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
   const blob = await new Promise<Blob | null>((resolve) =>
     target.toBlob(resolve, mime, options.format === 'jpeg' ? options.quality : undefined),
   );
-  if (!blob) throw new ExportError('Failed to encode output image.');
+  if (!blob) throw new ExportError(translate('errors.encodeFailed'));
 
   return { blob, fileName: fileNameFor(project, options.format), width: outW, height: outH };
 }

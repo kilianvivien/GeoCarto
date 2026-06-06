@@ -114,6 +114,11 @@ export function KeyboardShortcuts() {
         return;
       }
 
+      // While a layer is open in the vector editor, single-letter keys belong to
+      // terra-draw (e.g. hold R/S to rotate/scale) — don't hijack them to switch
+      // annotation tools, which are blocked during vector editing anyway.
+      if (useEditStore.getState().editingLayerId) return;
+
       const tool = SHORTCUT_TO_TOOL[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();

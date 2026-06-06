@@ -15,6 +15,7 @@ import { importGeoJsonFiles } from '@/import/importLayers';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewTransformStore } from '@/state/viewTransformStore';
+import { useLocale } from '@/i18n/useLocale';
 import { canvasAnchorFromClientPoint } from './canvasCoordinates';
 
 type Point = { x: number; y: number };
@@ -22,6 +23,7 @@ type SurfaceBox = { x: number; y: number; width: number; height: number };
 
 function ViewZoomControls({ anchor }: { anchor: () => Point }) {
   const zoom = useViewTransformStore((s) => s.zoom);
+  const t = useLocale((s) => s.t);
   const { setZoomAt, reset } = useViewTransformStore.getState();
 
   return (
@@ -32,8 +34,8 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
     >
       <button
         type="button"
-        aria-label="Zoom out"
-        title="Zoom out"
+        aria-label={t('canvas.zoomOut')}
+        title={t('canvas.zoomOut')}
         onClick={() => setZoomAt(zoom / 1.2, anchor())}
         className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
       >
@@ -44,8 +46,8 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
       </span>
       <button
         type="button"
-        aria-label="Zoom in"
-        title="Zoom in"
+        aria-label={t('canvas.zoomIn')}
+        title={t('canvas.zoomIn')}
         onClick={() => setZoomAt(zoom * 1.2, anchor())}
         className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
       >
@@ -53,8 +55,8 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
       </button>
       <button
         type="button"
-        aria-label="Fit canvas"
-        title="Fit canvas"
+        aria-label={t('canvas.fit')}
+        title={t('canvas.fit')}
         onClick={reset}
         className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
       >

@@ -2,11 +2,14 @@ import type { CartoProject } from './cartoproj';
 import type { DocumentFileBinding } from '@/state/documentStore';
 import { deserializeProject, ProjectLoadError, serializeProject } from './serialize';
 import { basename, isTauri } from '@/app/platform';
+import { translate } from '@/i18n/useLocale';
 
-const FILE_TYPE = {
-  description: 'GeoCarto project',
-  accept: { 'application/json': ['.cartoproj'] as string[] },
-};
+function fileType() {
+  return {
+    description: translate('file.projectType'),
+    accept: { 'application/json': ['.cartoproj'] as string[] },
+  };
+}
 
 declare global {
   interface Window {
@@ -37,7 +40,7 @@ function isCancellation(error: unknown): boolean {
 }
 
 function suggestedFileName(project: CartoProject): string {
-  const base = project.meta.name?.trim() || 'Untitled';
+  const base = project.meta.name?.trim() || translate('common.untitled');
   return base.endsWith('.cartoproj') ? base : `${base}.cartoproj`;
 }
 
@@ -79,7 +82,7 @@ async function saveProjectViaTauri(
   const { save } = await import('@tauri-apps/plugin-dialog');
   const path = await save({
     defaultPath: suggestedFileName(project),
-    filters: [{ name: 'GeoCarto project', extensions: ['cartoproj'] }],
+    filters: [{ name: translate('file.projectType'), extensions: ['cartoproj'] }],
   });
   if (!path) throw new UserCancelledError();
   await writeTextFile(path, contents);
@@ -109,7 +112,7 @@ export async function saveProjectToDisk(
     try {
       const handle = await window.showSaveFilePicker!({
         suggestedName: name,
-        types: [FILE_TYPE],
+        types: [fileType()],
       });
       await writeHandle(handle, contents);
       return { handle, name: handle.name };
@@ -137,7 +140,7 @@ async function pickFsaFile(): Promise<{ handle: FileSystemFileHandle; file: File
   try {
     const [handle] = await window.showOpenFilePicker!({
       multiple: false,
-      types: [FILE_TYPE],
+      types: [fileType()],
     });
     if (!handle) return null;
     const file = await handle.getFile();
@@ -168,7 +171,7 @@ export async function openProjectFromDisk(): Promise<OpenResult> {
     const path = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: 'GeoCarto project', extensions: ['cartoproj'] }],
+      filters: [{ name: translate('file.projectType'), extensions: ['cartoproj'] }],
     });
     if (typeof path !== 'string') throw new UserCancelledError();
     const { readTextFile } = await import('@tauri-apps/plugin-fs');

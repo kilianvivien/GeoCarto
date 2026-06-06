@@ -1,5 +1,6 @@
 import type { CartoProject } from '@/project/cartoproj';
 import { ExportError, effectiveExportSize, exportRaster, type ExportResult } from './raster';
+import { translate } from '@/i18n/useLocale';
 
 export interface PdfExportOptions {
   /** Output pixel multiplier (matches the raster scale control). */
@@ -14,7 +15,7 @@ export interface PdfExportOptions {
  */
 export async function exportPdf(project: CartoProject, options: PdfExportOptions): Promise<ExportResult> {
   const { width, height } = effectiveExportSize(project, options.scale);
-  if (width <= 0 || height <= 0) throw new ExportError('Invalid output dimensions.');
+  if (width <= 0 || height <= 0) throw new ExportError(translate('errors.invalidDimensions'));
 
   // Reuse the raster pipeline (white background — PDF pages are opaque).
   const raster = await exportRaster(project, {
@@ -39,7 +40,7 @@ export async function exportPdf(project: CartoProject, options: PdfExportOptions
   doc.addImage(pngDataUrl, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
 
   const blob = doc.output('blob');
-  const base = project.meta.name?.trim() || 'Untitled';
+  const base = project.meta.name?.trim() || translate('common.untitled');
   return { blob, fileName: `${base.replace(/\.cartoproj$/, '')}.pdf`, width, height };
 }
 
@@ -47,7 +48,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new ExportError('Could not encode PDF image.'));
+    reader.onerror = () => reject(new ExportError(translate('errors.encodePdfFailed')));
     reader.readAsDataURL(blob);
   });
 }

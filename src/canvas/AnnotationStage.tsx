@@ -44,6 +44,7 @@ import { applyAnnotationTransform } from '@/tools/annotationTransforms';
 import { useUiStore } from '@/ui/uiStore';
 import { useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
+import { openFeatureMenuAtPoint } from './openFeatureMenu';
 import { layerIdFromRenderId, layerRenderIds } from './syncLayers';
 
 function useStageSize(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -1087,6 +1088,7 @@ function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () =
  * and writes edits back to the document store.
  */
 export function AnnotationStage() {
+  const t = useLocale((s) => s.t);
   const containerRef = useRef<HTMLDivElement>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const nodeRefs = useRef(new Map<string, Konva.Group>());
@@ -1797,7 +1799,7 @@ export function AnnotationStage() {
               style: defaultStyle,
             });
             if (annotation.kind === 'line') {
-              addAnnotation({ ...annotation, name: 'Brush stroke', lineRole: 'brush', points: draft.points });
+              addAnnotation({ ...annotation, name: t('annotation.brushStroke'), lineRole: 'brush', points: draft.points });
             }
           }
           useToolStore.getState().setActiveTool('move');
@@ -1818,12 +1820,28 @@ export function AnnotationStage() {
       <Stage
         width={size.width}
         height={size.height}
+        listening={capturesPointer}
         onMouseDown={handleStagePointer}
         onMouseMove={handleStagePointerMove}
         onMouseUp={handleStagePointerUp}
         onDblClick={finishPolygon}
         onContextMenu={(event) => {
           if (mode !== 'editing') return;
+          // Right-click on empty canvas space (annotations stop propagation in
+          // their own handler): offer to edit a data-layer feature under the
+          // cursor. In editing mode this overlay captures the event, so MapLibre
+          // never sees it — we forward the hit-test here instead.
+          const stage = event.target.getStage();
+          const pointer = stage?.getPointerPosition();
+          if (
+            event.target === stage &&
+            map &&
+            pointer &&
+            openFeatureMenuAtPoint(map, pointer, { x: event.evt.clientX, y: event.evt.clientY })
+          ) {
+            event.evt.preventDefault();
+            return;
+          }
           if (selectedAnnotationIds.length > 0) openContextMenu(event);
           else event.evt.preventDefault();
         }}
@@ -2174,7 +2192,7 @@ export function AnnotationStage() {
       {editingAnnotation && editorMetrics && (
         <textarea
           ref={textEditorRef}
-          aria-label="Edit canvas text"
+          aria-label={t('canvas.editText')}
           value={editingText?.value ?? ''}
           onChange={(event) => setEditingText({ id: editingAnnotation.id, value: event.target.value })}
           onBlur={commitTextEditing}
@@ -2207,7 +2225,7 @@ export function AnnotationStage() {
       {contextMenu && (
         <div
           role="menu"
-          aria-label="Canvas selection menu"
+          aria-label={t('canvas.selectionMenu')}
           className="absolute z-40 min-w-36 rounded-[10px] border border-[var(--divider)] bg-[var(--glass-strong)] p-1 text-[12px] text-[var(--text)] shadow-[0_12px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onPointerDown={(event) => event.stopPropagation()}
@@ -2223,7 +2241,7 @@ export function AnnotationStage() {
             }}
             className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)]"
           >
-            Group selection
+            {t('canvas.group')}
           </button>
           <button
             type="button"
@@ -2236,7 +2254,7 @@ export function AnnotationStage() {
             }}
             className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)]"
           >
-            Ungroup selection
+            {t('canvas.ungroup')}
           </button>
         </div>
       )}

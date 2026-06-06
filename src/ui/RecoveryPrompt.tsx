@@ -8,6 +8,7 @@ import {
 } from '@/project/autosave';
 import { openProjectInNewTab, replaceCurrentProject } from '@/project/documentFlow';
 import { useDocumentStore } from '@/state/documentStore';
+import { useLocale } from '@/i18n/useLocale';
 import { useNotices } from './notices';
 
 function formatTimestamp(iso: string): string {
@@ -34,6 +35,7 @@ export function RecoveryPrompt() {
   const [entries, setEntries] = useState<AutosaveEntry[]>([]);
   const [hidden, setHidden] = useState(false);
   const push = useNotices((s) => s.push);
+  const t = useLocale((s) => s.t);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +65,7 @@ export function RecoveryPrompt() {
     if (entry.sessionId) await clearAutosave(entry.sessionId);
     else await clearLegacyAutosave();
     setEntries((current) => current.filter((e) => e !== entry));
-    push(`Restored ${entry.fileName ?? 'autosaved draft'}`);
+    push(t('recovery.restored', { name: entry.fileName ?? t('recovery.autosavedDraft') }));
   };
 
   const restoreAll = async () => {
@@ -85,7 +87,7 @@ export function RecoveryPrompt() {
   // no duplicate Restore button.
   if (entries.length === 1) {
     const only = entries[0];
-    const onlyLabel = only.fileName ?? only.project.meta.name ?? 'Untitled';
+    const onlyLabel = only.fileName ?? only.project.meta.name ?? t('common.untitled');
     return (
       <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
         <div
@@ -94,7 +96,7 @@ export function RecoveryPrompt() {
         >
           <History size={14} className="text-[var(--accent)]" />
           <span>
-            Unsaved draft from {formatTimestamp(only.savedAt)}
+            {t('recovery.unsavedDraftFrom', { timestamp: formatTimestamp(only.savedAt) })}
             <span className="text-[var(--text-3)]"> · {onlyLabel}</span>
           </span>
           <button
@@ -102,14 +104,14 @@ export function RecoveryPrompt() {
             onClick={() => void restoreOne(only)}
             className="rounded-full bg-[var(--accent)] px-3 py-1 text-[12px] font-semibold text-[var(--text-on-accent)] transition-[filter] hover:brightness-105"
           >
-            Restore
+            {t('recovery.restore')}
           </button>
           <button
             type="button"
             onClick={() => void discardAll()}
             className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-            aria-label="Discard draft"
-            title="Discard draft"
+            aria-label={t('recovery.discardDraft')}
+            title={t('recovery.discardDraft')}
           >
             <X size={14} />
           </button>
@@ -127,7 +129,9 @@ export function RecoveryPrompt() {
         <div className="flex items-center gap-2">
           <History size={14} className="text-[var(--accent)]" />
           <span className="font-medium">
-            {entries.length === 1 ? 'Unsaved draft' : `${entries.length} unsaved drafts`}
+            {entries.length === 1
+              ? t('recovery.unsavedDraft')
+              : t('recovery.unsavedDrafts', { n: entries.length })}
           </span>
           <div className="flex-1" />
           <button
@@ -135,14 +139,14 @@ export function RecoveryPrompt() {
             onClick={() => void restoreAll()}
             className="rounded-full bg-[var(--accent)] px-3 py-1 text-[12px] font-semibold text-[var(--text-on-accent)] transition-[filter] hover:brightness-105"
           >
-            {entries.length === 1 ? 'Restore' : 'Restore all'}
+            {entries.length === 1 ? t('recovery.restore') : t('recovery.restoreAll')}
           </button>
           <button
             type="button"
             onClick={() => void discardAll()}
             className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-            aria-label="Discard all drafts"
-            title="Discard all drafts"
+            aria-label={t('recovery.discardAll')}
+            title={t('recovery.discardAll')}
           >
             <X size={14} />
           </button>
@@ -155,7 +159,7 @@ export function RecoveryPrompt() {
               className="flex items-center gap-2 rounded-[8px] bg-[var(--surface-overlay)] px-2 py-1"
             >
               <span className="flex-1 truncate">
-                {entry.fileName ?? entry.project.meta.name ?? 'Untitled'}
+                {entry.fileName ?? entry.project.meta.name ?? t('common.untitled')}
                 <span className="ml-2 text-[var(--text-3)]">{formatTimestamp(entry.savedAt)}</span>
               </span>
               <button
@@ -163,7 +167,7 @@ export function RecoveryPrompt() {
                 onClick={() => void restoreOne(entry)}
                 className="rounded-full px-2 py-0.5 text-[11px] text-[var(--text-2)] hover:bg-[var(--hover)] hover:text-[var(--text)]"
               >
-                Restore
+                {t('recovery.restore')}
               </button>
             </li>
           ))}

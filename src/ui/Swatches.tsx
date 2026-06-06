@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useLocale } from '@/i18n/useLocale';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { SWATCHES, normalizeHex } from './swatchPalette';
 
@@ -12,6 +13,7 @@ export function Swatches({
   onChange: (color: string) => void;
   disabled?: boolean;
 }) {
+  const t = useLocale((s) => s.t);
   const normalizedValue = normalizeHex(value);
   const isPreset = SWATCHES.some((c) => normalizeHex(c) === normalizedValue);
   return (
@@ -22,7 +24,7 @@ export function Swatches({
           <button
             key={color}
             type="button"
-            aria-label={`Use ${color}`}
+            aria-label={t('swatch.use', { color })}
             disabled={disabled}
             onClick={() => onChange(color)}
             className={`h-6 rounded-[7px] border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 ${
@@ -53,6 +55,7 @@ export function CustomColorPicker({
   // custom color so the picker stays visually distinct from the presets.
   const rainbow =
     'conic-gradient(from 0deg, #ff3b30, #ff9500, #ffcc00, #34c759, #5ac8fa, #007aff, #5856d6, #af52de, #ff2d55, #ff3b30)';
+  const t = useLocale((s) => s.t);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   return (
@@ -60,7 +63,7 @@ export function CustomColorPicker({
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Pick a custom color"
+        aria-label={t('swatch.pickCustom')}
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}

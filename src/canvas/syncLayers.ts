@@ -227,6 +227,14 @@ export function syncLayersToMap(
   }
 
   for (const layer of layers) {
+    // Heatmap-strategy layers are drawn by the deck.gl overlay, never MapLibre.
+    // Skip loading them as a MapLibre source entirely so their (often large)
+    // geometry isn't tessellated a second time — which is what triggers
+    // MapLibre's "Max vertices per segment is 65535" warning for big datasets.
+    if (layer.renderStrategy === 'heatmap') {
+      if (map.getSource(sourceId(layer.id))) removeLayerGraphics(map, layer.id);
+      continue;
+    }
     if (
       map.getSource(sourceId(layer.id)) &&
       Object.values(layerRenderIds(layer.id)).some((id) => !map.getLayer(id))

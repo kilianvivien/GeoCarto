@@ -10,6 +10,7 @@ import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntryFill } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
+import { translate } from '@/i18n/useLocale';
 
 export interface SvgExportOptions {
   /** Embed the basemap (and imported data) as a raster `<image>` beneath the vectors. */
@@ -280,11 +281,11 @@ export async function exportSvg(
 ): Promise<ExportResult> {
   const frameW = project.exportFrame.width;
   const frameH = project.exportFrame.height;
-  if (frameW <= 0 || frameH <= 0) throw new ExportError('Invalid output dimensions.');
+  if (frameW <= 0 || frameH <= 0) throw new ExportError(translate('errors.invalidDimensions'));
 
   const map = useMapInstance.getState().map;
   const container = map?.getContainer();
-  if (!container && project.basemap.kind !== 'static') throw new ExportError('Map is not ready.');
+  if (!container && project.basemap.kind !== 'static') throw new ExportError(translate('errors.mapNotReady'));
   const containerW = container?.clientWidth ?? frameW;
   const scale = frameW / containerW;
 
@@ -325,7 +326,7 @@ export async function exportSvg(
     `</svg>`;
 
   const blob = new Blob([svg], { type: 'image/svg+xml' });
-  const base = project.meta.name?.trim() || 'Untitled';
+  const base = project.meta.name?.trim() || translate('common.untitled');
   return {
     blob,
     fileName: `${base.replace(/\.cartoproj$/, '')}.svg`,
