@@ -278,10 +278,10 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
         .build()?;
 
     let window_menu = SubmenuBuilder::new(app, tr(lang, "Window", "Fenêtre"))
-        .minimize()
-        .maximize()
+        .minimize_with_text(tr(lang, "Minimize", "Réduire"))
+        .maximize_with_text(tr(lang, "Zoom", "Agrandir/Réduire"))
         .separator()
-        .bring_all_to_front()
+        .bring_all_to_front_with_text(tr(lang, "Bring All to Front", "Tout ramener au premier plan"))
         .build()?;
 
     let help_menu = SubmenuBuilder::new(app, tr(lang, "Help", "Aide"))
