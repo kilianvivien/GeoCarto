@@ -52,8 +52,10 @@ const APP_COMMAND_IDS: &[&str] = &[
 /// Pick the English or French label for the current menu language. The web i18n
 /// store is the source of truth for the app language; it pushes the resolved
 /// locale to Rust via the `set_menu_locale` command, which rebuilds the menu.
-/// Predefined items (Cut/Copy/Paste, Services, Hide, Quit, window controls)
-/// follow the macOS system language automatically and are left untranslated.
+/// Predefined items default to the macOS/app-bundle language, which can differ
+/// from GeoCarto's in-app locale. Use Tauri's explicit text variants where the
+/// API supports it; macOS-owned items such as Services, Hide, Quit, and system
+/// text-service submenus still follow the system/app-bundle language.
 fn tr(lang: &str, en: &'static str, fr: &'static str) -> &'static str {
     if lang == "fr" {
         fr
@@ -184,10 +186,10 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
             Some("CmdOrCtrl+Shift+Z"),
         )?)
         .separator()
-        .cut()
-        .copy()
-        .paste()
-        .select_all()
+        .cut_with_text(tr(lang, "Cut", "Couper"))
+        .copy_with_text(tr(lang, "Copy", "Copier"))
+        .paste_with_text(tr(lang, "Paste", "Coller"))
+        .select_all_with_text(tr(lang, "Select All", "Tout sélectionner"))
         .separator()
         .item(&item(
             app,
@@ -248,7 +250,11 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
             Some("CmdOrCtrl+0"),
         )?)
         .separator()
-        .fullscreen()
+        .fullscreen_with_text(tr(
+            lang,
+            "Toggle Full Screen",
+            "Activer/Désactiver le plein écran",
+        ))
         .build()?;
 
     let tools_menu = SubmenuBuilder::new(app, tr(lang, "Tools", "Outils"))

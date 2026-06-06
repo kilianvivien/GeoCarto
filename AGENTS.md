@@ -19,6 +19,8 @@ A visual-first cartography app — an open-canvas map editor for editorial and c
 - `npm run format` — Prettier
 - `npm test` — Vitest unit tests
 - `npm run test:e2e` — Playwright e2e tests
+- `npm run tauri:build` — production Tauri app + DMG; run with elevated
+  permissions because the macOS DMG bundling step needs them.
 
 ## Layout
 
