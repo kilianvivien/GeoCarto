@@ -29,7 +29,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Graphics",
+    "category": "Graphics and Design",
     "shortDescription": "Visual-first cartography editor",
     "longDescription": "GeoCarto is an open-canvas map editor for editorial and casual map makers — open a basemap, annotate it, and export print-ready images.",
     "icon": [
