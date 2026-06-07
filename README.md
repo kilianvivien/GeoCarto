@@ -37,6 +37,7 @@ The target users are journalists, teachers, designers, and anyone who today fall
 - Import **GeoJSON, TopoJSON, KML, GPX, and Shapefile** — drag-drop or file picker
 - Inspect feature attributes; reorder, show/hide, lock, rename, and delete layers
 - Place GeoJSON layers as standard vector or switch them to a **GPU-accelerated heatmap** (deck.gl)
+- **Edit imported GeoJSON** — move, add, and delete vertices; draw new features; edit attributes directly in the layer
 
 ### Annotations
 - **Text** — labels with font choice, size, color, and halo
@@ -65,8 +66,14 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 ### Project workflow
 - Multi-project tab bar — open several maps at once, each with its own autosave session
 - Save and reopen `.cartoproj` project files (plain JSON); recent projects menu
-- Browser autosave every 10 seconds (IndexedDB), with per-tab draft recovery on reload
+- Browser autosave (configurable interval, default 10 s via IndexedDB), with per-tab draft recovery on reload
 - Dirty-document guards on New, Open, Close, and restore
+- **Error recovery** — a top-level error boundary catches render crashes, force-flushes the session to autosave, and shows a reload screen; a crash-loop guard offers "discard project" if the same document keeps crashing
+
+### Settings and localization
+- **Preferences modal** (General / Appearance / Editor / Autosave / Basemap) — persisted to `localStorage` with versioned migrations and reset-to-defaults
+- Configurable autosave interval, units, default basemap, canvas defaults, and accent color
+- **French and English** UI — auto-detected from the browser locale with a manual override in Settings
 
 ### Export
 - **PNG and JPEG** — 1×, 2×, or custom scale; white or transparent background; JPEG quality slider
@@ -93,12 +100,16 @@ GeoCarto is young and moving fast. A few things to expect at this stage:
 
 GeoCarto is built in phases. The browser core loop and the editorial toolset are in place — here's what's next.
 
-**Next — editable data & reach**
-- Edit imported GeoJSON: move/add/delete vertices, draw new features, edit attributes
-- French + English localization, auto-detected with a manual override
-- A unified settings surface (appearance, units, canvas defaults, autosave)
-- In-app help and discoverability polish
+**Recently shipped (0.2.x)**
+- Edit imported GeoJSON: move/add/delete vertices, draw new features, edit attributes ✓
+- French + English localization with auto-detection and manual override ✓
+- Unified settings modal (appearance, units, canvas defaults, autosave, basemap) ✓
+- Top-level error boundary with crash-safe autosave recovery ✓
+
+**Next — discoverability & desktop reach**
+- In-app help and keyboard shortcut reference
 - Local PMTiles files and offline regional basemap packs on desktop
+- Signed & notarized macOS release; Windows and Linux desktop builds
 
 **Later — cartographic depth & print**
 - Non-Mercator editorial projections (Robinson, Equal Earth, Winkel Tripel…)
@@ -108,7 +119,6 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 **Future — collaboration & platform**
 - Cloud project sync, share links, and real-time collaboration
 - Interactive HTML export
-- Windows and Linux desktop builds; a signed & notarized macOS release
 - Plugin / extension API
 
 ---
@@ -217,6 +227,7 @@ GeoCarto is built on the shoulders of these open-source projects:
 | [@protomaps/basemaps](https://github.com/protomaps/basemaps) | BSD-3-Clause | OSM-derived basemap styles, by The Protomaps Authors |
 | [deck.gl](https://github.com/visgl/deck.gl) | MIT | GPU-accelerated data layers (heatmaps), by vis.gl |
 | [Konva](https://github.com/konvajs/konva) / [react-konva](https://github.com/konvajs/react-konva) | MIT | 2D canvas stage for annotations, by Anton Lavrenov |
+| [terra-draw](https://github.com/JamesLMilner/terra-draw) | MIT | Map drawing and geometry editing, by James Milner |
 
 ### Data and import
 
@@ -247,6 +258,7 @@ GeoCarto is built on the shoulders of these open-source projects:
 | [React](https://github.com/facebook/react) | MIT | UI framework, by Meta |
 | [Vite](https://github.com/vitejs/vite) | MIT | Build tool, by Evan You / VoidZero |
 | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Utility-first CSS framework |
+| [shadcn/ui](https://github.com/shadcn-ui/ui) | MIT | Accessible component primitives, by shadcn |
 | [Lucide](https://github.com/lucide-icons/lucide) | ISC | Icon set, by Eric Fennis and contributors |
 | [clsx](https://github.com/lukeed/clsx) | MIT | Class name utility |
 | [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | Tailwind class merging, by Dany Castillo |
