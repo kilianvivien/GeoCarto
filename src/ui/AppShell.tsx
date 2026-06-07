@@ -14,6 +14,8 @@ import { useDocumentTitle } from './useDocumentTitle';
 import { SettingsDialog } from './SettingsDialog';
 import { useUiStore } from './uiStore';
 import { useLocale } from '@/i18n/useLocale';
+import { usePreferencesStore } from '@/state/preferencesStore';
+import { applyAccent } from './accent';
 
 /**
  * Top-level layout: a full-bleed glass window with titlebar / workspace /
@@ -34,6 +36,9 @@ export function AppShell() {
   const locale = useLocale((s) => s.locale);
   const settingsOpen = useUiStore((s) => s.settingsDialogOpen);
   const closeSettings = useUiStore((s) => s.closeSettingsDialog);
+  const accent = usePreferencesStore((s) => s.accent);
+  // Reflect the accent preference into the document's CSS custom properties.
+  useEffect(() => applyAccent(accent), [accent]);
   const [chromeSettling, setChromeSettling] = useState(false);
   const mounted = useRef(false);
   const rows = showTabs ? '44px 36px minmax(0, 1fr) 28px' : '44px 0px minmax(0, 1fr) 28px';

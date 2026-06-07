@@ -6,6 +6,7 @@ import type {
 } from '@/project/cartoproj';
 import { translate } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
+import { defaultUnitSystem } from '@/state/preferencesStore';
 
 interface CreateAnnotationInput {
   kind: AnnotationKind;
@@ -72,7 +73,7 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
         kind: 'measurement',
         points: [0, 0, 120, 0],
         geoPoints: input.geoAnchor ? [input.geoAnchor] : [],
-        unitSystem: 'metric',
+        unitSystem: defaultUnitSystem(),
       };
     case 'image':
       // Image annotations are populated after the user picks a file; defaults
@@ -126,7 +127,7 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
     case 'sourcecredit':
       return { ...seed, kind: 'sourcecredit', text: translate('sample.sourceCredit'), width: 280 };
     case 'scalebar':
-      return { ...seed, kind: 'scalebar', unitSystem: 'metric', maxWidth: 140 };
+      return { ...seed, kind: 'scalebar', unitSystem: defaultUnitSystem(), maxWidth: 140 };
     case 'northarrow':
       return { ...seed, kind: 'northarrow', size: 48 };
   }

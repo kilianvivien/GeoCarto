@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "GeoCarto",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.kilianvivien.geocarto",
   "build": {
     "frontendDist": "../dist",
@@ -19,14 +19,9 @@
         "minWidth": 960,
         "minHeight": 600,
         "visible": false,
-        "decorations": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "trafficLightPosition": { "x": 18, "y": 22 },
-        "transparent": true
+        "decorations": true
       }
     ],
-    "macOSPrivateApi": true,
     "security": {
       "csp": null
     }
@@ -34,10 +29,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "macOS": {
-      "signingIdentity": "-",
-      "hardenedRuntime": false
-    },
+    "category": "Graphics",
+    "shortDescription": "Visual-first cartography editor",
+    "longDescription": "GeoCarto is an open-canvas map editor for editorial and casual map makers — open a basemap, annotate it, and export print-ready images.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

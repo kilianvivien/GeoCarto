@@ -2,6 +2,7 @@ import type { FeatureCollection } from 'geojson';
 import type { Viewport } from '@/state/viewportStore';
 import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
 import { translate } from '@/i18n/useLocale';
+import { defaultBasemapPreset } from '@/state/preferencesStore';
 
 /** Geometry families a GeoJSON layer can hold. */
 export type GeometryKind = 'point' | 'line' | 'polygon' | 'mixed';
@@ -171,6 +172,24 @@ export const DEFAULT_BASEMAP: BasemapConfig = {
   attribution: 'Protomaps © OpenStreetMap',
   sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
 };
+
+const BASEMAP_PRESET_NAME: Record<BuiltInBasemapPreset, string> = {
+  'editorial-light': 'Editorial Light',
+  'editorial-dark': 'Editorial Dark',
+  'minimal-grey': 'Minimal Grey',
+  'print-bw': 'Print B&W',
+};
+
+/** Build a built-in basemap config for a preset. Used for the per-install default. */
+export function builtinBasemap(preset: BuiltInBasemapPreset): BasemapConfig {
+  return {
+    kind: 'builtin',
+    preset,
+    name: BASEMAP_PRESET_NAME[preset],
+    attribution: 'Protomaps © OpenStreetMap',
+    sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
+  };
+}
 
 export type PinIcon =
   | 'dot'
@@ -451,7 +470,7 @@ export function createEmptyProject(name = translate('common.untitled')): CartoPr
     meta: { name, createdAt: now, updatedAt: now },
     viewport: { ...DEFAULT_VIEWPORT, center: [...DEFAULT_VIEWPORT.center] },
     exportFrame: { width: 1600, height: 1200, preset: '4-3', margin: 0, background: 'white', dpiScale: 1 },
-    basemap: { ...DEFAULT_BASEMAP },
+    basemap: builtinBasemap(defaultBasemapPreset()),
     lockedMapView: null,
     layers: [],
     annotations: [],

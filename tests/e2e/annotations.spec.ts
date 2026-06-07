@@ -37,7 +37,7 @@ test('create, style, lock, hide, and delete annotations', async ({ page }) => {
 
   const rectangleRow = () => page.getByTestId('annotation-row').filter({ hasText: 'Styled rectangle' });
   await rectangleRow().getByLabel('Lock annotation').click({ force: true });
-  await rectangleRow().click();
+  await rectangleRow().getByText('Styled rectangle').click();
   await expect(page.getByText(/Styled rectangle/)).toBeVisible();
   await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
   await page.getByRole('tab', { name: 'Layers' }).click();

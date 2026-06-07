@@ -31,7 +31,7 @@ test('export a PNG from the locked composition frame', async ({ page }) => {
   expect(surfaceBox).not.toBeNull();
   expect(surfaceBox!.width / surfaceBox!.height).toBeCloseTo(16 / 9, 1);
 
-  await page.getByTitle('Export (⌘E)').click();
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Export image' });
   await expect(dialog).toBeVisible();
   const expectedSize = { width: 1920, height: 1080 };
@@ -58,7 +58,7 @@ test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   await openProjectFixture(page);
   const scaledSize = { width: 1200, height: 900 };
 
-  await page.getByTitle('Export (⌘E)').click();
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
   let dialog = page.getByRole('dialog', { name: 'Export image' });
   await dialog.getByRole('button', { name: 'Custom', exact: true }).click();
   await dialog.getByRole('spinbutton').fill('1.5');
@@ -74,7 +74,7 @@ test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   for await (const chunk of pngStream!) pngChunks.push(Buffer.from(chunk));
   expect(pngDimensions(Buffer.concat(pngChunks))).toEqual(scaledSize);
 
-  await page.getByTitle('Export (⌘E)').click();
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
   dialog = page.getByRole('dialog', { name: 'Export image' });
   await dialog.getByRole('button', { name: 'JPEG' }).click();
   const [jpgDownload] = await Promise.all([

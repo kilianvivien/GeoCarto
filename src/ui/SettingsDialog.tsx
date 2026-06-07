@@ -1,11 +1,53 @@
 import { useEffect, useState } from 'react';
-import { Check, X } from 'lucide-react';
-import { LOCALE_OPTIONS, type LocaleMode } from '@/i18n/locales';
+import {
+  Check,
+  Globe,
+  Palette,
+  SquarePen,
+  Save,
+  Map as MapIcon,
+  RotateCcw,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { LOCALE_OPTIONS, type LocaleMode, type TranslationKey } from '@/i18n/locales';
 import { useLocale } from '@/i18n/useLocale';
 import { useToolStore } from '@/state/toolStore';
+import {
+  DEFAULT_PREFERENCES,
+  usePreferencesStore,
+  type AccentKey,
+} from '@/state/preferencesStore';
+import type { BuiltInBasemapPreset, MeasurementUnitSystem } from '@/project/cartoproj';
+import { ACCENT_SWATCH } from './accent';
 import { useTheme, type Theme } from './useTheme';
 
 const TRANSITION_MS = 220;
+
+type TabId = 'general' | 'appearance' | 'editor' | 'autosave' | 'basemap';
+
+const TABS: { id: TabId; labelKey: TranslationKey; icon: LucideIcon }[] = [
+  { id: 'general', labelKey: 'settings.general', icon: Globe },
+  { id: 'appearance', labelKey: 'settings.appearance', icon: Palette },
+  { id: 'editor', labelKey: 'settings.tabEditor', icon: SquarePen },
+  { id: 'autosave', labelKey: 'settings.tabAutosave', icon: Save },
+  { id: 'basemap', labelKey: 'settings.tabBasemap', icon: MapIcon },
+];
+
+const ACCENT_OPTIONS: { value: AccentKey; labelKey: TranslationKey }[] = [
+  { value: 'blue', labelKey: 'settings.accentBlue' },
+  { value: 'purple', labelKey: 'settings.accentPurple' },
+  { value: 'green', labelKey: 'settings.accentGreen' },
+  { value: 'orange', labelKey: 'settings.accentOrange' },
+  { value: 'pink', labelKey: 'settings.accentPink' },
+];
+
+const BASEMAP_OPTIONS: { value: BuiltInBasemapPreset; labelKey: TranslationKey }[] = [
+  { value: 'editorial-light', labelKey: 'basemap.editorialLight' },
+  { value: 'editorial-dark', labelKey: 'basemap.editorialDark' },
+  { value: 'minimal-grey', labelKey: 'basemap.minimalGrey' },
+  { value: 'print-bw', labelKey: 'basemap.printBw' },
+];
 
 function ToggleRow({
   label,
@@ -17,7 +59,7 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-[12px] text-[var(--text-2)]">
+    <label className="flex items-center justify-between gap-3 text-[12.5px] text-[var(--text-2)]">
       <span>{label}</span>
       <input
         type="checkbox"
@@ -29,15 +71,17 @@ function ToggleRow({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
-      <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-        {title}
-      </div>
+    <div className="grid grid-cols-[120px_1fr] items-center gap-3 text-[12.5px] text-[var(--text-2)]">
+      <span>{label}</span>
       {children}
-    </section>
+    </div>
   );
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] leading-snug text-[var(--text-3)]">{children}</p>;
 }
 
 function Segmented<T extends string>({
@@ -73,18 +117,63 @@ function Segmented<T extends string>({
   );
 }
 
+function FieldGroup({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      {title && (
+        <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+          {title}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
+  const [tab, setTab] = useState<TabId>('general');
   const t = useLocale((s) => s.t);
   const localeMode = useLocale((s) => s.mode);
   const setLocaleMode = useLocale((s) => s.setMode);
   const theme = useTheme((s) => s.theme);
   const setTheme = useTheme((s) => s.setTheme);
+
+  // Live canvas-aid state (status bar shares these). Settings edits the persisted
+  // *default* and also applies it live so the change is immediately visible.
   const gridSnapEnabled = useToolStore((s) => s.gridSnapEnabled);
   const gridSpacing = useToolStore((s) => s.gridSpacing);
   const smartGuidesEnabled = useToolStore((s) => s.smartGuidesEnabled);
   const { setGridSnapEnabled, setGridSpacing, setSmartGuidesEnabled } = useToolStore.getState();
+
+  const accent = usePreferencesStore((s) => s.accent);
+  const unitSystem = usePreferencesStore((s) => s.unitSystem);
+  const autosaveIntervalSec = usePreferencesStore((s) => s.autosaveIntervalSec);
+  const defaultBasemap = usePreferencesStore((s) => s.defaultBasemap);
+  const setPreference = usePreferencesStore((s) => s.setPreference);
+  const resetPreferences = usePreferencesStore((s) => s.resetPreferences);
+
+  const setGridSnap = (next: boolean) => {
+    setPreference('gridSnapDefault', next);
+    setGridSnapEnabled(next);
+  };
+  const setSmartGuides = (next: boolean) => {
+    setPreference('smartGuidesDefault', next);
+    setSmartGuidesEnabled(next);
+  };
+  const setSpacing = (next: number) => {
+    const clamped = Math.max(4, Math.min(200, next));
+    setPreference('gridSpacingDefault', clamped);
+    setGridSpacing(clamped);
+  };
+
+  const resetAll = () => {
+    resetPreferences();
+    setGridSnapEnabled(DEFAULT_PREFERENCES.gridSnapDefault);
+    setSmartGuidesEnabled(DEFAULT_PREFERENCES.smartGuidesDefault);
+    setGridSpacing(DEFAULT_PREFERENCES.gridSpacingDefault);
+  };
 
   useEffect(() => {
     if (open) {
@@ -110,6 +199,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
     { value: 'dark', label: t('settings.themeDark') },
   ];
 
+  const unitOptions: { value: MeasurementUnitSystem; label: string }[] = [
+    { value: 'metric', label: t('settings.unitsMetric') },
+    { value: 'imperial', label: t('settings.unitsImperial') },
+  ];
+
   const localeOptions = LOCALE_OPTIONS.map((option) => ({
     value: option.value,
     label:
@@ -119,6 +213,9 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           ? t('settings.languageFrench')
           : t('settings.languageEnglish'),
   }));
+
+  const selectClass =
+    'min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]';
 
   return (
     <div
@@ -131,17 +228,15 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
       onClick={onClose}
     >
       <div
-        className={`glass w-[430px] rounded-[var(--radius-md)] bg-[var(--surface-modal)] p-5 text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-[220ms] ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+        className={`glass flex h-[440px] w-[680px] max-w-[94vw] flex-col overflow-hidden rounded-[var(--radius-md)] bg-[var(--surface-modal)] text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-[220ms] ease-out motion-reduce:transition-none motion-reduce:transform-none ${
           visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-1'
         }`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between border-b border-[var(--divider)] px-5 py-4">
           <div>
             <div className="text-[14px] font-semibold">{t('settings.title')}</div>
-            <div className="mt-0.5 text-[11.5px] text-[var(--text-2)]">
-              {t('settings.subtitle')}
-            </div>
+            <div className="mt-0.5 text-[11.5px] text-[var(--text-2)]">{t('settings.subtitle')}</div>
           </div>
           <button
             type="button"
@@ -153,55 +248,180 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           </button>
         </div>
 
-        <div className="mt-5 flex flex-col gap-5">
-          <Section title={t('settings.general')}>
-            <label className="grid grid-cols-[96px_1fr] items-center gap-2 text-[12px] text-[var(--text-2)]">
-              <span>{t('settings.language')}</span>
-              <select
-                value={localeMode}
-                onChange={(event) => setLocaleMode(event.target.value as LocaleMode)}
-                className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
-              >
-                {localeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="text-[11px] text-[var(--text-3)]">{t('settings.languageHelp')}</div>
-          </Section>
+        <div className="flex min-h-0 flex-1">
+          <nav
+            role="tablist"
+            aria-orientation="vertical"
+            className="flex w-[168px] shrink-0 flex-col gap-0.5 border-r border-[var(--divider)] p-2.5"
+          >
+            {TABS.map(({ id, labelKey, icon: TabIcon }) => {
+              const active = id === tab;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(id)}
+                  className={`flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[12.5px] font-medium transition-colors ${
+                    active
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'text-[var(--text-2)] hover:bg-[var(--hover)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <TabIcon size={15} />
+                  {t(labelKey)}
+                </button>
+              );
+            })}
+          </nav>
 
-          <Section title={t('settings.appearance')}>
-            <div className="grid grid-cols-[96px_1fr] items-center gap-2 text-[12px] text-[var(--text-2)]">
-              <span>{t('settings.theme')}</span>
-              <Segmented value={theme} options={themeOptions} onChange={setTheme} />
-            </div>
-          </Section>
+          <div role="tabpanel" className="flex-1 overflow-y-auto p-5">
+            {tab === 'general' && (
+              <FieldGroup>
+                <Field label={t('settings.language')}>
+                  <select
+                    value={localeMode}
+                    onChange={(event) => setLocaleMode(event.target.value as LocaleMode)}
+                    className={selectClass}
+                  >
+                    {localeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Hint>{t('settings.languageHelp')}</Hint>
+              </FieldGroup>
+            )}
 
-          <Section title={t('settings.canvas')}>
-            <ToggleRow
-              label={t('settings.gridSnap')}
-              checked={gridSnapEnabled}
-              onChange={setGridSnapEnabled}
-            />
-            <ToggleRow
-              label={t('settings.smartGuides')}
-              checked={smartGuidesEnabled}
-              onChange={setSmartGuidesEnabled}
-            />
-            <label className="grid grid-cols-[1fr_76px] items-center gap-2 text-[12px] text-[var(--text-2)]">
-              <span>{t('settings.gridSpacing')}</span>
-              <input
-                type="number"
-                min={4}
-                max={200}
-                value={gridSpacing}
-                onChange={(event) => setGridSpacing(Number(event.target.value))}
-                className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
-              />
-            </label>
-          </Section>
+            {tab === 'appearance' && (
+              <div className="flex flex-col gap-6">
+                <FieldGroup>
+                  <Field label={t('settings.theme')}>
+                    <Segmented value={theme} options={themeOptions} onChange={setTheme} />
+                  </Field>
+                  <Field label={t('settings.accent')}>
+                    <div className="flex gap-2">
+                      {ACCENT_OPTIONS.map((option) => {
+                        const active = option.value === accent;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            aria-label={t(option.labelKey)}
+                            aria-pressed={active}
+                            onClick={() => setPreference('accent', option.value)}
+                            className={`h-6 w-6 rounded-full transition-transform hover:scale-110 ${
+                              active
+                                ? 'ring-2 ring-[var(--accent-ring)] ring-offset-2 ring-offset-[var(--surface-modal)]'
+                                : ''
+                            }`}
+                            style={{ background: ACCENT_SWATCH[option.value] }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </Field>
+                </FieldGroup>
+              </div>
+            )}
+
+            {tab === 'editor' && (
+              <div className="flex flex-col gap-6">
+                <FieldGroup title={t('settings.units')}>
+                  <Field label={t('settings.units')}>
+                    <Segmented
+                      value={unitSystem}
+                      options={unitOptions}
+                      onChange={(value) => setPreference('unitSystem', value)}
+                    />
+                  </Field>
+                  <Hint>{t('settings.unitsHelp')}</Hint>
+                </FieldGroup>
+
+                <FieldGroup title={t('settings.canvasDefaults')}>
+                  <ToggleRow
+                    label={t('settings.gridSnap')}
+                    checked={gridSnapEnabled}
+                    onChange={setGridSnap}
+                  />
+                  <ToggleRow
+                    label={t('settings.smartGuides')}
+                    checked={smartGuidesEnabled}
+                    onChange={setSmartGuides}
+                  />
+                  <Field label={t('settings.gridSpacing')}>
+                    <input
+                      type="number"
+                      min={4}
+                      max={200}
+                      value={gridSpacing}
+                      onChange={(event) => setSpacing(Number(event.target.value))}
+                      className="w-[88px] rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+                    />
+                  </Field>
+                </FieldGroup>
+              </div>
+            )}
+
+            {tab === 'autosave' && (
+              <FieldGroup>
+                <Field label={t('settings.autosaveInterval')}>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={2}
+                      max={120}
+                      value={autosaveIntervalSec}
+                      onChange={(event) =>
+                        setPreference(
+                          'autosaveIntervalSec',
+                          Math.max(2, Math.min(120, Number(event.target.value))),
+                        )
+                      }
+                      className="w-[88px] rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+                    />
+                    <span className="text-[11px] text-[var(--text-3)]">s</span>
+                  </div>
+                </Field>
+                <Hint>{t('settings.autosaveHelp')}</Hint>
+              </FieldGroup>
+            )}
+
+            {tab === 'basemap' && (
+              <FieldGroup>
+                <Field label={t('settings.defaultBasemap')}>
+                  <select
+                    value={defaultBasemap}
+                    onChange={(event) =>
+                      setPreference('defaultBasemap', event.target.value as BuiltInBasemapPreset)
+                    }
+                    className={selectClass}
+                  >
+                    {BASEMAP_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Hint>{t('settings.defaultBasemapHelp')}</Hint>
+              </FieldGroup>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-[var(--divider)] px-4 py-3">
+          <button
+            type="button"
+            onClick={resetAll}
+            className="flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          >
+            <RotateCcw size={13} />
+            {t('settings.reset')}
+          </button>
         </div>
       </div>
     </div>

@@ -29,6 +29,7 @@ import { useEditStore } from '@/state/editStore';
 import { insertFurniture, type FurnitureKind } from '@/tools/insertFurniture';
 import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
+import { Tooltip } from './Tooltip';
 
 const FURNITURE_ITEMS: { kind: FurnitureKind; labelKey: TranslationKey; icon: LucideIcon }[] = [
   { kind: 'titleblock', labelKey: 'furniture.titleblock', icon: Heading },
@@ -129,33 +130,42 @@ export function ToolRail() {
             const name = t(`tool.${tool.key}`);
             const isActive = active === tool.key;
             const disabled = setupDisabled || !tool.enabled;
-            const title = tool.enabled
-              ? `${name} — ${tool.shortcut}`
-              : `${name} — ${tool.disabledReason ?? t('tools.phase2')}`;
+            // Tooltip text mirrors the old `title=` affordances: a planned tool
+            // explains the Phase-2 gate, a setup-locked tool says to lock the map
+            // first, an available tool shows its one-line description + shortcut.
+            const description = !tool.enabled
+              ? (tool.disabledReason ?? t('tools.phase2'))
+              : setupDisabled
+                ? t('tools.lockMapFirst')
+                : t(`tool.${tool.key}.desc` as TranslationKey);
             return (
-              <button
+              <Tooltip
                 key={tool.key}
-                type="button"
-                data-tool={tool.key}
-                aria-label={`${name} (${tool.shortcut})`}
-                aria-pressed={isActive}
-                disabled={disabled}
-                aria-disabled={disabled}
-                title={title}
-                onClick={() => activate(tool)}
-                className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
-                  disabled
-                    ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
-                    : isActive
-                    ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
-                    : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
-                }`}
+                label={name}
+                description={description}
+                shortcut={tool.enabled && !setupDisabled ? tool.shortcut : undefined}
+                placement="right"
               >
-                <Icon size={18} />
-                {!tool.enabled && (
-                  <span className="sr-only">{t('tools.phase2')}</span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  data-tool={tool.key}
+                  aria-label={`${name} (${tool.shortcut})`}
+                  aria-pressed={isActive}
+                  disabled={disabled}
+                  aria-disabled={disabled}
+                  onClick={() => activate(tool)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
+                    disabled
+                      ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+                      : isActive
+                      ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
+                      : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
+                  }`}
+                >
+                  <Icon size={18} />
+                  {!tool.enabled && <span className="sr-only">{t('tools.phase2')}</span>}
+                </button>
+              </Tooltip>
             );
           })}
         </div>
@@ -163,19 +173,23 @@ export function ToolRail() {
 
       <span className="my-1 h-px w-6 bg-[var(--divider)]" />
       <div ref={insertRef} className="relative flex flex-col items-center">
+        <Tooltip
+          label={t('tools.insertFurniture')}
+          description={
+            editingVectors
+              ? t('tools.finishLayerFurniture')
+              : setupDisabled
+                ? t('tools.lockMapFurniture')
+                : t('tooltip.insertFurniture.desc')
+          }
+          placement="right"
+        >
         <button
           type="button"
           aria-label={t('tools.insertFurniture')}
           aria-haspopup="menu"
           aria-expanded={insertOpen}
           disabled={setupDisabled}
-          title={
-            editingVectors
-              ? t('tools.finishLayerFurniture')
-              : setupDisabled
-                ? t('tools.lockMapFurniture')
-                : t('tools.insertTitle')
-          }
           onClick={() => {
             if (editingVectors) {
               push(t('tools.finishLayerFurniture'), 'error');
@@ -197,6 +211,7 @@ export function ToolRail() {
         >
           <LayoutTemplate size={18} />
         </button>
+        </Tooltip>
         {insertOpen && (
           <div
             role="menu"

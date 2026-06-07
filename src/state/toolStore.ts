@@ -5,6 +5,7 @@ import {
   type AnnotationKind,
   type AnnotationStyle,
 } from '@/project/cartoproj';
+import { usePreferencesStore } from './preferencesStore';
 
 export type ToolKey =
   | 'move'
@@ -165,13 +166,18 @@ interface ToolState {
   toggleMasterSnap: () => void;
 }
 
+// Seed the live canvas-aid state from the persisted app defaults (M21). The
+// status-bar toggles mutate these live values only — they never write back to
+// preferences, so the saved default stays the seed for the next launch.
+const canvasDefaults = usePreferencesStore.getState();
+
 export const useToolStore = create<ToolState>((set) => ({
   activeTool: 'move',
   defaultAnchorMode: 'canvas',
   defaultStyle: { ...DEFAULT_ANNOTATION_STYLE },
-  gridSnapEnabled: false,
-  gridSpacing: 20,
-  smartGuidesEnabled: true,
+  gridSnapEnabled: canvasDefaults.gridSnapDefault,
+  gridSpacing: canvasDefaults.gridSpacingDefault,
+  smartGuidesEnabled: canvasDefaults.smartGuidesDefault,
   snapMemory: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setDefaultAnchorMode: (mode) => set({ defaultAnchorMode: mode }),

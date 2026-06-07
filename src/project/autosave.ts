@@ -3,12 +3,12 @@ import { del, entries, get, set as idbSet } from 'idb-keyval';
 import type { CartoProject } from './cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { activeSessionId } from '@/state/sessionsStore';
+import { autosaveIntervalMs } from '@/state/preferencesStore';
 
 /** Legacy single-session draft key (Phase 1) — still read on first launch
  *  so users with an existing draft don't lose it during the M8 upgrade. */
 const LEGACY_AUTOSAVE_KEY = 'cartoproj:autosave:current';
 const SESSION_PREFIX = 'cartoproj:autosave:session:';
-const DEBOUNCE_MS = 10_000;
 
 export interface AutosaveEntry {
   /** ISO timestamp when this draft was written. */
@@ -77,6 +77,23 @@ export async function clearAutosave(sessionId: string): Promise<void> {
   }
 }
 
+/**
+ * Force-write the active session's document immediately, bypassing the debounce
+ * and the dirty check. Used by the top-level error boundary so a render crash
+ * can't lose in-flight work: the returned promise resolves once the draft is
+ * durable in IndexedDB, letting the boundary delay its reload until the write
+ * has landed.
+ */
+export async function flushActiveAutosave(): Promise<void> {
+  const { project, file } = useDocumentStore.getState();
+  await writeAutosave({
+    savedAt: new Date().toISOString(),
+    fileName: file?.name ?? null,
+    sessionId: activeSessionId(),
+    project,
+  });
+}
+
 export async function clearLegacyAutosave(): Promise<void> {
   if (!hasIndexedDb()) return;
   try {
@@ -110,7 +127,9 @@ export function useAutosave(): void {
     const schedule = () => {
       if (cancelled) return;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(flush, DEBOUNCE_MS);
+      // Read the interval at schedule time so a change in Settings takes effect
+      // on the next edit without re-subscribing.
+      timer = setTimeout(flush, autosaveIntervalMs());
     };
 
     let lastProject = useDocumentStore.getState().project;

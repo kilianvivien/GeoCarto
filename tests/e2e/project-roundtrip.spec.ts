@@ -12,7 +12,7 @@ test('open a .cartoproj fixture and save through the download fallback', async (
   await expect(page.getByTestId('layer-row')).toContainText('Reference');
   await expect(page.getByTestId('annotation-row')).toHaveCount(3);
 
-  await page.getByTestId('annotation-row').filter({ hasText: 'Fixture Label' }).click();
+  await page.getByTestId('annotation-row').filter({ hasText: 'Fixture Label' }).getByText('Fixture Label').click();
   await page.getByLabel('Name', { exact: true }).fill('Roundtrip Label');
 
   const [download] = await Promise.all([

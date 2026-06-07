@@ -291,30 +291,45 @@ the choice persists across sessions.
 - ✅ Locale-aware number formatting is used in status/ruler-style readouts.
 - ✅ The Tauri native menu rebuilds in English or French from the active app locale.
 
-### UI discoverability — tooltips & help ⬜ (M20)
+### UI discoverability — tooltips & help ✅ (M20)
 
-Tooltips today are bare native `title=` attributes; there's no design-system tooltip.
+Native `title=` attributes are replaced by a design-system glass tooltip.
 
-- ⬜ A reusable **glass tooltip** component matching `design.md` (delay, placement,
-keyboard-shortcut chip), accessible (focus + hover, `aria-describedby`).
-- ⬜ Every tool in the rail gets a tooltip: **name + one-line description + shortcut**
-(e.g. "Pen — draw a freehand or segmented line · P").
-- ⬜ Tooltips on inspector controls, status-bar toggles, furniture menu, and export
-options; all strings localized.
-- ⬜ Optional lightweight first-run hint / "what's this" affordance for the core loop.
+- ✅ A reusable **glass tooltip** component (`src/ui/Tooltip.tsx`) matching `design.md`
+(delay, placement, keyboard-shortcut chip), accessible (focus + hover,
+`aria-describedby` via `cloneElement`). It listens on the wrapper, not the trigger, so
+it still works for `disabled` buttons (which suppress their own pointer events) —
+preserving the rail's "Phase 2 / lock map first" affordances after the `title=` removal.
+- ✅ Every tool in the rail gets a tooltip: **name + one-line description + shortcut**
+(e.g. "Line — draw a freehand or segmented line · P"); planned/locked tools show the
+gating reason instead. The insert-furniture button is covered too. New `tool.*.desc`
+catalog keys (en + fr) back the descriptions.
+- ✅ Tooltips on the **vector-edit toolbar** (select/draw/delete/done) and the title
+bar's icon actions + Export; all strings localized.
+- ➡️ Optional first-run hint / "what's this" affordance — deferred (the core loop is now
+self-explanatory via tooltips).
+- Note: status-bar toggles, inspector controls, and export-dialog options still use
+native `title=`; migrating those to the glass tooltip is a small follow-up.
 
-### Settings modal 🟡 (M21)
+### Settings modal ✅ (M21)
 
-No preferences surface exists; settings are scattered (theme, snap, units in the status bar).
+Settings are now a real preferences surface backed by a typed app-level store.
 
 - ✅ Settings modal exists with language selection and persists the locale override.
-- ⬜ Expand Settings (⌘,) grouping: Appearance (theme / accent),
-Units (metric / imperial default), Canvas (grid snap defaults, smart guides,
-grid spacing), Autosave interval, Default basemap, and Reset-to-defaults.
-- ⬜ Preferences persisted to `localStorage` (app-level, distinct from per-project
-`.cartoproj` settings) with a typed schema + defaulting migration.
-- ⬜ Existing scattered controls read from / write to the same preference store so there's
-one source of truth for app settings.
+- ✅ Expanded Settings (⌘,) grouping: Appearance (theme + **accent** preset),
+Units (metric / imperial default), Canvas defaults (grid snap, smart guides, grid
+spacing), Autosave interval, Default basemap, and **Reset-to-defaults**.
+- ✅ Preferences persisted to `localStorage` (`src/state/preferencesStore.ts`,
+app-level, distinct from per-project `.cartoproj` settings) with a typed schema +
+versioned defaulting/migration (`migratePreferences` clamps and re-stamps old blobs).
+- ✅ Each setting is wired to its effect — autosave interval → `useAutosave`; units
+default → `annotationFactory` (measurement + scale bar); default basemap →
+`createEmptyProject`; canvas defaults seed `toolStore` at launch; accent → CSS tokens
+on `documentElement` (`src/ui/accent.ts`).
+- ✅ "One source of truth" by *ownership*: theme/locale keep their existing stores
+(both already persist; theme has a pre-paint bootstrap, so folding it in would
+reintroduce FOUC). The status-bar snap toggles mutate the **live** tool state only;
+preferences hold the **default** that seeds it — keeping `snapMemory` intact.
 
 ### Folded-in Phase 2 completion ⬜ (M22–M24)
 
@@ -329,24 +344,30 @@ the remaining desktop capabilities below.
 - ⬜ **Local PMTiles file basemaps** (M23) — resolved on desktop via the native FS path
 (the `blob:` save/reopen limitation that blocked web in M5/M11).
 - ⬜ **Offline regional basemap packs** (M24) — first-run download / bundle choice for
-desktop.
+desktop. Could be handled inside the settings modal?
 
-### Resilience & stabilization ⬜ (M25)
+### Resilience & stabilization 🟡 (M25)
 
-- ⬜ **Top-level React error boundary + crash-safe recovery** (moved up from the code
-audit). No error boundary exists today, so a single render error takes down the whole
-editor and risks unsaved work. Add a boundary that catches render failures, preserves the
-active session, and offers autosave recovery. Slotted at the end of Phase 3 so it wraps the
-new vector-edit / i18n / settings surfaces shipped earlier this phase in one fail-safe net.
+- ✅ **Top-level React error boundary + crash-safe recovery** (`src/app/ErrorBoundary.tsx`,
+wrapping `<App>` in `main.tsx`). A render error anywhere below now lands in a localized
+glass fallback instead of a blank page. On catch it **force-flushes the active session**
+to the autosave draft (`flushActiveAutosave`) and gates the Reload button on that write
+resolving, so a reload recovers the work via the existing recovery prompt. A short-window
+`sessionStorage` crash counter detects the **poison-document loop** — where recovery
+restores the very state that crashed — and offers "discard project & reload" instead of
+looping forever. (Catches render/lifecycle errors, not event-handler/async errors.)
 - ✅ Playwright flows cover vector edit selection/vertex drag, blank-layer feature draw,
 feature delete, attribute edit, GeoJSON import/export, and updated localized UI
 selectors. Locale e2e is deterministic via an English browser context.
 - ✅ Unit tests cover the edit store, feature identity/defaulting, attribute mutation,
 GeoJSON export, i18n locale switching, and serialization/defaulting.
+- ✅ New unit tests: error boundary (catch + flush + crash-loop), glass tooltip
+(focus/hover + `aria-describedby` + disabled trigger), and preferences
+defaulting/migration/persistence.
+- ✅ Bundle-budget re-checked — still green (3698.5 KB / 3788.8 KB) after the new surfaces.
 - ⬜ Add remaining Playwright flows for locale switch, broader settings persistence, and
 tooltip presence.
-- ⬜ Add remaining unit tests for catalog completeness and preferences defaulting/migration.
-- ⬜ Bundle-budget re-check (terra-draw lazy-loaded behind edit mode; i18n catalogs split).
+- ⬜ Add remaining unit tests for catalog completeness.
 - ⬜ Performance: editing a feature in a 10 MB layer stays within PRD §7 interaction targets.
 
 ---
@@ -406,9 +427,17 @@ require.
 
 ### Platform reach ⬜
 
-- ⬜ Windows and Linux desktop builds (extends the existing macOS Tauri shell).
+- 🟡 Windows and Linux desktop builds (extends the existing macOS Tauri shell).
+      **Config scaffolding landed in v0.2.1:** `tauri.conf.json` is now a cross-platform
+      base (opaque, decorated, standard-chrome window), with the macOS-only treatment
+      (transparent window + `Overlay` title bar + traffic lights + `macOSPrivateApi`)
+      moved into a `tauri.macos.conf.json` overlay merged via JSON Merge Patch. Added
+      `tauri.windows.conf.json` (WebView2 bootstrapper) and `tauri.linux.conf.json` (`.deb`).
+      macOS behaviour is unchanged (base + overlay reconstructs it exactly). Remaining:
+      actually building/CI on Windows + Linux runners and platform QA.
+- ⬜ Better integration with plateform features on MacOS.
 - ⬜ Signing + notarization for the macOS build (the shell already ships unsigned;
-      this removes the Gatekeeper friction for public distribution).
+      this removes the Gatekeeper friction for public distribution) - deferred.
 
 ### Extensibility ⬜
 
@@ -448,7 +477,8 @@ require.
 - ✅ Phase 1 web — Vite SPA, static-hosting ready
 - ✅ Desktop macOS — Tauri 2 shell shipped (**not signed / not notarized**); native
   dialogs + HTTP-plugin basemap fetch. Signing/notarization → Phase 5.
-- ⬜ Windows + Linux — **Phase 5**
+- 🟡 Windows + Linux — **Phase 5**; build-config scaffolding ready in v0.2.1
+  (platform-specific `tauri.*.conf.json` overlays), builds themselves not yet produced
 
 ### Architecture invariants (PRD §3–4)
 
@@ -476,8 +506,9 @@ implicit; each is folded into the phase where it acts as an enabler:
 - **No CI** — `bundle-budget`, the Phase-tool vitest invariant, lint/typecheck/e2e gates
   run only locally; there is no `.github/workflows`. No coverage tooling. → **Phase 4**
   quality foundation.
-- **No React error boundary** — a render error crashes the whole editor. → **Phase 3 /
-  M25** crash-safe recovery (pulled forward; the new edit/i18n/settings paths must fail safe).
+- **No React error boundary** — a render error crashes the whole editor. → ✅ **Resolved in
+  Phase 3 / M25** (v0.2.1): top-level boundary with autosave flush + crash-loop guard wraps
+  the edit/i18n/settings paths.
 - **God components** — `AnnotationStage.tsx` (~2.2k lines), `AnnotationInspector.tsx`
   (~1.1k lines). → **Phase 5** module-boundary work (prerequisite for the plugin API).
 

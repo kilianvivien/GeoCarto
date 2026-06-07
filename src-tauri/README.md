@@ -15,6 +15,31 @@ every desktop-specific code path in `src/` is additive and guarded by
 Requires the Rust toolchain (`rustc`/`cargo`). Signing & notarization are a
 later v1 milestone and are intentionally not configured here.
 
+## Platform configuration (macOS / Windows / Linux)
+
+`tauri.conf.json` is the **cross-platform base** — a standard, opaque, decorated
+window that builds cleanly on every OS. Per-platform overlays are merged on top of
+it via [JSON Merge Patch (RFC 7396)] at build time:
+
+- `tauri.macos.conf.json` — the macOS-only window treatment (transparent window +
+  `Overlay` title bar + floating traffic lights + `macOSPrivateApi` for vibrancy)
+  and the ad-hoc signing identity. This is what makes the mac build read as one
+  full-bleed glass window; it is **not** applied on Windows/Linux.
+- `tauri.windows.conf.json` — WebView2 download-bootstrapper install mode.
+- `tauri.linux.conf.json` — `.deb` bundle metadata.
+
+macOS behavior is unchanged: base + `tauri.macos.conf.json` reconstructs exactly the
+window config that previously lived inline in `tauri.conf.json`. Windows and Linux
+builds inherit the safe standard-chrome window from the base — the macOS-only
+transparency/Overlay props can no longer leak into them and break the build.
+
+> **Status:** this is build *configuration scaffolding* only. Windows and Linux
+> bundles cannot be produced from macOS — they need a build run on (or
+> cross-compiled for) each target OS, typically in CI. The actual Windows/Linux
+> release remains a Phase 5 / Platform-reach item.
+
+[JSON Merge Patch (RFC 7396)]: https://www.rfc-editor.org/rfc/rfc7396
+
 ## How desktop differs from web (and why)
 
 | Concern | Web | Desktop | Why |

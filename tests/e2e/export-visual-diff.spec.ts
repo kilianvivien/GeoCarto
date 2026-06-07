@@ -17,7 +17,7 @@ import { disableFileSystemAccess, openProjectFixture } from './helpers';
  */
 
 async function exportPngBuffer(page: import('@playwright/test').Page): Promise<Buffer> {
-  await page.getByTitle('Export (⌘E)').click();
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Export image' });
   await expect(dialog).toBeVisible();
   const [download] = await Promise.all([

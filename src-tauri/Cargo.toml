@@ -1,6 +1,6 @@
 [package]
 name = "geocarto"
-version = "0.2.0"
+version = "0.2.1"
 description = "GeoCarto — a visual-first cartography app"
 authors = ["Kilian Vivien"]
 edition = "2021"
@@ -17,10 +17,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# `macos-private-api` backs the transparent window + native vibrancy (windowEffects)
-# configured in tauri.conf.json. Note: it relies on a private macOS API, which
-# makes the build ineligible for the Mac App Store — fine while distribution is
-# direct (.dmg); revisit if App Store submission becomes a goal.
+# `macos-private-api` backs the transparent window + native vibrancy enabled in
+# `tauri.macos.conf.json` (the macOS platform overlay). The feature is inert when
+# building for Windows/Linux, so it can stay on unconditionally. Note: it relies
+# on a private macOS API, which makes the build ineligible for the Mac App Store —
+# fine while distribution is direct (.dmg); revisit if App Store submission becomes
+# a goal.
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"

@@ -15,6 +15,7 @@ import { useEditStore, type EditTool } from '@/state/editStore';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
+import { Tooltip } from './Tooltip';
 
 const EDIT_TOOLS: { tool: EditTool; labelKey: TranslationKey; hintKey: TranslationKey; icon: LucideIcon }[] = [
   {
@@ -114,47 +115,49 @@ export function EditToolbar() {
           const label = t(labelKey);
           const hint = t(hintKey);
           return (
-            <button
-              key={tool}
-              type="button"
-              data-edit-tool={tool}
-              aria-label={`${label}. ${hint}`}
-              aria-pressed={isActive}
-              title={`${label} — ${hint}`}
-              onClick={() => useEditStore.getState().setTool(tool)}
-              className={`flex h-8 w-8 items-center justify-center rounded-[8px] transition-all ${
-                isActive
-                  ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
-                  : 'text-[var(--text-2)] hover:bg-[var(--hover)] active:scale-95'
-              }`}
-            >
-              <Icon size={16} />
-            </button>
+            <Tooltip key={tool} label={label} description={hint} placement="top">
+              <button
+                type="button"
+                data-edit-tool={tool}
+                aria-label={`${label}. ${hint}`}
+                aria-pressed={isActive}
+                onClick={() => useEditStore.getState().setTool(tool)}
+                className={`flex h-8 w-8 items-center justify-center rounded-[8px] transition-all ${
+                  isActive
+                    ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
+                    : 'text-[var(--text-2)] hover:bg-[var(--hover)] active:scale-95'
+                }`}
+              >
+                <Icon size={16} />
+              </button>
+            </Tooltip>
           );
         })}
         <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
-        <button
-          type="button"
-          data-edit-tool="delete"
-          aria-label={`${t('edit.delete')}. ${t('edit.deleteHint')}`}
-          title={`${t('edit.delete')} — ${t('edit.deleteHint')}`}
-          disabled={selectedFeatureId == null}
-          onClick={deleteSelected}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--danger,#ff5f57)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <Trash2 size={15} />
-        </button>
+        <Tooltip label={t('edit.delete')} description={t('edit.deleteHint')} placement="top">
+          <button
+            type="button"
+            data-edit-tool="delete"
+            aria-label={`${t('edit.delete')}. ${t('edit.deleteHint')}`}
+            disabled={selectedFeatureId == null}
+            onClick={deleteSelected}
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--danger,#ff5f57)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <Trash2 size={15} />
+          </button>
+        </Tooltip>
         <span className="mx-0.5 h-5 w-px bg-[var(--divider)]" />
-        <button
-          type="button"
-          data-edit-tool="done"
-          title={t('edit.doneTitle')}
-          onClick={() => useEditStore.getState().exitEdit()}
-          className="flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-        >
-          <Check size={15} />
-          {t('edit.done')}
-        </button>
+        <Tooltip label={t('edit.done')} description={t('edit.doneTitle')} placement="top">
+          <button
+            type="button"
+            data-edit-tool="done"
+            onClick={() => useEditStore.getState().exitEdit()}
+            className="flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          >
+            <Check size={15} />
+            {t('edit.done')}
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

@@ -29,6 +29,7 @@ import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
 import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
+import { Tooltip } from './Tooltip';
 import { useLocale } from '@/i18n/useLocale';
 
 function IconButton({
@@ -45,21 +46,22 @@ function IconButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      title={label}
-      className={`flex h-7 w-7 items-center justify-center rounded-[8px] transition-colors disabled:opacity-40 ${
-        active
-          ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-          : 'text-[var(--text-2)] hover:bg-[var(--hover)]'
-      }`}
-    >
-      {children}
-    </button>
+    <Tooltip label={label} placement="bottom">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        disabled={disabled}
+        onClick={onClick}
+        className={`flex h-7 w-7 items-center justify-center rounded-[8px] transition-colors disabled:opacity-40 ${
+          active
+            ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+            : 'text-[var(--text-2)] hover:bg-[var(--hover)]'
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -295,16 +297,18 @@ export function TitleBar() {
           {mode === 'editing' ? <UnlockKeyhole size={14} /> : <LockKeyhole size={14} />}
           {mode === 'editing' ? t('title.unlockMap') : t('title.lockMap')}
         </button>
-        <button
-          type="button"
-          onClick={openExport}
-          disabled={mode !== 'editing'}
-          title={t('title.exportShortcut')}
-          className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-[12px] font-medium text-[var(--text-on-accent)] transition-[filter] hover:brightness-105 disabled:opacity-50"
-        >
-          <Download size={14} />
-          {t('title.export')}
-        </button>
+        <Tooltip label={t('title.export')} shortcut="⌘E" placement="bottom">
+          <button
+            type="button"
+            onClick={openExport}
+            disabled={mode !== 'editing'}
+            aria-label={t('title.exportShortcut')}
+            className="ml-1 flex h-7 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-[12px] font-medium text-[var(--text-on-accent)] transition-[filter] hover:brightness-105 disabled:opacity-50"
+          >
+            <Download size={14} />
+            {t('title.export')}
+          </button>
+        </Tooltip>
         <a
           href={REPO_URL}
           target="_blank"
