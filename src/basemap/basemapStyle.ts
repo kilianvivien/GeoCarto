@@ -37,14 +37,18 @@ const PRESET_TO_SPRITE: Record<BuiltInBasemapPreset, 'light' | 'dark'> = {
 };
 
 /**
- * Editorial sub-layer keys → Protomaps `source-layer` names. `labels` covers
- * both places and points-of-interest; `landuse` covers landuse + landcover.
+ * Editorial sub-layer keys → Protomaps `source-layer` names. `labels` remains
+ * as a legacy aggregate for saved projects; the UI exposes places/POIs directly.
  */
 const SUBLAYER_TO_SOURCE_LAYERS: Record<BasemapSublayerKey, string[]> = {
+  earth: ['earth'],
   roads: ['roads'],
   labels: ['places', 'pois'],
+  places: ['places'],
+  pois: ['pois'],
   water: ['water'],
-  landuse: ['landuse', 'landcover'],
+  landcover: ['landcover'],
+  landuse: ['landuse'],
   buildings: ['buildings'],
   boundaries: ['boundaries'],
 };
@@ -85,6 +89,13 @@ export function buildBasemapStyle(
   config: BasemapConfig,
   lang: Locale = useLocale.getState().locale,
 ): StyleSpecification | string {
+  if (config.kind === 'empty') {
+    return {
+      version: 8,
+      sources: {},
+      layers: [{ id: 'background', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } }],
+    };
+  }
   if (config.kind === 'style-url') return config.url;
   if (config.kind === 'style-json') {
     // Trusted to be JSON-parseable — the StylePanel validates before assignment.

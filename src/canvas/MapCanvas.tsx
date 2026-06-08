@@ -12,6 +12,7 @@ import { AnnotationStage } from './AnnotationStage';
 import { StaticBasemapOverlay } from './StaticBasemapOverlay';
 import { MapSetupPanel } from './MapSetupPanel';
 import { importGeoJsonFiles } from '@/import/importLayers';
+import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewTransformStore } from '@/state/viewTransformStore';
@@ -98,6 +99,12 @@ function containFrame(width: number, height: number, aspect: number) {
   };
 }
 
+function pageBackgroundCss(background: PageBackground | undefined) {
+  if (!background || background === 'white') return '#ffffff';
+  if (background === 'transparent') return 'transparent';
+  return background;
+}
+
 /**
  * The canvas cell: the MapLibre viewport, the headless GeoJSON layer renderer,
  * and an overlay layer above the map (design.md §4.3). Accepts file drops to
@@ -111,6 +118,7 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
   const canInspectRef = useRef(false);
   const surfaceRef = useRef<SurfaceBox>({ width: 0, height: 0, x: 0, y: 0 });
   const mode = useDocumentStore((s) => s.project.mode);
+  const basemap = useDocumentStore((s) => s.project.basemap);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const activeTool = useToolStore((s) => s.activeTool);
   const viewZoom = useViewTransformStore((s) => s.zoom);
@@ -250,6 +258,7 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
           top: surface.y,
           width: surface.width,
           height: surface.height,
+          background: basemap.kind === 'empty' ? pageBackgroundCss(exportFrame.background) : undefined,
           transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewZoom})`,
           transformOrigin: '0 0',
         }}

@@ -4,9 +4,12 @@ import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
 
 const SUBLAYER_ORDER: { key: BasemapSublayerKey; labelKey: TranslationKey }[] = [
+  { key: 'earth', labelKey: 'sublayer.earth' },
   { key: 'roads', labelKey: 'sublayer.roads' },
-  { key: 'labels', labelKey: 'sublayer.labels' },
+  { key: 'places', labelKey: 'sublayer.places' },
+  { key: 'pois', labelKey: 'sublayer.pois' },
   { key: 'water', labelKey: 'sublayer.water' },
+  { key: 'landcover', labelKey: 'sublayer.landcover' },
   { key: 'landuse', labelKey: 'sublayer.landuse' },
   { key: 'buildings', labelKey: 'sublayer.buildings' },
   { key: 'boundaries', labelKey: 'sublayer.boundaries' },

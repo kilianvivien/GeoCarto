@@ -22,7 +22,7 @@ import type {
   CommentAnnotation,
   ImageAnnotation,
   LegendAnnotation,
-  LegendFillStyle,
+  LegendSymbol,
   NorthArrowAnnotation,
   PinAnnotation,
   PinIcon,
@@ -38,7 +38,7 @@ import { useViewportStore } from '@/state/viewportStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
-import { legendEntryFill, legendFillFromStyle } from '@/style/legendSwatches';
+import { legendEntrySymbol, legendFillFromStyle, legendSymbolFromAnnotation } from '@/style/legendSwatches';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
 import { useUiStore } from '@/ui/uiStore';
@@ -104,6 +104,21 @@ function blurFocusedControl() {
 
 function isFillSampleSource(annotation: Annotation) {
   return annotation.kind === 'rectangle' || annotation.kind === 'ellipse' || annotation.kind === 'polygon';
+}
+
+function legendEntryPatchForSample(symbol: LegendSymbol) {
+  if (symbol.kind !== 'fill') return { symbol };
+  const fillStyle = {
+    fillColor: symbol.fillColor,
+    fillPattern: symbol.fillPattern,
+    hatchColor: symbol.hatchColor,
+    hatchSpacing: symbol.hatchSpacing,
+  };
+  return {
+    symbol,
+    swatchColor: symbol.fillColor,
+    fillStyle,
+  };
 }
 
 interface PickedImage {
@@ -607,10 +622,10 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
         const y = padding + (annotation.style.textSize + 6) + index * rowHeight;
         return (
           <Group key={`${entry.label}-${index}`} y={y}>
-            <LegendSwatch
+            <LegendSymbolMark
               x={padding}
               size={swatchSize}
-              fill={legendEntryFill(entry)}
+              symbol={legendEntrySymbol(entry)}
               strokeColor={annotation.style.strokeColor}
             />
             <Text
@@ -628,17 +643,119 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
   );
 }
 
-function LegendSwatch({
+function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return undefined;
+  switch (symbol.strokePattern) {
+    case 'dotted':
+      return [1, Math.max(3, symbol.strokeWidth * 1.8)];
+    case 'dashed':
+      return [Math.max(4, symbol.strokeWidth * 3), Math.max(3, symbol.strokeWidth * 2)];
+    case 'solid':
+      return undefined;
+  }
+}
+
+function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return symbol.strokeWidth * 1.8;
+    case 'pencil':
+      return Math.max(1, symbol.strokeWidth * 0.9);
+    case 'highlighter':
+      return symbol.strokeWidth * 3.5;
+    case 'round':
+    default:
+      return symbol.strokeWidth;
+  }
+}
+
+function legendSymbolOpacity(symbol: LegendSymbol): number {
+  if (symbol.kind !== 'line') return 1;
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return 0.78;
+    case 'pencil':
+      return 0.68;
+    case 'highlighter':
+      return 0.42;
+    default:
+      return 1;
+  }
+}
+
+function LegendSymbolMark({
   x,
   size,
-  fill,
+  symbol,
   strokeColor,
 }: {
   x: number;
   size: number;
-  fill: LegendFillStyle;
+  symbol: LegendSymbol;
   strokeColor: string;
 }) {
+  if (symbol.kind !== 'fill') {
+    const y = size / 2;
+    const strokeWidth = legendSymbolStrokeWidth(symbol);
+    const dash = legendSymbolDash(symbol);
+    switch (symbol.kind) {
+      case 'line':
+        return (
+          <Line
+            x={x}
+            points={[0, y, size, y]}
+            stroke={symbol.strokeColor}
+            strokeWidth={strokeWidth}
+            dash={dash}
+            lineCap="round"
+            opacity={legendSymbolOpacity(symbol)}
+          />
+        );
+      case 'arrow':
+        return (
+          <Arrow
+            x={x}
+            points={[0, y, size, y]}
+            stroke={symbol.strokeColor}
+            fill={symbol.strokeColor}
+            strokeWidth={strokeWidth}
+            dash={dash}
+            pointerLength={Math.max(6, size * 0.34)}
+            pointerWidth={Math.max(6, size * 0.34)}
+            lineCap="round"
+          />
+        );
+      case 'measurement':
+        return (
+          <>
+            <Line
+              x={x}
+              points={[0, y, size, y]}
+              stroke={symbol.strokeColor}
+              strokeWidth={strokeWidth}
+              dash={dash ?? [6, 5]}
+              lineCap="round"
+            />
+            <Circle x={x} y={y} radius={Math.max(2, size * 0.16)} fill="#ffffff" stroke={symbol.strokeColor} strokeWidth={1.5} />
+            <Circle x={x + size} y={y} radius={Math.max(2, size * 0.16)} fill="#ffffff" stroke={symbol.strokeColor} strokeWidth={1.5} />
+          </>
+        );
+      case 'pin':
+        return (
+          <Group x={x + size / 2} y={size / 2}>
+            <PinGlyph color={symbol.pinColor} icon={symbol.pinIcon} size={size * 0.82} />
+          </Group>
+        );
+    }
+  }
+
+  const fill = {
+    fillColor: symbol.fillColor,
+    fillPattern: symbol.fillPattern,
+    hatchColor: symbol.hatchColor,
+    hatchSpacing: symbol.hatchSpacing,
+  };
   const lines = hatchLines(size, size, fill.fillPattern, fill.hatchSpacing);
   return (
     <>
@@ -1902,8 +2019,12 @@ export function AnnotationStage() {
                 onClick={(event) => {
                   event.cancelBubble = true;
                   const pendingSample = useUiStore.getState().pendingLegendFillSample;
-                  if (pendingSample && isFillSampleSource(annotation)) {
-                    const sampled = legendFillFromStyle(annotation.style);
+                  if (pendingSample) {
+                    const sampled = legendSymbolFromAnnotation(annotation);
+                    if (!sampled) {
+                      useUiStore.getState().cancelLegendFillSample();
+                      return;
+                    }
                     const legend = useDocumentStore
                       .getState()
                       .project.annotations.find((item) => item.id === pendingSample.legendId);
@@ -1911,7 +2032,7 @@ export function AnnotationStage() {
                       updateAnnotation(pendingSample.legendId, {
                         entries: legend.entries.map((entry, index) =>
                           index === pendingSample.entryIndex
-                            ? { ...entry, swatchColor: sampled.fillColor, fillStyle: sampled }
+                            ? { ...entry, ...legendEntryPatchForSample(sampled) }
                             : entry,
                         ),
                       } as Partial<Annotation>);

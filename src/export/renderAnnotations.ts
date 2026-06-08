@@ -1,8 +1,8 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, AnnotationStyle, BrushPreset, LegendEntry, LegendFillStyle, PinIcon } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, BrushPreset, LegendFillStyle, LegendSymbol, PinIcon } from '@/project/cartoproj';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
-import { legendEntryFill } from '@/style/legendSwatches';
+import { legendEntrySymbol } from '@/style/legendSwatches';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 
 function shadowProps(style: AnnotationStyle) {
@@ -160,7 +160,106 @@ function pinGlyph(group: Konva.Group, color: string, icon: PinIcon, size: number
   }
 }
 
-function addLegendSwatch(group: Konva.Group, entry: LegendEntry, fill: LegendFillStyle, style: AnnotationStyle, x: number, y: number, size: number): void {
+function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return undefined;
+  switch (symbol.strokePattern) {
+    case 'dotted':
+      return [1, Math.max(3, symbol.strokeWidth * 1.8)];
+    case 'dashed':
+      return [Math.max(4, symbol.strokeWidth * 3), Math.max(3, symbol.strokeWidth * 2)];
+    case 'solid':
+      return undefined;
+  }
+}
+
+function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return symbol.strokeWidth * 1.8;
+    case 'pencil':
+      return Math.max(1, symbol.strokeWidth * 0.9);
+    case 'highlighter':
+      return symbol.strokeWidth * 3.5;
+    case 'round':
+    default:
+      return symbol.strokeWidth;
+  }
+}
+
+function legendSymbolOpacity(symbol: LegendSymbol): number {
+  if (symbol.kind !== 'line') return 1;
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return 0.78;
+    case 'pencil':
+      return 0.68;
+    case 'highlighter':
+      return 0.42;
+    default:
+      return 1;
+  }
+}
+
+function addLegendSwatch(group: Konva.Group, symbol: LegendSymbol, style: AnnotationStyle, x: number, y: number, size: number): void {
+  if (symbol.kind !== 'fill') {
+    const centerY = y + size / 2;
+    const strokeWidth = legendSymbolStrokeWidth(symbol);
+    const dash = legendSymbolDash(symbol);
+    switch (symbol.kind) {
+      case 'line':
+        group.add(
+          new Konva.Line({
+            points: [x, centerY, x + size, centerY],
+            stroke: symbol.strokeColor,
+            strokeWidth,
+            dash,
+            lineCap: 'round',
+            opacity: legendSymbolOpacity(symbol),
+          }),
+        );
+        return;
+      case 'arrow':
+        group.add(
+          new Konva.Arrow({
+            points: [x, centerY, x + size, centerY],
+            stroke: symbol.strokeColor,
+            fill: symbol.strokeColor,
+            strokeWidth,
+            dash,
+            pointerLength: Math.max(6, size * 0.34),
+            pointerWidth: Math.max(6, size * 0.34),
+            lineCap: 'round',
+          }),
+        );
+        return;
+      case 'measurement':
+        group.add(
+          new Konva.Line({
+            points: [x, centerY, x + size, centerY],
+            stroke: symbol.strokeColor,
+            strokeWidth,
+            dash: dash ?? [6, 5],
+            lineCap: 'round',
+          }),
+        );
+        group.add(new Konva.Circle({ x, y: centerY, radius: Math.max(2, size * 0.16), fill: '#ffffff', stroke: symbol.strokeColor, strokeWidth: 1.5 }));
+        group.add(new Konva.Circle({ x: x + size, y: centerY, radius: Math.max(2, size * 0.16), fill: '#ffffff', stroke: symbol.strokeColor, strokeWidth: 1.5 }));
+        return;
+      case 'pin': {
+        const pin = new Konva.Group({ x: x + size / 2, y: y + size / 2 });
+        pinGlyph(pin, symbol.pinColor, symbol.pinIcon, size * 0.82);
+        group.add(pin);
+        return;
+      }
+    }
+  }
+  const fill: LegendFillStyle = {
+    fillColor: symbol.fillColor,
+    fillPattern: symbol.fillPattern,
+    hatchColor: symbol.hatchColor,
+    hatchSpacing: symbol.hatchSpacing,
+  };
   group.add(
     new Konva.Rect({
       x,
@@ -173,7 +272,7 @@ function addLegendSwatch(group: Konva.Group, entry: LegendEntry, fill: LegendFil
       strokeWidth: 0.5,
     }),
   );
-  if (entry.fillStyle?.fillPattern === 'none' || fill.fillPattern === 'none') return;
+  if (fill.fillPattern === 'none') return;
   const hatch = new Konva.Group({
     x,
     y,
@@ -468,7 +567,7 @@ function addAnnotation(
       );
       visibleEntries.forEach((entry, index) => {
         const y = padding + (style.textSize + 6) + index * rowHeight;
-        addLegendSwatch(group, entry, legendEntryFill(entry), style, padding, y, swatchSize);
+        addLegendSwatch(group, legendEntrySymbol(entry), style, padding, y, swatchSize);
         group.add(
           new Konva.Text({
             text: entry.label,

@@ -97,9 +97,14 @@ export type BuiltInBasemapPreset = 'editorial-light' | 'editorial-dark' | 'minim
  * or more Protomaps `source-layer` names (see basemapStyle.ts).
  */
 export type BasemapSublayerKey =
+  | 'earth'
   | 'roads'
+  /** Legacy aggregate; newer UI exposes `places` and `pois` separately. */
   | 'labels'
+  | 'places'
+  | 'pois'
   | 'water'
+  | 'landcover'
   | 'landuse'
   | 'buildings'
   | 'boundaries';
@@ -107,9 +112,13 @@ export type BasemapSublayerKey =
 export type BasemapSublayers = Record<BasemapSublayerKey, boolean>;
 
 export const DEFAULT_BASEMAP_SUBLAYERS: BasemapSublayers = {
+  earth: true,
   roads: true,
   labels: true,
+  places: true,
+  pois: true,
   water: true,
+  landcover: true,
   landuse: true,
   buildings: true,
   boundaries: true,
@@ -150,6 +159,11 @@ export type BasemapConfig =
       mediaType: 'image' | 'pdf';
       mimeType: string;
       dataUrl: string;
+      attribution: string;
+    }
+  | {
+      kind: 'empty';
+      name: string;
       attribution: string;
     };
 
@@ -238,6 +252,21 @@ export type LegendFillStyle = Pick<
   AnnotationStyle,
   'fillColor' | 'fillPattern' | 'hatchColor' | 'hatchSpacing'
 >;
+
+export type LegendFillSymbol = { kind: 'fill' } & LegendFillStyle;
+export type LegendLineSymbol = {
+  kind: 'line' | 'arrow' | 'measurement';
+  strokeColor: string;
+  strokeWidth: number;
+  strokePattern: StrokePattern;
+  brushPreset?: BrushPreset;
+};
+export type LegendPinSymbol = {
+  kind: 'pin';
+  pinColor: string;
+  pinIcon: PinIcon;
+};
+export type LegendSymbol = LegendFillSymbol | LegendLineSymbol | LegendPinSymbol;
 
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   fillColor: '#007aff',
@@ -339,6 +368,9 @@ export type ImageAnnotation = AnnotationBase & {
 export interface LegendEntry {
   label: string;
   swatchColor: string;
+  /** Typed symbol used by modern legend renderers. Missing means legacy fill swatch. */
+  symbol?: LegendSymbol;
+  /** Legacy fill swatch style retained so old project files round-trip cleanly. */
   fillStyle?: LegendFillStyle;
   visible: boolean;
 }

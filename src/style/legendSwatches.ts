@@ -1,4 +1,4 @@
-import type { AnnotationStyle, LegendEntry, LegendFillStyle } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, LegendEntry, LegendFillStyle, LegendSymbol } from '@/project/cartoproj';
 
 export function legendFillFromStyle(style: AnnotationStyle): LegendFillStyle {
   return {
@@ -9,13 +9,66 @@ export function legendFillFromStyle(style: AnnotationStyle): LegendFillStyle {
   };
 }
 
+export function legendFillSymbolFromStyle(style: AnnotationStyle): LegendSymbol {
+  return { kind: 'fill', ...legendFillFromStyle(style) };
+}
+
+export function legendLineSymbolFromStyle(
+  style: AnnotationStyle,
+  kind: 'line' | 'arrow' | 'measurement',
+): LegendSymbol {
+  return {
+    kind,
+    strokeColor: style.strokeColor,
+    strokeWidth: style.strokeWidth,
+    strokePattern: style.strokePattern,
+    brushPreset: kind === 'line' ? style.brushPreset : undefined,
+  };
+}
+
+export function legendPinSymbolFromStyle(style: AnnotationStyle): LegendSymbol {
+  return {
+    kind: 'pin',
+    pinColor: style.pinColor,
+    pinIcon: style.pinIcon,
+  };
+}
+
+export function legendSymbolFromAnnotation(annotation: Annotation): LegendSymbol | null {
+  switch (annotation.kind) {
+    case 'rectangle':
+    case 'ellipse':
+    case 'polygon':
+      return legendFillSymbolFromStyle(annotation.style);
+    case 'line':
+      return legendLineSymbolFromStyle(annotation.style, 'line');
+    case 'arrow':
+      return legendLineSymbolFromStyle(annotation.style, 'arrow');
+    case 'measurement':
+      return legendLineSymbolFromStyle(annotation.style, 'measurement');
+    case 'pin':
+      return legendPinSymbolFromStyle(annotation.style);
+    default:
+      return null;
+  }
+}
+
 export function legendEntryFill(entry: LegendEntry): LegendFillStyle {
+  if (entry.symbol?.kind === 'fill') {
+    const { fillColor, fillPattern, hatchColor, hatchSpacing } = entry.symbol;
+    return { fillColor, fillPattern, hatchColor, hatchSpacing };
+  }
   return entry.fillStyle ?? {
     fillColor: entry.swatchColor,
     fillPattern: 'none',
     hatchColor: '#0f172a',
     hatchSpacing: 10,
   };
+}
+
+export function legendEntrySymbol(entry: LegendEntry): LegendSymbol {
+  if (entry.symbol) return entry.symbol;
+  return { kind: 'fill', ...legendEntryFill(entry) };
 }
 
 export function legendSwatchBackground(fill: LegendFillStyle): string {

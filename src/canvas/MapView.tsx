@@ -26,6 +26,8 @@ export function MapView() {
   const mode = useDocumentStore((s) => s.project.mode);
   const locale = useLocale((s) => s.locale);
   const isStaticBasemap = basemap.kind === 'static';
+  const isEmptyBasemap = basemap.kind === 'empty';
+  const hidesMapCanvas = isStaticBasemap || isEmptyBasemap;
 
   const armBasemapLoadingNotice = useCallback((map: maplibregl.Map) => {
     if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
@@ -115,7 +117,7 @@ export function MapView() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const enabled = mode === 'mapSetup' && !isStaticBasemap;
+    const enabled = mode === 'mapSetup' && !hidesMapCanvas;
     const controls = [
       map.dragPan,
       map.scrollZoom,
@@ -129,7 +131,7 @@ export function MapView() {
       if (enabled) control.enable();
       else control.disable();
     }
-  }, [mode, isStaticBasemap]);
+  }, [hidesMapCanvas, mode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -151,7 +153,7 @@ export function MapView() {
     <div
       ref={containerRef}
       data-testid="map-view"
-      className={`h-full w-full ${isStaticBasemap ? 'opacity-0' : ''}`}
+      className={`h-full w-full ${hidesMapCanvas ? 'opacity-0' : ''}`}
     />
   );
 }

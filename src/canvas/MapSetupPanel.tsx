@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronDown, FileImage, Globe2, Link2, LockKeyhole, Map } from 'lucide-react';
+import { Check, ChevronDown, FileImage, Globe2, Link2, LockKeyhole, Map, Square } from 'lucide-react';
 import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
 import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
@@ -64,7 +64,11 @@ function builtinConfig(preset: BuiltInBasemapPreset, name: string): BasemapConfi
 const cardBase =
   'rounded-[10px] border border-[var(--divider)] bg-[var(--hover)] transition-colors hover:bg-[var(--active)]';
 const cardActive = 'rounded-[10px] border border-[var(--accent)] bg-[var(--accent-soft)] transition-colors';
-const linkButton = 'text-[12px] font-semibold text-[var(--accent)] transition-colors hover:opacity-80';
+const sourceCard = 'grid min-h-[126px] grid-rows-[36px_1fr_auto] p-3 text-left';
+const sourceUrlCard = `${sourceCard} md:focus-within:col-span-2 focus-within:z-10 focus-within:border-[var(--accent)] focus-within:bg-[var(--accent-soft)]`;
+const sourceUrlInput =
+  'h-8 min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)]';
+const linkButton = 'text-left text-[12px] font-semibold leading-tight text-[var(--accent)] transition-colors hover:opacity-80';
 
 /** Required first-run composition setup before annotation editing is enabled. */
 export function MapSetupPanel() {
@@ -148,8 +152,11 @@ export function MapSetupPanel() {
     );
   };
 
-  const selectLocalPmtiles = () => {
-    push(t('setup.localPmtilesPlanned'), 'error');
+  const applyEmptyCanvas = () => {
+    chooseBasemap(
+      { kind: 'empty', name: t('setup.emptyCanvas'), attribution: '' },
+      t('setup.emptyCanvasSelected'),
+    );
   };
 
   /** Zoom the map so the composition box fills the canvas, then lock that view. */
@@ -185,7 +192,9 @@ export function MapSetupPanel() {
   const collapsedBasemapName =
     basemap.kind === 'builtin'
       ? t(BUILT_INS.find((item) => item.preset === basemap.preset)?.labelKey ?? 'basemap.editorialLight')
-      : basemap.name;
+      : basemap.kind === 'empty'
+        ? t('setup.emptyCanvas')
+        : basemap.name;
 
   return (
     <div className="pointer-events-none absolute inset-x-4 top-4 z-30">
@@ -237,13 +246,13 @@ export function MapSetupPanel() {
                   key={item.preset}
                   type="button"
                   onClick={() => chooseBasemap(builtinConfig(item.preset, name), t('setup.basemapSelected', { name }))}
-                  className={`${active ? cardActive : cardBase} p-3 text-left`}
+                  className={`${active ? cardActive : cardBase} grid min-h-[104px] grid-rows-[28px_1fr] p-3 text-left`}
                 >
-                  <div className="flex items-center gap-2 text-[12px] font-semibold">
+                  <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
                     {active ? <Check size={14} className="text-[var(--accent)]" /> : <Globe2 size={14} />}
                     {name}
                   </div>
-                  <div className="mt-2 text-[11px] leading-snug text-[var(--text-2)]">{t(item.descriptionKey)}</div>
+                  <div className="text-[11px] leading-snug text-[var(--text-2)]">{t(item.descriptionKey)}</div>
                 </button>
               );
             })}
@@ -252,9 +261,9 @@ export function MapSetupPanel() {
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
             {t('setup.customSource')}
           </div>
-          <div className="grid gap-2 md:grid-cols-3">
-            <div className={`${cardBase} p-3`}>
-              <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
+          <div className="grid gap-2 md:grid-cols-4">
+            <div className={`${cardBase} ${sourceUrlCard}`}>
+              <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
                 <Link2 size={14} />
                 {t('setup.styleJsonUrl')}
               </div>
@@ -263,15 +272,15 @@ export function MapSetupPanel() {
                 onChange={(e) => setStyleUrl(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && applyStyleUrl()}
                 placeholder="https://…/style.json"
-                className="mb-2 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)]"
+                className={sourceUrlInput}
               />
               <button type="button" onClick={applyStyleUrl} className={linkButton}>
                 {t('setup.useStyleUrl')}
               </button>
             </div>
 
-            <div className={`${cardBase} p-3`}>
-              <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
+            <div className={`${cardBase} ${sourceUrlCard}`}>
+              <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
                 <Globe2 size={14} />
                 {t('setup.pmtilesUrl')}
               </div>
@@ -280,35 +289,41 @@ export function MapSetupPanel() {
                 onChange={(e) => setPmtilesUrl(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && applyPmtilesUrl()}
                 placeholder="https://…/region.pmtiles"
-                className="mb-2 w-full rounded-[7px] border border-[var(--divider)] bg-[var(--hover)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)] focus:border-[var(--accent)]"
+                className={sourceUrlInput}
               />
               <button type="button" onClick={applyPmtilesUrl} className={linkButton}>
                 {t('setup.usePmtiles')}
-              </button>
-              <span className="mx-2 text-[var(--text-3)]">·</span>
-              <button
-                type="button"
-                onClick={selectLocalPmtiles}
-                disabled
-                title={t('setup.localPmtilesTitle')}
-                className={`${linkButton} disabled:cursor-not-allowed disabled:opacity-45`}
-              >
-                {t('setup.fileInPhase2')}
               </button>
             </div>
 
             <button
               type="button"
               onClick={selectStaticFile}
-              className={`${basemap.kind === 'static' ? cardActive : cardBase} p-3 text-left`}
+              className={`${basemap.kind === 'static' ? cardActive : cardBase} ${sourceCard}`}
             >
-              <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold">
+              <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
                 <FileImage size={14} />
-                {t('setup.imageOrPdf')}
+                {t('setup.imageBasemap')}
               </div>
               <div className="text-[11px] leading-snug text-[var(--text-2)]">
                 {t('setup.staticBasemapDescription')}
               </div>
+              <span aria-hidden />
+            </button>
+
+            <button
+              type="button"
+              onClick={applyEmptyCanvas}
+              className={`${basemap.kind === 'empty' ? cardActive : cardBase} ${sourceCard}`}
+            >
+              <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
+                <Square size={14} />
+                {t('setup.emptyCanvas')}
+              </div>
+              <div className="text-[11px] leading-snug text-[var(--text-2)]">
+                {t('setup.emptyCanvasDescription')}
+              </div>
+              <span aria-hidden />
             </button>
           </div>
 

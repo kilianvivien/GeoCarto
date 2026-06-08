@@ -181,9 +181,13 @@ describe('serializeProject / deserializeProject', () => {
     const restored = deserializeProject(JSON.stringify(project));
     if (restored.basemap.kind !== 'builtin') throw new Error('expected builtin basemap');
     expect(restored.basemap.sublayers).toEqual({
+      earth: true,
       roads: true,
       labels: true,
+      places: true,
+      pois: true,
       water: true,
+      landcover: true,
       landuse: true,
       buildings: true,
       boundaries: true,
@@ -198,6 +202,9 @@ describe('serializeProject / deserializeProject', () => {
     const restored = deserializeProject(JSON.stringify(project));
     if (restored.basemap.kind !== 'builtin') throw new Error('expected builtin basemap');
     expect(restored.basemap.sublayers.labels).toBe(false);
+    expect(restored.basemap.sublayers.places).toBe(false);
+    expect(restored.basemap.sublayers.pois).toBe(false);
+    expect(restored.basemap.sublayers.landcover).toBe(true);
     expect(restored.basemap.sublayers.roads).toBe(true);
   });
 
@@ -269,6 +276,66 @@ describe('serializeProject / deserializeProject', () => {
       fillPattern: 'none',
       hatchColor: '#0f172a',
       hatchSpacing: 10,
+    });
+    expect(legend.entries[0].symbol).toEqual({
+      kind: 'fill',
+      fillColor: '#007aff',
+      fillPattern: 'none',
+      hatchColor: '#0f172a',
+      hatchSpacing: 10,
+    });
+  });
+
+  it('preserves newer legend entry symbols from v1 project files', () => {
+    const project = createEmptyProject('Typed legend');
+    const annotation = rectAnnotation();
+    project.annotations.push({
+      id: annotation.id,
+      kind: 'legend',
+      name: 'Legend',
+      visible: annotation.visible,
+      locked: annotation.locked,
+      anchorMode: annotation.anchorMode,
+      position: annotation.position,
+      geoAnchor: annotation.geoAnchor,
+      rotation: annotation.rotation,
+      opacity: annotation.opacity,
+      style: annotation.style,
+      title: 'Legend',
+      entries: [
+        {
+          label: 'Trail',
+          swatchColor: '#007aff',
+          fillStyle: { fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+          symbol: { kind: 'line', strokeColor: '#34c759', strokeWidth: 4, strokePattern: 'dashed', brushPreset: 'marker' },
+          visible: true,
+        },
+        {
+          label: 'Capital',
+          swatchColor: '#007aff',
+          fillStyle: { fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+          symbol: { kind: 'pin', pinColor: '#ff3b30', pinIcon: 'star' },
+          visible: true,
+        },
+      ],
+      width: 200,
+    });
+
+    const restored = deserializeProject(JSON.stringify(project));
+    const legend = restored.annotations[0];
+    expect(legend.kind).toBe('legend');
+    if (legend.kind !== 'legend') return;
+    expect(legend.entries[0].symbol).toEqual({
+      kind: 'line',
+      strokeColor: '#34c759',
+      strokeWidth: 4,
+      strokePattern: 'dashed',
+      brushPreset: 'marker',
+    });
+    expect(legend.entries[1].symbol).toEqual({
+      kind: 'pin',
+      pinColor: '#ff3b30',
+      pinIcon: 'star',
     });
   });
 

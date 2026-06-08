@@ -12,15 +12,17 @@ import type {
   FillPattern,
   LegendAnnotation,
   LegendEntry,
+  LegendSymbol,
   PinIcon,
   StrokePattern,
 } from '@/project/cartoproj';
+import { DEFAULT_ANNOTATION_STYLE } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useUiStore } from '@/ui/uiStore';
 import {
-  legendEntryFill,
+  legendEntrySymbol,
   legendSwatchBackground,
   legendSwatchBackgroundSize,
 } from '@/style/legendSwatches';
@@ -63,6 +65,13 @@ const PIN_ICONS: { value: PinIcon; labelKey: TranslationKey }[] = [
   { value: 'diamond', labelKey: 'pinIcon.diamond' },
   { value: 'cross', labelKey: 'pinIcon.cross' },
   { value: 'target', labelKey: 'pinIcon.target' },
+];
+const LEGEND_SYMBOL_KINDS: { value: LegendSymbol['kind']; labelKey: TranslationKey }[] = [
+  { value: 'fill', labelKey: 'legendSymbol.fill' },
+  { value: 'line', labelKey: 'legendSymbol.line' },
+  { value: 'arrow', labelKey: 'legendSymbol.arrow' },
+  { value: 'measurement', labelKey: 'legendSymbol.measurement' },
+  { value: 'pin', labelKey: 'legendSymbol.pin' },
 ];
 
 const ANNOTATION_KIND_LABELS: Record<AnnotationKind, TranslationKey> = {
@@ -826,6 +835,121 @@ function GeometryControls({
   }
 }
 
+function legendEntryPatchFromSymbol(symbol: LegendSymbol): Partial<LegendEntry> {
+  if (symbol.kind !== 'fill') return { symbol };
+  const fillStyle = {
+    fillColor: symbol.fillColor,
+    fillPattern: symbol.fillPattern,
+    hatchColor: symbol.hatchColor,
+    hatchSpacing: symbol.hatchSpacing,
+  };
+  return {
+    symbol,
+    swatchColor: symbol.fillColor,
+    fillStyle,
+  };
+}
+
+function legendSymbolColor(symbol: LegendSymbol): string {
+  if (symbol.kind === 'fill') return symbol.fillColor;
+  if (symbol.kind === 'pin') return symbol.pinColor;
+  return symbol.strokeColor;
+}
+
+function convertLegendSymbol(symbol: LegendSymbol, kind: LegendSymbol['kind']): LegendSymbol {
+  const color = legendSymbolColor(symbol);
+  switch (kind) {
+    case 'fill':
+      return {
+        kind,
+        fillColor: color,
+        fillPattern: 'none',
+        hatchColor: DEFAULT_ANNOTATION_STYLE.hatchColor,
+        hatchSpacing: DEFAULT_ANNOTATION_STYLE.hatchSpacing,
+      };
+    case 'line':
+    case 'arrow':
+    case 'measurement':
+      return {
+        kind,
+        strokeColor: color,
+        strokeWidth: symbol.kind === 'line' || symbol.kind === 'arrow' || symbol.kind === 'measurement'
+          ? symbol.strokeWidth
+          : DEFAULT_ANNOTATION_STYLE.strokeWidth,
+        strokePattern: symbol.kind === 'line' || symbol.kind === 'arrow' || symbol.kind === 'measurement'
+          ? symbol.strokePattern
+          : DEFAULT_ANNOTATION_STYLE.strokePattern,
+        brushPreset: kind === 'line'
+          ? symbol.kind === 'line'
+            ? symbol.brushPreset ?? DEFAULT_ANNOTATION_STYLE.brushPreset
+            : DEFAULT_ANNOTATION_STYLE.brushPreset
+          : undefined,
+      };
+    case 'pin':
+      return {
+        kind,
+        pinColor: color,
+        pinIcon: symbol.kind === 'pin' ? symbol.pinIcon : DEFAULT_ANNOTATION_STYLE.pinIcon,
+      };
+  }
+}
+
+function LegendSymbolPreview({ symbol }: { symbol: LegendSymbol }) {
+  if (symbol.kind === 'fill') {
+    const fill = {
+      fillColor: symbol.fillColor,
+      fillPattern: symbol.fillPattern,
+      hatchColor: symbol.hatchColor,
+      hatchSpacing: symbol.hatchSpacing,
+    };
+    return (
+      <span
+        className="block h-full w-full rounded-[5px]"
+        style={{
+          background: legendSwatchBackground(fill),
+          backgroundSize: legendSwatchBackgroundSize(fill),
+        }}
+      />
+    );
+  }
+
+  if (symbol.kind === 'pin') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-full w-full">
+        <circle cx="12" cy="12" r="7" fill={symbol.pinIcon === 'ring' ? 'transparent' : symbol.pinColor} stroke={symbol.pinColor} strokeWidth={symbol.pinIcon === 'ring' ? 3 : 1.5} />
+        {symbol.pinIcon === 'target' && <circle cx="12" cy="12" r="3.5" fill="none" stroke="#ffffff" strokeWidth="1.5" />}
+        {symbol.pinIcon === 'cross' && (
+          <>
+            <path d="M8 12h8" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+            <path d="M12 8v8" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+          </>
+        )}
+      </svg>
+    );
+  }
+
+  const dash = symbol.strokePattern === 'dashed' ? '5 4' : symbol.strokePattern === 'dotted' ? '1 4' : undefined;
+  return (
+    <svg viewBox="0 0 32 24" aria-hidden="true" className="h-full w-full">
+      <path
+        d="M4 12H26"
+        fill="none"
+        stroke={symbol.strokeColor}
+        strokeWidth={Math.min(5, Math.max(1.5, symbol.strokeWidth))}
+        strokeLinecap="round"
+        strokeDasharray={dash}
+      />
+      {symbol.kind === 'arrow' && <path d="M22 7l6 5-6 5z" fill={symbol.strokeColor} />}
+      {symbol.kind === 'measurement' && (
+        <>
+          <circle cx="4" cy="12" r="2.5" fill="#ffffff" stroke={symbol.strokeColor} strokeWidth="1.5" />
+          <circle cx="26" cy="12" r="2.5" fill="#ffffff" stroke={symbol.strokeColor} strokeWidth="1.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function LegendEntryRow({
   entry,
   index,
@@ -850,66 +974,150 @@ function LegendEntryRow({
   const picking =
     pendingLegendFillSample?.legendId === legendId &&
     pendingLegendFillSample.entryIndex === index;
-  const fill = legendEntryFill(entry);
+  const symbol = legendEntrySymbol(entry);
+  const color = legendSymbolColor(symbol);
+  const isStrokeSymbol = symbol.kind === 'line' || symbol.kind === 'arrow' || symbol.kind === 'measurement';
+  const updateSymbol = (next: LegendSymbol) => onUpdate(legendEntryPatchFromSymbol(next));
+  const updateSymbolColor = (hex: string) => {
+    if (symbol.kind === 'fill') {
+      updateSymbol({ ...symbol, fillColor: hex, fillPattern: 'none' });
+      return;
+    }
+    if (symbol.kind === 'pin') {
+      updateSymbol({ ...symbol, pinColor: hex });
+      return;
+    }
+    updateSymbol({ ...symbol, strokeColor: hex });
+  };
   return (
-    <div className="grid grid-cols-[24px_1fr_28px_28px] items-center gap-1.5">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        disabled={disabled}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={t('annotation.ariaEntryColor', { n: index + 1 })}
-        className="relative h-6 w-6 rounded-[6px] border border-[var(--divider)] transition-transform hover:scale-105"
-        style={{
-          background: legendSwatchBackground(fill),
-          backgroundSize: legendSwatchBackgroundSize(fill),
-        }}
-      />
+    <div className="rounded-[9px] border border-[var(--divider)] bg-[var(--glass-thin)] p-2">
+      <div className="flex items-center gap-2">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={t('annotation.ariaEntryColor', { n: index + 1 })}
+          className="relative flex h-[30px] w-[30px] items-center justify-center rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] p-1 transition-transform hover:scale-105"
+        >
+          <LegendSymbolPreview symbol={symbol} />
+        </button>
+        <input
+          value={entry.label}
+          disabled={disabled}
+          onChange={(e) => onUpdate({ label: e.target.value })}
+          className="h-[30px] min-w-0 flex-1 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+        />
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (picking) cancelLegendFillSample();
+              else startLegendFillSample(legendId, index);
+            }}
+            disabled={disabled}
+            aria-label={t('annotation.ariaSampleEntrySymbol', { n: index + 1 })}
+            aria-pressed={picking}
+            title={t('annotation.pickLegendSymbol')}
+            className={`flex h-[26px] w-[26px] items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
+              picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
+            }`}
+          >
+            <Pipette size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            aria-label={t('annotation.ariaRemoveEntry', { n: index + 1 })}
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
       <ColorPickerPopover
         open={open}
         anchorRef={buttonRef}
-        value={fill.fillColor}
-        onChange={(hex) =>
-          onUpdate({
-            swatchColor: hex,
-            fillStyle: { ...fill, fillColor: hex, fillPattern: 'none' },
-          })
-        }
+        value={color}
+        onChange={updateSymbolColor}
         onClose={() => setOpen(false)}
       />
-      <input
-        value={entry.label}
-        disabled={disabled}
-        onChange={(e) => onUpdate({ label: e.target.value })}
-        className="min-w-0 rounded-[6px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
-      />
-      <button
-        type="button"
-        onClick={() => {
-          if (picking) cancelLegendFillSample();
-          else startLegendFillSample(legendId, index);
-        }}
-        disabled={disabled}
-        aria-label={t('annotation.ariaSampleEntryFill', { n: index + 1 })}
-        aria-pressed={picking}
-        title={t('annotation.pickShapeFill')}
-        className={`flex h-6 w-6 items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
-          picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
-        }`}
-      >
-        <Pipette size={12} />
-      </button>
-      <button
-        type="button"
-        onClick={onRemove}
-        disabled={disabled}
-        aria-label={t('annotation.ariaRemoveEntry', { n: index + 1 })}
-        className="flex h-6 w-6 items-center justify-center rounded-[6px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
-      >
-        <Trash2 size={12} />
-      </button>
+
+      <div className={`mt-1.5 grid gap-1.5 ${isStrokeSymbol ? 'grid-cols-[minmax(0,1fr)_64px]' : 'grid-cols-1'}`}>
+        <Select
+          value={symbol.kind}
+          disabled={disabled}
+          aria-label={t('annotation.legendSymbolType')}
+          onChange={(e) => updateSymbol(convertLegendSymbol(symbol, e.target.value as LegendSymbol['kind']))}
+        >
+          {LEGEND_SYMBOL_KINDS.map((kind) => (
+            <option key={kind.value} value={kind.value}>
+              {t(kind.labelKey)}
+            </option>
+          ))}
+        </Select>
+        {isStrokeSymbol && (
+          <Input
+            type="number"
+            min={1}
+            max={16}
+            value={symbol.strokeWidth}
+            disabled={disabled}
+            aria-label={t('annotation.width')}
+            onChange={(e) => updateSymbol({ ...symbol, strokeWidth: Number(e.target.value) })}
+          />
+        )}
+      </div>
+
+      {isStrokeSymbol && (
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          <Select
+            value={symbol.strokePattern}
+            disabled={disabled}
+            aria-label={t('annotation.pattern')}
+            onChange={(e) => updateSymbol({ ...symbol, strokePattern: e.target.value as StrokePattern })}
+          >
+            {STROKE_PATTERNS.map((pattern) => (
+              <option key={pattern.value} value={pattern.value}>
+                {t(pattern.labelKey)}
+              </option>
+            ))}
+          </Select>
+          {symbol.kind === 'line' && (
+            <Select
+              value={symbol.brushPreset ?? DEFAULT_ANNOTATION_STYLE.brushPreset}
+              disabled={disabled}
+              aria-label={t('annotation.preset')}
+              onChange={(e) => updateSymbol({ ...symbol, brushPreset: e.target.value as BrushPreset })}
+            >
+              {BRUSH_PRESETS.map((preset) => (
+                <option key={preset.value} value={preset.value}>
+                  {t(preset.labelKey)}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
+      )}
+      {symbol.kind === 'pin' && (
+        <div className="mt-1.5">
+          <Select
+            value={symbol.pinIcon}
+            disabled={disabled}
+            aria-label={t('annotation.icon')}
+            onChange={(e) => updateSymbol({ ...symbol, pinIcon: e.target.value as PinIcon })}
+          >
+            {PIN_ICONS.map((icon) => (
+              <option key={icon.value} value={icon.value}>
+                {t(icon.labelKey)}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
     </div>
   );
 }
@@ -939,6 +1147,7 @@ function LegendEntriesEditor({
       {
         label: t('annotation.newEntry'),
         swatchColor: '#34c759',
+        symbol: { kind: 'fill', fillColor: '#34c759', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
         fillStyle: { fillColor: '#34c759', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
         visible: true,
       },
@@ -948,11 +1157,18 @@ function LegendEntriesEditor({
       layers.map((layer) => ({
         label: layer.name,
         swatchColor: layer.style.fillColor,
+        symbol: {
+          kind: 'fill',
+          fillColor: layer.style.fillColor,
+          fillPattern: layer.style.fillPattern,
+          hatchColor: layer.style.hatchColor,
+          hatchSpacing: layer.style.hatchSpacing,
+        },
         fillStyle: {
           fillColor: layer.style.fillColor,
-          fillPattern: 'none',
-          hatchColor: '#0f172a',
-          hatchSpacing: 10,
+          fillPattern: layer.style.fillPattern,
+          hatchColor: layer.style.hatchColor,
+          hatchSpacing: layer.style.hatchSpacing,
         },
         visible: true,
       })),
@@ -1095,7 +1311,7 @@ function SelectedAnnotation({ annotation }: { annotation: Annotation }) {
         <div className="mt-1 text-[11px] capitalize text-[var(--text-3)]">
           {t('annotation.pinnedTo', {
             kind: kindLabel(annotation.kind, t),
-            anchor: annotation.anchorMode === 'canvas' ? t('annotation.pinToCanvas') : t('annotation.pinToMap'),
+            anchor: annotation.anchorMode === 'canvas' ? t('annotation.pinnedToCanvas') : t('annotation.pinnedToMap'),
           })}
         </div>
       </div>

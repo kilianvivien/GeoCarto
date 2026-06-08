@@ -39,28 +39,44 @@ describe('applySublayerVisibility', () => {
     expect(out.find((layer) => layer.id === 'water-1')).toBeDefined();
   });
 
-  it('treats labels as places + pois and landuse as landuse + landcover', () => {
+  it('can hide granular Protomaps source-layer groups', () => {
+    const out = applySublayerVisibility(layers, {
+      ...DEFAULT_BASEMAP_SUBLAYERS,
+      earth: false,
+      places: false,
+      pois: false,
+      landcover: false,
+    });
+    expect(out.find((layer) => layer.id === 'earth')).toBeUndefined();
+    expect(out.find((layer) => layer.id === 'places-1')).toBeUndefined();
+    expect(out.find((layer) => layer.id === 'pois-1')).toBeUndefined();
+    expect(out.find((layer) => layer.id === 'landcover-1')).toBeUndefined();
+    expect(out.find((layer) => layer.id === 'landuse-1')).toBeDefined();
+  });
+
+  it('keeps legacy labels aggregate support for saved projects', () => {
     const out = applySublayerVisibility(layers, {
       ...DEFAULT_BASEMAP_SUBLAYERS,
       labels: false,
-      landuse: false,
     });
     expect(out.find((layer) => layer.id === 'places-1')).toBeUndefined();
     expect(out.find((layer) => layer.id === 'pois-1')).toBeUndefined();
-    expect(out.find((layer) => layer.id === 'landuse-1')).toBeUndefined();
-    expect(out.find((layer) => layer.id === 'landcover-1')).toBeUndefined();
   });
 
-  it('preserves background / earth layers without a source-layer match', () => {
+  it('can hide every Protomaps source-layer group', () => {
     const out = applySublayerVisibility(layers, {
+      earth: false,
       roads: false,
       labels: false,
+      places: false,
+      pois: false,
       water: false,
+      landcover: false,
       landuse: false,
       buildings: false,
       boundaries: false,
     });
-    expect(out.find((layer) => layer.id === 'earth')).toBeDefined();
+    expect(out).toHaveLength(0);
   });
 });
 
@@ -116,5 +132,14 @@ describe('buildBasemapStyle', () => {
     if (typeof result === 'string') throw new Error('Expected parsed style, not URL');
     expect(result.version).toBe(8);
     expect(result.layers[0].id).toBe('background');
+  });
+
+  it('returns a transparent blank style for an empty basemap', () => {
+    const result = buildBasemapStyle({ kind: 'empty', name: 'Empty', attribution: '' });
+    if (typeof result === 'string') throw new Error('Expected style spec, not URL');
+    expect(result.sources).toEqual({});
+    expect(result.layers).toEqual([
+      { id: 'background', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } },
+    ]);
   });
 });

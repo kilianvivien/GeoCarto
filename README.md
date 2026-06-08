@@ -32,8 +32,8 @@ The target users are journalists, teachers, designers, and anyone who today fall
 ### Basemap and data
 - Open an interactive basemap (OSM-derived PMTiles via Protomaps) — no tile server or API key required
 - Switch between four built-in styles: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
-- Provide a custom MapLibre style URL as the basemap source
-- Toggle individual basemap sub-layers: roads, labels, water, landuse, buildings, boundaries
+- Provide a custom MapLibre style URL, PMTiles URL, static image, or empty canvas as the basemap source
+- Toggle individual basemap sub-layers: land, roads, places, POIs, water, land cover, landuse, buildings, boundaries
 - Import **GeoJSON, TopoJSON, KML, GPX, and Shapefile** — drag-drop or file picker
 - Inspect feature attributes; reorder, show/hide, lock, rename, and delete layers
 - Place GeoJSON layers as standard vector or switch them to a **GPU-accelerated heatmap** (deck.gl)

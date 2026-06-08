@@ -3,11 +3,12 @@ import type {
   AnnotationStyle,
   CartoProject,
   LegendFillStyle,
+  LegendSymbol,
   PinIcon,
 } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
-import { legendEntryFill } from '@/style/legendSwatches';
+import { legendEntrySymbol } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
@@ -104,6 +105,96 @@ function pinGlyphSvg(icon: PinIcon, color: string, size: number): string {
       // dot / flag / star / cross / target collapse to a filled dot in SVG (flattened).
       return `<circle r="${n(r)}" fill="${esc(color)}"${stroke}/>`;
   }
+}
+
+function legendSymbolDash(symbol: LegendSymbol): string {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return '';
+  switch (symbol.strokePattern) {
+    case 'dotted':
+      return ` stroke-dasharray="1 ${n(Math.max(3, symbol.strokeWidth * 1.8))}"`;
+    case 'dashed':
+      return ` stroke-dasharray="${n(Math.max(4, symbol.strokeWidth * 3))} ${n(Math.max(3, symbol.strokeWidth * 2))}"`;
+    case 'solid':
+      return '';
+  }
+}
+
+function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
+  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return symbol.strokeWidth * 1.8;
+    case 'pencil':
+      return Math.max(1, symbol.strokeWidth * 0.9);
+    case 'highlighter':
+      return symbol.strokeWidth * 3.5;
+    case 'round':
+    default:
+      return symbol.strokeWidth;
+  }
+}
+
+function legendSymbolOpacity(symbol: LegendSymbol): string {
+  if (symbol.kind !== 'line') return '';
+  switch (symbol.brushPreset) {
+    case 'marker':
+      return ' opacity="0.78"';
+    case 'pencil':
+      return ' opacity="0.68"';
+    case 'highlighter':
+      return ' opacity="0.42"';
+    default:
+      return '';
+  }
+}
+
+function legendSymbolSvg(
+  annotationId: string,
+  index: number,
+  symbol: LegendSymbol,
+  style: AnnotationStyle,
+  x: number,
+  y: number,
+  size: number,
+): string {
+  if (symbol.kind === 'fill') {
+    const fill: LegendFillStyle = {
+      fillColor: symbol.fillColor,
+      fillPattern: symbol.fillPattern,
+      hatchColor: symbol.hatchColor,
+      hatchSpacing: symbol.hatchSpacing,
+    };
+    return (
+      `<rect x="${n(x)}" y="${n(y)}" width="${n(size)}" height="${n(size)}" rx="3" fill="${esc(fill.fillColor)}" stroke="${esc(style.strokeColor)}" stroke-width="0.5"/>` +
+      hatchSvg(
+        `${annotationId}-entry-${index}`,
+        fill,
+        `<rect x="${n(x)}" y="${n(y)}" width="${n(size)}" height="${n(size)}" rx="3"/>`,
+        { x, y, width: size, height: size },
+      )
+    );
+  }
+  if (symbol.kind === 'pin') {
+    return `<g transform="translate(${n(x + size / 2)},${n(y + size / 2)})">${pinGlyphSvg(symbol.pinIcon, symbol.pinColor, size * 0.82)}</g>`;
+  }
+
+  const cy = y + size / 2;
+  const strokeWidth = n(legendSymbolStrokeWidth(symbol));
+  const dash = legendSymbolDash(symbol);
+  const opacity = legendSymbolOpacity(symbol);
+  const line = `<line x1="${n(x)}" y1="${n(cy)}" x2="${n(x + size)}" y2="${n(cy)}" stroke="${esc(symbol.strokeColor)}" stroke-width="${strokeWidth}" stroke-linecap="round"${dash}${opacity}/>`;
+  if (symbol.kind === 'arrow') {
+    const head = Math.max(6, size * 0.34);
+    return line + `<polygon points="${n(x + size)},${n(cy)} ${n(x + size - head)},${n(cy - head / 2)} ${n(x + size - head)},${n(cy + head / 2)}" fill="${esc(symbol.strokeColor)}"/>`;
+  }
+  if (symbol.kind === 'measurement') {
+    return (
+      line.replace('/>', dash ? '/>' : ' stroke-dasharray="6 5"/>') +
+      `<circle cx="${n(x)}" cy="${n(cy)}" r="${n(Math.max(2, size * 0.16))}" fill="#ffffff" stroke="${esc(symbol.strokeColor)}" stroke-width="1.5"/>` +
+      `<circle cx="${n(x + size)}" cy="${n(cy)}" r="${n(Math.max(2, size * 0.16))}" fill="#ffffff" stroke="${esc(symbol.strokeColor)}" stroke-width="1.5"/>`
+    );
+  }
+  return line;
 }
 
 /** Emit one annotation as an SVG group positioned in frame coordinates. */
@@ -212,14 +303,7 @@ function annotationToSvg(
       });
       visible.forEach((entry, index) => {
         const y = padding + (style.textSize + 6) + index * rowHeight;
-        const ef = legendEntryFill(entry);
-        body += `<rect x="${n(padding)}" y="${n(y)}" width="${n(swatch)}" height="${n(swatch)}" rx="3" fill="${esc(ef.fillColor)}" stroke="${esc(style.strokeColor)}" stroke-width="0.5"/>`;
-        body += hatchSvg(
-          `${annotation.id}-entry-${index}`,
-          ef,
-          `<rect x="${n(padding)}" y="${n(y)}" width="${n(swatch)}" height="${n(swatch)}" rx="3"/>`,
-          { x: padding, y, width: swatch, height: swatch },
-        );
+        body += legendSymbolSvg(annotation.id, index, legendEntrySymbol(entry), style, padding, y, swatch);
         body += textEl(entry.label, padding + swatch + 8, y, style);
       });
       break;

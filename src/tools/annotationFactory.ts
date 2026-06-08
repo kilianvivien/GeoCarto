@@ -96,12 +96,14 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
           {
             label: translate('sample.legendEntry'),
             swatchColor: '#007aff',
+            symbol: { kind: 'fill', fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             fillStyle: { fillColor: '#007aff', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             visible: true,
           },
           {
             label: translate('sample.legendAnotherEntry'),
             swatchColor: '#ff9500',
+            symbol: { kind: 'fill', fillColor: '#ff9500', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             fillStyle: { fillColor: '#ff9500', fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
             visible: true,
           },

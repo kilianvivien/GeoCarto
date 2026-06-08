@@ -86,9 +86,13 @@ function validateProject(value: unknown): asserts value is CartoProject {
   const basemapKind = (value.basemap as { kind?: unknown }).kind;
   if (basemapKind === 'builtin' || basemapKind === 'pmtiles-url') {
     const current = (value.basemap as { sublayers?: unknown }).sublayers;
+    const labelsHidden = isObject(current) && current.labels === false;
+    const landuseHidden = isObject(current) && current.landuse === false;
     (value.basemap as { sublayers: unknown }).sublayers = {
       ...DEFAULT_BASEMAP_SUBLAYERS,
       ...(isObject(current) ? current : {}),
+      ...(labelsHidden ? { places: false, pois: false } : {}),
+      ...(landuseHidden ? { landcover: false } : {}),
     };
   }
   if (!('lockedMapView' in value)) value.lockedMapView = null;
@@ -130,13 +134,55 @@ function validateProject(value: unknown): asserts value is CartoProject {
         if (!isObject(entry)) continue;
         const swatchColor = typeof entry.swatchColor === 'string' ? entry.swatchColor : DEFAULT_ANNOTATION_STYLE.fillColor;
         entry.swatchColor = swatchColor;
-        entry.fillStyle = {
+        const fillStyle = {
           fillColor: swatchColor,
           fillPattern: 'none',
           hatchColor: DEFAULT_ANNOTATION_STYLE.hatchColor,
           hatchSpacing: DEFAULT_ANNOTATION_STYLE.hatchSpacing,
           ...(isObject(entry.fillStyle) ? entry.fillStyle : {}),
         };
+        entry.fillStyle = fillStyle;
+        const symbol = isObject(entry.symbol) ? entry.symbol : null;
+        switch (symbol?.kind) {
+          case 'fill': {
+            const normalizedFillSymbol = {
+              kind: 'fill',
+              fillColor: typeof symbol.fillColor === 'string' ? symbol.fillColor : fillStyle.fillColor,
+              fillPattern: typeof symbol.fillPattern === 'string' ? symbol.fillPattern : fillStyle.fillPattern,
+              hatchColor: typeof symbol.hatchColor === 'string' ? symbol.hatchColor : fillStyle.hatchColor,
+              hatchSpacing: typeof symbol.hatchSpacing === 'number' ? symbol.hatchSpacing : fillStyle.hatchSpacing,
+            };
+            entry.symbol = normalizedFillSymbol;
+            entry.swatchColor = normalizedFillSymbol.fillColor;
+            entry.fillStyle = {
+              fillColor: normalizedFillSymbol.fillColor,
+              fillPattern: normalizedFillSymbol.fillPattern,
+              hatchColor: normalizedFillSymbol.hatchColor,
+              hatchSpacing: normalizedFillSymbol.hatchSpacing,
+            };
+            break;
+          }
+          case 'line':
+          case 'arrow':
+          case 'measurement':
+            entry.symbol = {
+              kind: symbol.kind,
+              strokeColor: typeof symbol.strokeColor === 'string' ? symbol.strokeColor : DEFAULT_ANNOTATION_STYLE.strokeColor,
+              strokeWidth: typeof symbol.strokeWidth === 'number' ? symbol.strokeWidth : DEFAULT_ANNOTATION_STYLE.strokeWidth,
+              strokePattern: typeof symbol.strokePattern === 'string' ? symbol.strokePattern : DEFAULT_ANNOTATION_STYLE.strokePattern,
+              brushPreset: typeof symbol.brushPreset === 'string' ? symbol.brushPreset : undefined,
+            };
+            break;
+          case 'pin':
+            entry.symbol = {
+              kind: 'pin',
+              pinColor: typeof symbol.pinColor === 'string' ? symbol.pinColor : DEFAULT_ANNOTATION_STYLE.pinColor,
+              pinIcon: typeof symbol.pinIcon === 'string' ? symbol.pinIcon : DEFAULT_ANNOTATION_STYLE.pinIcon,
+            };
+            break;
+          default:
+            entry.symbol = { kind: 'fill', ...fillStyle };
+        }
       }
     }
   }
