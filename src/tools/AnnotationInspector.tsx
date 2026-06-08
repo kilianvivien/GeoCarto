@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Lock, MapPinned, MousePointer2, Palette, Pipette, Plus, Trash2 } from 'lucide-react';
+import { Lock, MapPinned, MousePointer2, Palette, Pipette, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { ColorPickerPopover } from '@/ui/ColorPickerPopover';
 import { Swatches } from '@/ui/Swatches';
 import type {
@@ -151,20 +151,20 @@ function Hint({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+      className={`min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)] ${className ?? ''}`}
     />
   );
 }
 
-function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className="min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+      className={`min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)] ${className ?? ''}`}
     />
   );
 }
@@ -950,6 +950,25 @@ function LegendSymbolPreview({ symbol }: { symbol: LegendSymbol }) {
   );
 }
 
+function MiniField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`flex min-w-0 flex-col gap-1 ${className ?? ''}`}>
+      <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--text-3)]">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
 function LegendEntryRow({
   entry,
   index,
@@ -990,7 +1009,7 @@ function LegendEntryRow({
     updateSymbol({ ...symbol, strokeColor: hex });
   };
   return (
-    <div className="rounded-[9px] border border-[var(--divider)] bg-[var(--glass-thin)] p-2">
+    <div className="flex flex-col gap-2 rounded-[10px] border border-[var(--divider)] bg-[var(--glass-thin)] p-2.5">
       <div className="flex items-center gap-2">
         <button
           ref={buttonRef}
@@ -1000,17 +1019,18 @@ function LegendEntryRow({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={t('annotation.ariaEntryColor', { n: index + 1 })}
-          className="relative flex h-[30px] w-[30px] items-center justify-center rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] p-1 transition-transform hover:scale-105"
+          className="relative flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] p-1 transition-transform hover:scale-105"
         >
           <LegendSymbolPreview symbol={symbol} />
         </button>
-        <input
+        <Input
           value={entry.label}
           disabled={disabled}
+          aria-label={t('annotation.ariaEntryLabel', { n: index + 1 })}
           onChange={(e) => onUpdate({ label: e.target.value })}
-          className="h-[30px] min-w-0 flex-1 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+          className="h-[30px] flex-1 py-0"
         />
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center">
           <button
             type="button"
             onClick={() => {
@@ -1021,20 +1041,20 @@ function LegendEntryRow({
             aria-label={t('annotation.ariaSampleEntrySymbol', { n: index + 1 })}
             aria-pressed={picking}
             title={t('annotation.pickLegendSymbol')}
-            className={`flex h-[26px] w-[26px] items-center justify-center rounded-[6px] hover:bg-[var(--hover)] disabled:opacity-40 ${
+            className={`flex h-[28px] w-[28px] items-center justify-center rounded-[7px] hover:bg-[var(--hover)] disabled:opacity-40 ${
               picking ? 'bg-[var(--accent)] text-[var(--text-on-accent)]' : 'text-[var(--text-3)] hover:text-[var(--text-2)]'
             }`}
           >
-            <Pipette size={12} />
+            <Pipette size={13} />
           </button>
           <button
             type="button"
             onClick={onRemove}
             disabled={disabled}
             aria-label={t('annotation.ariaRemoveEntry', { n: index + 1 })}
-            className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)]"
+            className="flex h-[28px] w-[28px] items-center justify-center rounded-[7px] text-[var(--text-3)] hover:bg-[var(--hover)] hover:text-[var(--text-2)] disabled:opacity-40"
           >
-            <Trash2 size={12} />
+            <Trash2 size={13} />
           </button>
         </div>
       </div>
@@ -1046,47 +1066,61 @@ function LegendEntryRow({
         onClose={() => setOpen(false)}
       />
 
-      <div className={`mt-1.5 grid gap-1.5 ${isStrokeSymbol ? 'grid-cols-[minmax(0,1fr)_64px]' : 'grid-cols-1'}`}>
-        <Select
-          value={symbol.kind}
-          disabled={disabled}
-          aria-label={t('annotation.legendSymbolType')}
-          onChange={(e) => updateSymbol(convertLegendSymbol(symbol, e.target.value as LegendSymbol['kind']))}
+      <div className="grid grid-cols-2 gap-x-2 gap-y-2">
+        <MiniField
+          label={t('annotation.type')}
+          className={isStrokeSymbol || symbol.kind === 'pin' ? undefined : 'col-span-2'}
         >
-          {LEGEND_SYMBOL_KINDS.map((kind) => (
-            <option key={kind.value} value={kind.value}>
-              {t(kind.labelKey)}
-            </option>
-          ))}
-        </Select>
-        {isStrokeSymbol && (
-          <Input
-            type="number"
-            min={1}
-            max={16}
-            value={symbol.strokeWidth}
-            disabled={disabled}
-            aria-label={t('annotation.width')}
-            onChange={(e) => updateSymbol({ ...symbol, strokeWidth: Number(e.target.value) })}
-          />
-        )}
-      </div>
-
-      {isStrokeSymbol && (
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           <Select
-            value={symbol.strokePattern}
+            value={symbol.kind}
             disabled={disabled}
-            aria-label={t('annotation.pattern')}
-            onChange={(e) => updateSymbol({ ...symbol, strokePattern: e.target.value as StrokePattern })}
+            aria-label={t('annotation.legendSymbolType')}
+            onChange={(e) => updateSymbol(convertLegendSymbol(symbol, e.target.value as LegendSymbol['kind']))}
           >
-            {STROKE_PATTERNS.map((pattern) => (
-              <option key={pattern.value} value={pattern.value}>
-                {t(pattern.labelKey)}
+            {LEGEND_SYMBOL_KINDS.map((kind) => (
+              <option key={kind.value} value={kind.value}>
+                {t(kind.labelKey)}
               </option>
             ))}
           </Select>
-          {symbol.kind === 'line' && (
+        </MiniField>
+
+        {isStrokeSymbol && (
+          <MiniField label={t('annotation.width')}>
+            <Input
+              type="number"
+              min={1}
+              max={16}
+              value={symbol.strokeWidth}
+              disabled={disabled}
+              aria-label={t('annotation.width')}
+              onChange={(e) => updateSymbol({ ...symbol, strokeWidth: Number(e.target.value) })}
+            />
+          </MiniField>
+        )}
+
+        {isStrokeSymbol && (
+          <MiniField
+            label={t('annotation.pattern')}
+            className={symbol.kind === 'line' ? undefined : 'col-span-2'}
+          >
+            <Select
+              value={symbol.strokePattern}
+              disabled={disabled}
+              aria-label={t('annotation.pattern')}
+              onChange={(e) => updateSymbol({ ...symbol, strokePattern: e.target.value as StrokePattern })}
+            >
+              {STROKE_PATTERNS.map((pattern) => (
+                <option key={pattern.value} value={pattern.value}>
+                  {t(pattern.labelKey)}
+                </option>
+              ))}
+            </Select>
+          </MiniField>
+        )}
+
+        {symbol.kind === 'line' && (
+          <MiniField label={t('annotation.preset')}>
             <Select
               value={symbol.brushPreset ?? DEFAULT_ANNOTATION_STYLE.brushPreset}
               disabled={disabled}
@@ -1099,25 +1133,26 @@ function LegendEntryRow({
                 </option>
               ))}
             </Select>
-          )}
-        </div>
-      )}
-      {symbol.kind === 'pin' && (
-        <div className="mt-1.5">
-          <Select
-            value={symbol.pinIcon}
-            disabled={disabled}
-            aria-label={t('annotation.icon')}
-            onChange={(e) => updateSymbol({ ...symbol, pinIcon: e.target.value as PinIcon })}
-          >
-            {PIN_ICONS.map((icon) => (
-              <option key={icon.value} value={icon.value}>
-                {t(icon.labelKey)}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
+          </MiniField>
+        )}
+
+        {symbol.kind === 'pin' && (
+          <MiniField label={t('annotation.icon')}>
+            <Select
+              value={symbol.pinIcon}
+              disabled={disabled}
+              aria-label={t('annotation.icon')}
+              onChange={(e) => updateSymbol({ ...symbol, pinIcon: e.target.value as PinIcon })}
+            >
+              {PIN_ICONS.map((icon) => (
+                <option key={icon.value} value={icon.value}>
+                  {t(icon.labelKey)}
+                </option>
+              ))}
+            </Select>
+          </MiniField>
+        )}
+      </div>
     </div>
   );
 }
@@ -1210,17 +1245,19 @@ function LegendEntriesEditor({
           type="button"
           onClick={addEntry}
           disabled={disabled}
-          className="flex items-center gap-1 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
         >
-          <Plus size={11} /> {t('annotation.addRow')}
+          <Plus size={13} /> {t('annotation.addRow')}
         </button>
         <button
           type="button"
           onClick={syncFromLayers}
           disabled={disabled || layers.length === 0}
-          className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
+          aria-label={t('annotation.syncFromLayers')}
+          title={t('annotation.syncFromLayers')}
+          className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] disabled:opacity-50"
         >
-          {t('annotation.syncFromLayers')}
+          <RefreshCw size={13} />
         </button>
       </div>
     </Section>
