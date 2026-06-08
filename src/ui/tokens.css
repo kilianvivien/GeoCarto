@@ -57,6 +57,10 @@ html[data-theme='light'] {
 
   --glass-sheen: rgba(255, 255, 255, 0.9);
 
+  /* Checkerboard that stands in for a transparent page on the empty canvas. */
+  --checker-light: #ffffff;
+  --checker-dark: #d6d6dc;
+
   --wallpaper:
     radial-gradient(1200px 800px at 15% 10%, #cfe1ff 0%, transparent 55%),
     radial-gradient(1000px 700px at 90% 20%, #ffd9e7 0%, transparent 50%),
@@ -88,6 +92,10 @@ html[data-theme='dark'] {
   --active: rgba(255, 255, 255, 0.09);
 
   --glass-sheen: rgba(255, 255, 255, 0.06);
+
+  /* Checkerboard that stands in for a transparent page on the empty canvas. */
+  --checker-light: #34343a;
+  --checker-dark: #26262b;
 
   --wallpaper:
     radial-gradient(1200px 800px at 15% 10%, #1a2647 0%, transparent 55%),

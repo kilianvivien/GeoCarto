@@ -99,10 +99,36 @@ function containFrame(width: number, height: number, aspect: number) {
   };
 }
 
-function pageBackgroundCss(background: PageBackground | undefined) {
-  if (!background || background === 'white') return '#ffffff';
-  if (background === 'transparent') return 'transparent';
-  return background;
+const CHECKER_SIZE = 16;
+const CHECKER_HALF = CHECKER_SIZE / 2;
+
+/**
+ * Surface background for the empty (page-only) basemap. A transparent page is
+ * drawn as a checkerboard — the editor-only stand-in image software uses so the
+ * canvas stays visible. Export renders true transparency (see export/raster.ts).
+ */
+function emptyCanvasBackgroundStyle(background: PageBackground | undefined): React.CSSProperties {
+  if (background === 'transparent') {
+    return {
+      backgroundColor: 'var(--checker-light)',
+      backgroundImage:
+        'linear-gradient(45deg, var(--checker-dark) 25%, transparent 25%),' +
+        'linear-gradient(-45deg, var(--checker-dark) 25%, transparent 25%),' +
+        'linear-gradient(45deg, transparent 75%, var(--checker-dark) 75%),' +
+        'linear-gradient(-45deg, transparent 75%, var(--checker-dark) 75%)',
+      backgroundSize: `${CHECKER_SIZE}px ${CHECKER_SIZE}px`,
+      backgroundPosition: `0 0, 0 ${CHECKER_HALF}px, ${CHECKER_HALF}px -${CHECKER_HALF}px, -${CHECKER_HALF}px 0`,
+    };
+  }
+  // Always use the same longhand properties so React clears the checkerboard
+  // when switching away from transparent (mixing `background` shorthand with the
+  // longhands above leaves stale layers behind).
+  return {
+    backgroundColor: !background || background === 'white' ? '#ffffff' : background,
+    backgroundImage: 'none',
+    backgroundSize: 'auto',
+    backgroundPosition: '0 0',
+  };
 }
 
 /**
@@ -258,7 +284,7 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
           top: surface.y,
           width: surface.width,
           height: surface.height,
-          background: basemap.kind === 'empty' ? pageBackgroundCss(exportFrame.background) : undefined,
+          ...(basemap.kind === 'empty' ? emptyCanvasBackgroundStyle(exportFrame.background) : null),
           transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewZoom})`,
           transformOrigin: '0 0',
         }}
