@@ -24,6 +24,9 @@ best described as **Phase 3 closeout / stabilization**:
 
 The milestone order below reflects that reality: finish the current product surface
 and safety rails before adding deeper GIS, print-production, or collaboration scope.
+Web and macOS desktop remain co-equal targets: desktop capabilities can be additive,
+but every shipped feature should preserve user-facing parity unless a milestone
+explicitly says otherwise.
 
 ---
 
@@ -236,6 +239,12 @@ confidence and desktop/data reliability before deeper feature work.
 - ⬜ Add unit tests for i18n catalog completeness.
 - ⬜ Add Playwright flows for locale switching, settings persistence, and remaining
   tooltip coverage.
+- ⬜ Add accessibility/keyboard closeout: Settings focus trap, Escape-to-close,
+  tab `aria-controls`, and keyboard-only coverage for modal and toolbar flows.
+- ⬜ Replace remaining native `title=` affordances with the glass tooltip system.
+- ⬜ Add a command palette / shortcut reference powered by the existing
+  `AppCommand` model so web chrome, keyboard shortcuts, and native menu commands
+  stay discoverable from one place.
 - ⬜ Keep bundle-budget green after worker/import and desktop changes.
 
 ### M24 — Desktop File and Basemap Reliability 🟡
@@ -243,18 +252,31 @@ confidence and desktop/data reliability before deeper feature work.
 - ⬜ Fix desktop drag-drop import. Current issue: Tauri intercepts OS drops through
   `tauri://drag-drop`, while the web handler expects `dataTransfer.files`.
 - ⬜ Support local PMTiles file basemaps on desktop through the native FS path.
-- ⬜ Persist local basemap references in a way that survives save/reopen.
+- ⬜ Persist local PMTiles basemap references as absolute native paths for now.
+  Portability/relinking can come later; current priority is reliable save/reopen
+  on the same machine.
+- ⬜ Validate missing/stale local basemap paths on open and show a clear recovery
+  state instead of silently falling back or failing the map.
+- ⬜ Tighten/review Tauri filesystem capability scope once local basemap paths and
+  offline cache locations are settled.
+- ⬜ Keep desktop and web feature parity explicit: any desktop-only path must have
+  a web fallback, and any web-only feature should either work in Tauri or be
+  listed as a known gap.
 - ⬜ Add desktop regression coverage for picker import, drag-drop import, save/open,
   and export where practical.
 
 ### M25 — Import and Export Technical Debt 🟡
 
-- ⬜ Move TopoJSON/KML/GPX/Shapefile parsing to a worker thread.
-- ⬜ Preserve progress/error reporting for large imports.
+- ⬜ Move TopoJSON/KML/GPX/Shapefile parsing to an import-job worker layer.
+- ⬜ Preserve progress/error reporting for large imports, with cancellation and
+  per-file status.
+- ⬜ Add file-size / memory guardrails for very large imports and embedded images.
 - ⬜ Export edited GeoJSON features as real SVG vector paths instead of baking them
   into the map raster.
 - ⬜ Decide whether vector GeoJSON SVG output is controlled by layer setting,
   export setting, or automatic capability detection.
+- ⬜ Add an export fidelity matrix in the export dialog/tests that explains what
+  stays editable per format and what is flattened/rasterized.
 
 ### M26 — Performance Acceptance 🟡
 
@@ -264,12 +286,27 @@ confidence and desktop/data reliability before deeper feature work.
 - ⬜ Verify 10 MB import parse + render target after worker migration.
 - ⬜ Verify PNG export target for 4000x3000 @2x.
 - ⬜ Verify desktop cold start and memory target.
+- ⬜ Emit trendable performance artifacts in CI: cold start, import parse/render,
+  vector-edit interaction, export time, heap, and bundle sizes.
+- ⬜ Add storage-health reporting for autosave/recents: detect IndexedDB/quota
+  failures, show a non-blocking warning, and expose cache/draft size in Settings.
 
-### M27 — Offline Basemap Packs ⬜
+### M27 — Managed Offline Basemap Cache ⬜
 
-- ⬜ First-run choice for bundled/downloaded regional basemap packs.
-- ⬜ Settings surface for managing downloaded packs.
-- ⬜ Clear fallback when offline packs are missing or unavailable.
+- ⬜ Add a Settings-managed "Offline basemaps" surface where users can cache a
+  country, region, or custom bounding box into the app's data directory.
+- ⬜ Let users choose a maximum zoom/detail level before download.
+- ⬜ Estimate download size and on-disk size before caching; show the selected
+  area, zoom range, and expected storage impact before confirmation.
+- ⬜ Store cached basemap archives/tiles in app data, not inside `.cartoproj`.
+- ⬜ Let projects reference a managed cached basemap by stable cache id plus human
+  label; keep local PMTiles absolute-path support separate from managed caches.
+- ⬜ Provide pause/cancel/delete controls, last-updated metadata, and cache-size
+  cleanup from Settings.
+- ⬜ Use cached basemaps automatically when available, with a clear fallback to
+  online basemaps when a cache is missing, stale, or outside its covered area.
+- ⬜ Preserve web/macOS parity where possible: web may use browser storage quotas
+  and desktop may use app data, but the user-facing cache workflow should match.
 
 ---
 
@@ -361,19 +398,22 @@ stable.
   terra-draw, and export code are projections/renderers of that model.
 - App-level preferences live in `localStorage` and remain separate from per-project
   `.cartoproj` state.
+- Managed offline basemap caches live in app/browser data, not inside `.cartoproj`;
+  projects reference them by id/metadata. Desktop local PMTiles file basemaps may
+  use absolute native paths until a relink/portable asset workflow is designed.
 - Annotation editing happens on the Konva stage above MapLibre.
 - Data-layer editing uses `terra-draw` as a controlled editor; commits update the
   layer `FeatureCollection`.
 - Desktop behavior is additive and guarded by `isTauri()` so the web app remains a
-  first-class target.
+  first-class target; web and macOS should keep feature parity at the user-facing
+  workflow level.
 
 ## Open Questions
 
-- How should desktop local PMTiles paths be represented inside `.cartoproj` without
-  breaking project portability?
-- Should offline basemap packs be bundled, downloaded on demand, or both?
 - What fidelity bar is required before SVG data layers switch from raster fallback
   to default vector output?
 - Which print-house requirements matter first: editable-vector PDF, CMYK/ICC,
   bleed/margins, or templates?
 - What is the French terminology owner/process for future cartographic strings?
+- Which source/provider and licensing model should power managed country/region
+  basemap cache downloads?
