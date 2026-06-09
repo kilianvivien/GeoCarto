@@ -1,531 +1,379 @@
-# GeoCarto — Implementation Progress
+# GeoCarto — Implementation Plan
 
-Tracks delivery against `docs-mocks/PRD.md` and `docs-mocks/PHASE1_IMPLEMENTATION_PLAN.md`.
+Tracks delivery against [PRD.md](PRD.md), the archived Phase 1/2 plans, and the
+active [PHASE3_IMPLEMENTATION_PLAN.md](PHASE3_IMPLEMENTATION_PLAN.md).
+
 Status legend: ✅ done · 🟡 in progress · ⬜ not started · ➡️ moved to a later phase.
 
-GeoCarto is a "Figma for maps" — an open-canvas cartography editor that runs in
-the browser (Phase 1) and as a native macOS app. Five delivery phases:
-**Phase 1 / MVP exit hardening**, **Phase 2 / v1 Editorial**,
-**Phase 3 / Editable Data & Reach**, **Phase 4 / Cartographic Depth & Print
-Production**, and **Phase 5 / Collaboration, Platform & Extensibility**.
+## Current Stage
 
-Detailed phase plans live alongside this tracker:
-`docs-mocks/PHASE1_IMPLEMENTATION_PLAN.md` and
-`docs-mocks/PHASE3_IMPLEMENTATION_PLAN.md`.
+GeoCarto is no longer in the Phase 1 browser-MVP stage. As of `0.2.2`, the app is
+best described as **Phase 3 closeout / stabilization**:
 
----
+- ✅ Browser MVP is complete: basemap setup, GeoJSON import, annotations,
+  `.cartoproj` save/reopen/autosave, and high-DPI raster export.
+- ✅ Editorial v1 is mostly complete: multi-tab projects, undo/redo, canvas aids,
+  richer annotation styling, map furniture, legend builder, broad import support,
+  SVG export, and raster-in-PDF export.
+- ✅ Core editable-data work is complete: imported GeoJSON can be edited, drawn,
+  deleted, inspected, and exported back to GeoJSON.
+- ✅ macOS desktop shell exists via Tauri 2, with native open/save/export dialogs.
+- 🟡 The remaining near-term work is not another MVP pass; it is closeout work:
+  desktop file-drop/local-basemap gaps, import/export technical debt, CI/coverage,
+  and performance acceptance around the now-larger editor.
 
-## Phase 1 / MVP — browser core loop ✅ Exit complete
-
-Goal: open a basemap, import GeoJSON, annotate, save/reopen a project, and export
-a high-DPI raster from a fixed composition frame.
-
-### Milestone 1 — Project Foundation ✅
-
-- ✅ Vite + React 19 + TypeScript (strict)
-- ✅ Tailwind v4, Lucide icons
-- ✅ MapLibre, PMTiles, Konva/react-konva, Zustand, Immer installed
-- ✅ Vitest + Playwright configured
-- ✅ PRD-mirrored `src/` folders; lint / typecheck / test scripts
-- Note: shadcn baseline deferred — the design system is custom liquid-glass.
-
-### Milestone 2 — Map Canvas and Basemap ✅
-
-- ✅ `MapView` with MapLibre init and viewport state sync
-- ✅ PMTiles protocol registered once at app root
-- ✅ Default editorial basemap (remote Protomaps demo PMTiles, light/dark flavors)
-- ✅ Pan/zoom, zoom + coordinate display, attribution, export frame overlay
-- ✅ macOS liquid-glass app shell; light/dark theme with basemap restyle
-- ✅ Required basemap setup flow: choose source, frame map, lock map before editing
-
-### Milestone 3 — Document Model and Layers ✅
-
-- ✅ `.cartoproj` schema (metadata, viewport, export frame, layers, styles)
-- ✅ Document store: add, rename, reorder, lock, hide, delete, select
-- ✅ GeoJSON import (file picker + drag-drop) with toast feedback
-- ✅ Render imported GeoJSON as MapLibre sources/layers
-- ✅ Layer panel + attribute inspector
-- Note: annotation objects join the `.cartoproj` schema in Milestone 4.
-
-### Milestone 4 — Annotation Tools ✅
-
-- ✅ Konva annotation stage, camera-synced to MapView
-- ✅ Selection/move tool with Figma-style transformer handles
-- ✅ Text, rectangle, ellipse, line/arrow, polygon, point pin tools
-- ✅ Inspector controls: fill, stroke, opacity, text size/color, pin color/icon
-- ✅ Font choice from a small bundled set
-- ✅ Object lock/hide; geo vs canvas anchoring ("Pin to map" / "Pin to canvas")
-- ✅ Phase 1 tool gate locked by a vitest invariant: any Phase 2-flagged tool
-must stay disabled until its owning Phase 2 milestone lands.
-- ✅ Keyboard shortcuts gated by `isToolEnabled`; Phase 2 shortcuts no-op.
-- Note: annotations are serializable in `.cartoproj`; save/autosave/export lands in Milestone 5.
-
-### Milestone 5 — Save, Autosave, and Export ✅
-
-- ✅ Save/open plain `.cartoproj` JSON (File System Access API + download/upload fallback)
-- ✅ Browser autosave every 10s (IndexedDB), now keyed per session, with a
-multi-draft recovery prompt that restores each tab independently (M8).
-- ✅ PNG/JPEG export from the export frame at 1x / 2x / custom scale
-- ✅ White or transparent background; JPEG quality slider
-- ✅ Basemap + GeoJSON + annotations composited into the raster export
-- ✅ New/Close prompts before discarding dirty work; Open now lands the file in
-a fresh tab instead of replacing the active session.
-- 🟡 Local PMTiles file basemaps remain disabled in Phase 1 web (`blob:` URLs
-can't survive save/reopen). M11 left this open for web; the desktop FS path in
-**Phase 3 / M23** resolves it.
-- 🟡 Static PDF basemap export deferred to the SVG/PDF pipeline in Milestone 15.
-
-### Milestone 6 — Verification and Stabilization ✅
-
-- ✅ Playwright flows: first run, import, annotation, round-trip, autosave, export
-- ✅ Unit tests: schema migration/defaulting, layer ordering, annotation
-updates, session registry, undo/redo round-trip.
-- ✅ Export visual-diff harness compares the PNG against a committed baseline
-with a `maxDiffPixelRatio` tolerance; a seeded 8 px pin shift breaks the
-baseline as proof the harness catches drift.
-- ✅ Performance smoke imports the deterministic 10 MB `large.geojson` fixture
-(regenerable via `npm run fixtures:large`) and enforces PRD §7 cold
-start, import, export, and heap thresholds with CI headroom.
-- ✅ MapLibre, Konva, PMTiles, and the raster exporter are each in their own
-Rollup chunk; `npm run bundle-budget` fails CI on regression.
+The milestone order below reflects that reality: finish the current product surface
+and safety rails before adding deeper GIS, print-production, or collaboration scope.
 
 ---
 
-## Phase 1 Exit Audit & Hardening ✅
+## Shipped Foundation ✅
 
-Closed out by Milestone 7. Phase 2 work now sits on a clean Phase 1 base.
+### M1 — Project Foundation ✅
 
-- ✅ Phase 2 toolbar controls remain inert; the Snap, Share, Ruler, Marquee,
-Paint, Image, Legend, and Comment buttons keep their disabled state and
-a vitest invariant fails if anyone flips one on without shipping its
-milestone. Undo/Redo are no longer Phase 2 placeholders — see M9.
-- ✅ GeoJSON layer style controls in the inspector, persisted in `.cartoproj`.
-- ✅ Locked layers can't be renamed, deleted, reordered, or restyled.
-- ✅ Dirty-document guards on New, Open, Close, and Autosave Restore.
-- ✅ Local PMTiles file selection blocked in Phase 1 web.
-- ✅ Export visual/pixel diff harness against the visible composition frame
-(`tests/e2e/export-visual-diff.spec.ts`).
-- ✅ Performance acceptance uses the 10 MB `large.geojson` fixture and enforces
-cold start, import, export, and memory thresholds with CI headroom.
-- ✅ MapLibre/Konva/PMTiles/raster export each ship in their own chunk; the
-`bundle-budget` script gates regressions.
+- ✅ Vite 7 + React 19 + TypeScript strict mode.
+- ✅ Tailwind v4, Lucide icons, custom liquid-glass UI layer.
+- ✅ MapLibre GL, PMTiles, Konva/react-konva, Zustand, Immer.
+- ✅ Vitest + Playwright.
+- ✅ PRD-aligned `src/` domains and `@/` alias.
+- Note: shadcn remains configured in the project, but the active UI system is custom.
 
----
+### M2 — Map Canvas and Basemap ✅
 
-## Phase 2 / v1 Editorial — production-grade editorial tool
+- ✅ MapLibre `MapView` with viewport state sync.
+- ✅ PMTiles protocol registration.
+- ✅ Built-in Protomaps editorial basemaps: light, dark, minimal grey, print B&W.
+- ✅ Basemap setup flow: choose source, frame map, lock map before editing.
+- ✅ Pan/zoom, zoom and coordinate display, attribution, export-frame overlay.
+- ✅ Light/dark app shell with basemap restyling.
 
-### Project & Document Workflow 🟡
+### M3 — Document Model and Layers ✅
 
-- ✅ Multi-project sessions/tabs (M8):
-  - ✅ `ProjectSession { id, autosaveKey, lastActiveAt, snapshot }` and
-  `activeSessionId` in `useSessionsStore`; doc store stays the active-tab
-  view so Phase 1 consumers are unchanged.
-  - ✅ Tab bar with New, Close, drag-to-reorder, and per-tab dirty indicator.
-  - ✅ New opens a fresh blank tab; Open lands the file in a new tab; Close
-  prompts on unsaved changes; ⌘W closes the active tab.
-  - ✅ Autosave is keyed per session; the recovery prompt restores every dirty
-  session (each into its own tab), not just the most recent.
-- ✅ Recent projects menu (M8). Stores File System Access handles where the
-browser supplies them so reopening is one click; Safari/Firefox get a
-filename-only history with a graceful "use Open" toast.
-- ✅ Undo/redo with ≥100 meaningful document steps (M9):
-  - Structural-share-friendly snapshot history capped at 100 entries.
-  - `hintHistoryLabel(label)` + 400 ms coalesce window collapses drag bursts
-  into one entry. Selection / viewport / tool state stays out of history by
-  construction (they live in separate stores).
-  - ⌘Z / ⌘⇧Z, plus toolbar Undo/Redo lifted from the Phase 1 gate.
-- ✅ Editorial canvas aids (M10):
-  - Locked-canvas pan/zoom via the screen-only `viewTransformStore` (H tool);
-  composition pan never mutates project geometry.
-  - Marquee select with shift/cmd/alt modifiers across all annotations.
-  - Ruler tool (K) → persisted `measurement` annotation type with metric /
-  imperial distance + area readouts driven from `geoPoints`.
-  - Grid snap (toggle + spacing in the status bar) with on-canvas grid overlay.
-  - Smart guides — edge/center alignment cues during drag with ±6 px tolerance.
-  - Object grouping via ⌘G / ⌘⇧G and the canvas context menu; groups
-  round-trip through `.cartoproj`.
-- ✅ Image placement, legend builder, and local comment pins (M13/M14).
-Cloud share links move to Phase 5.
+- ✅ `.cartoproj` schema for metadata, viewport, export frame, basemap, layers,
+  annotations, styles, and map furniture.
+- ✅ Layer operations: add, rename, reorder, lock, hide, delete, select.
+- ✅ GeoJSON import via file picker and drag-drop in the web app.
+- ✅ Imported data renders as MapLibre layers; heatmaps render through deck.gl.
+- ✅ Layer panel, attribute inspector, and editable layer styling.
 
-### Basemap sources & styling 🟡
+### M4 — Annotation Tools ✅
 
-The basemap must be **user-selectable**, from either an online source or a custom
-base — this is a core editorial requirement.
+- ✅ Konva annotation stage synced to the map camera.
+- ✅ Select/move with transformer handles.
+- ✅ Text, rectangle, ellipse, line/arrow, polygon, pin, measurement, image,
+  comment, title block, source credit, scale bar, north arrow, and legend objects.
+- ✅ Fill, stroke, opacity, font, halo, shadow, blend mode, hatch/pattern, pin
+  color/icon, and anchoring controls.
+- ✅ Object lock/hide, grouping/ungrouping, grid snap, smart guides, marquee select.
+- ✅ Phase-gated tool invariant prevents future controls from becoming active
+  without their owning milestone.
 
-- ✅ Built-in style presets: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
-- ✅ **Basemap source picker** (M11):
-  - ✅ Online: hosted Protomaps PMTiles / standard tile or style URLs
-  - ✅ Custom: user-supplied MapLibre style URL
-  - 🟡 Custom: PMTiles URL supported; local PMTiles file deferred because
-  persisted `blob:` URLs break save/reopen
-  - ➡️ Offline: bundled / downloaded regional basemap packs — never built in
-        Phase 2; absorbed into **Phase 3 / M24** (desktop)
-- ✅ Basemap sub-layer toggles (M11): roads, labels, water, landuse, buildings,
-boundaries. Filter applied at style-build time by Protomaps
-`source-layer`; persisted per project; chips in MapSetupPanel + status-bar
-popover for editing mode. `style-url`/`static` basemaps hide the chips.
-- ✅ Persist the chosen basemap source + sub-layer mask in `.cartoproj`
-(with a defaulting migration for Phase 1 documents).
+### M5 — Project Workflow and Export ✅
 
-### Richer annotation & styling ✅
+- ✅ Save/open plain `.cartoproj` JSON through File System Access API with
+  download/upload fallback.
+- ✅ Per-session browser autosave with multi-draft recovery.
+- ✅ Multi-project tab bar, dirty guards, recent projects, and close/new/open flows.
+- ✅ Undo/redo with 100 meaningful document steps and drag coalescing.
+- ✅ PNG/JPEG export from the composition frame at 1x, 2x, or custom scale.
+- ✅ SVG export with annotations/furniture as vector objects and map/data as raster.
+- ✅ Raster-in-PDF export sized to the composition frame.
 
-- ✅ deck.gl data layers interleaved via `MapboxOverlay` (M12). A layer's
-"Render" control (Vector / Heatmap) in the inspector switches it to a
-deck.gl HeatmapLayer drawn interleaved with the basemap; the same overlay
-is attached to the offscreen export map so heatmaps appear in raster/PDF.
-deck.gl is lazy-loaded only when a heatmap layer exists; the bundle budget
-was raised from 3 MB → 3.7 MB with a documented rationale (lazy chunks).
-- ✅ Dashed lines, arrowheads, hatch / pattern fills.
-- ✅ Halos, drop shadows, and blend modes (normal / multiply / screen /
-overlay) on every annotation kind, surfaced via the Inspector's
-progressively-disclosed Effects panel and mirrored in PNG/JPEG export
-(M12).
-- ✅ Grouped objects; smart guides (edge/center) and pixel/grid snap (M10).
-- ✅ Title block, source credit, scale bar, north arrow (M13) — screen-anchored
-furniture inserted from a single Insert menu. Scale bar snaps to a round
-distance and tracks map scale; north arrow follows map bearing. Both
-mirror correctly into raster export.
-- ✅ Manually editable legend builder with linked/overridden swatches (M13)
+### M6 — Verification and Stabilization ✅
 
-### Import & export 🟡
-
-- ✅ Import TopoJSON, KML, GPX, Shapefile (M14). Format detected by extension;
-each parser (`topojson-client`, `@tmcw/togeojson`, `shpjs`) is lazy-loaded
-so it stays out of the initial bundle. Shapefile zips are reprojected to
-WGS84 from the embedded `.prj`. Drop + picker accept all formats.
-- ✅ Image placement (M14) — drop/insert PNG/JPEG/SVG raster, geo or screen
-anchored, embedded as base64 in `.cartoproj`.
-- ✅ SVG export (M15) — basemap + imported data embed as a raster `<image>`;
-annotations, text, and map furniture serialize as editable vector objects.
-Effects (hatch fills, halos, blend modes) and detailed pin glyphs are
-flattened, surfaced in the export dialog. Verified well-formed and within
-a rasterized-vs-PNG diff tolerance (~1.2%). Illustrator/Figma editability
-is unverified in-app (no Illustrator available in this environment).
-- ✅ PDF export (M15 bonus) — raster-in-PDF via jsPDF, one page sized to the
-composition frame. Editable-vector PDF moves to Phase 4 (unified scene graph).
-- ➡️ Move heavy importers onto a worker thread (parsers are pure and
-worker-ready). **Folded into Phase 3 / M22.**
-- ➡️ GeoJSON-as-editable-vector-paths in SVG (currently embedded in the basemap
-raster). Naturally pairs with vector editing — **folded into Phase 3 / M22.**
-
-### Desktop (macOS) 🟡 Shell shipped; hardening + offline packs remain
-
-The Tauri 2 macOS desktop app is **already built and working** (non-notarized).
-Every desktop path in `src/` is additive and guarded by `isTauri()`; the web build
-keeps full feature parity. See `src-tauri/README.md`.
-
-- ✅ Tauri 2 shell — Rust backend (`src-tauri/src/lib.rs`), `npm run tauri:dev` /
-      `tauri:build` produce a bundled `.app`/`.dmg`. **Not signed / not notarized**
-      (intentionally deferred — distribution is direct `.dmg` for now).
-- ✅ Native file open/save dialogs via `plugin-dialog` + `plugin-fs`
-      (`src/project/fileSystem.ts`); native export save dialog (`src/export/raster.ts`).
-- ✅ Default basemap PMTiles fetched through `plugin-http` (`TauriHttpSource` in
-      `src/basemap/pmtiles.ts`) so WKWebView CORS can't break the built-in basemap.
-- ✅ Native window chrome — Overlay title bar + real traffic lights, macOS vibrancy
-      via `macos-private-api`; native app menu + ⌘ shortcuts (`src/ui/KeyboardShortcuts.tsx`).
-- ➡️ Local PMTiles **file** basemaps via the native FS path (deferred from M5/M11
-      because persisted `blob:` URLs break web save/reopen) — **Phase 3 / M23**.
-- ➡️ Offline regional basemap packs with a first-run download/bundle choice —
-      **Phase 3 / M24**.
-- ➡️ Signing + notarization for friction-free distribution — **Phase 5**
-      (non-notarized direct-`.dmg` distribution is acceptable for now).
-- ⬜ Drag-drop import on desktop — **confirmed broken** (verified 2026-05-30). The web
-      handler (`MapCanvas.tsx`) reads `e.dataTransfer.files`, but the window leaves Tauri's
-      `dragDropEnabled` at its v2 default of `true`, so the webview intercepts OS file drops
-      and fires `tauri://drag-drop` instead of populating `dataTransfer.files` — and no
-      Tauri drop listener exists. Fix: either set `dragDropEnabled: false` in
-      `tauri.conf.json` (re-enables in-webview HTML5 drop; simplest, no native drop events
-      are used) or add an `isTauri()`-guarded `onDragDropEvent` listener that feeds dropped
-      paths through the FS plugin into `importGeoJsonFiles`. (File picker import is
-      unaffected and works on desktop.)
+- ✅ Playwright coverage for first run, import, annotations, project round-trip,
+  autosave, sessions/history, layer management, vector editing, and export.
+- ✅ Unit coverage for stores, serialization/defaulting, imports/exports, i18n,
+  preferences, annotation transforms, error boundary, and tooltip behavior.
+- ✅ Export visual-diff harness against a committed PNG baseline.
+- ✅ 10 MB GeoJSON fixture and performance smoke test.
+- ✅ Bundle-budget script with explicit MapLibre/Konva/PMTiles/export chunking.
 
 ---
 
-## Phase 3 / Editable Data & Reach 🟡
+## Shipped Editorial v1 ✅
 
-Goal: turn imported data from read-only into **editable**, make the app **multilingual
-and discoverable**, give users a real **preferences surface**, and ship the **macOS
-desktop** build. The unfinished Phase 2 desktop / import / export items are folded in
-here so the desktop release lands as one coherent v2.
+### M7 — Phase 1 Exit Hardening ✅
 
-Detailed breakdown: `docs-mocks/PHASE3_IMPLEMENTATION_PLAN.md`.
+- ✅ Locked layers cannot be renamed, deleted, reordered, or restyled.
+- ✅ Dirty-document guards cover New, Open, Close, and Autosave Restore.
+- ✅ Local PMTiles file selection blocked in web where `blob:` URLs cannot survive
+  save/reopen.
+- ✅ Phase 2 placeholder controls are inert until their owning milestone ships.
 
-### GeoJSON vector editing — core ✅ (M17–M18)
+### M8 — Multi-Project Sessions ✅
 
-The GeoJSON pipeline is now editable. Phase 3 added an edit mode built on
-`terra-draw`, with the `.cartoproj` `GeoJsonLayer.data` `FeatureCollection` still
-serving as the source of truth.
+- ✅ `ProjectSession` registry with active-session projection into the document store.
+- ✅ New/Open create tabs; Close prompts on unsaved work; tabs can be reordered.
+- ✅ Autosave and recovery are keyed per session.
+- ✅ Recent projects menu stores file handles where the browser supports them.
 
-- ✅ Installed `terra-draw` + its MapLibre adapter; wired it as a **controlled
-editor**. Terra-draw owns no canonical state — every edit commits back into the
-layer's `FeatureCollection`, then the existing `syncLayers` path re-renders.
-- ✅ Per-layer **edit mode** for unlocked GeoJSON layers. Feature inspection yields to
-the editor while active, and the Konva annotation stage explicitly stops listening so
-data-layer map interactions are not intercepted.
-- ✅ **Vertex editing** — move vertices, insert midpoints, drag whole features, and
-rotate / scale selected features in geo-space.
-- ✅ **Draw new features** — point, line, polygon, rectangle, and circle tools append
-features into the active layer with editable properties.
-- ✅ **Delete features**; `featureCount` and `geometry` recompute after commits.
-- ✅ **Editable attributes** — add / rename / delete / edit feature properties from the
-Properties pane while a feature is selected.
-- ✅ **Undo/redo** integration — geometry and attribute edits use the existing history
-store and `hintHistoryLabel`.
-- ✅ Locked layers are respected consistently with existing lock rules.
-- ✅ Round-trips through `.cartoproj`, raster, and SVG/PDF export with no schema change.
-- ✅ Data-layer GeoJSON export: per-layer export plus "export all" combines editable
-data layers back into GeoJSON.
-- ✅ The vector edit toolbar sits at the bottom of the canvas, animates subtly on
-enter/exit, and no longer overlaps the zoom controls.
-- Note: snapping to existing vertices/edges, split/merge, and topology-aware editing are
-**out of scope** here — they ship as Phase 4 "pro-grade vector editing".
+### M9 — History ✅
 
-### Localization (i18n) — French + English ✅ (M19)
+- ✅ Structural-share-friendly document snapshots capped at 100 entries.
+- ✅ `hintHistoryLabel(label)` and coalescing for drag/edit bursts.
+- ✅ Selection, viewport, and active tool state stay outside document history.
+- ✅ Keyboard and toolbar undo/redo enabled.
 
-- ✅ Lightweight typed message-catalog i18n with English and French catalogs.
-- ✅ UI strings across the shell, toolbars, inspector, dialogs, toasts, status bar,
-import/export flows, errors, tabs, recovery, and vector editing are catalog-backed.
-- ✅ French translation added for the current product surface.
-- ✅ Locale auto-detects from the browser and can be manually overridden in Settings;
-the choice persists across sessions.
-- ✅ Locale-aware number formatting is used in status/ruler-style readouts.
-- ✅ The Tauri native menu rebuilds in English or French from the active app locale.
+### M10 — Editorial Canvas Aids ✅
 
-### UI discoverability — tooltips & help ✅ (M20)
+- ✅ Screen-only pan/zoom for locked composition work.
+- ✅ Marquee select with modifier behavior.
+- ✅ Measurement/ruler annotations with locale-aware units.
+- ✅ Grid snap, smart guides, and grouped-object editing.
 
-Native `title=` attributes are replaced by a design-system glass tooltip.
+### M11 — Basemap Sources and Sublayers ✅
 
-- ✅ A reusable **glass tooltip** component (`src/ui/Tooltip.tsx`) matching `design.md`
-(delay, placement, keyboard-shortcut chip), accessible (focus + hover,
-`aria-describedby` via `cloneElement`). It listens on the wrapper, not the trigger, so
-it still works for `disabled` buttons (which suppress their own pointer events) —
-preserving the rail's "Phase 2 / lock map first" affordances after the `title=` removal.
-- ✅ Every tool in the rail gets a tooltip: **name + one-line description + shortcut**
-(e.g. "Line — draw a freehand or segmented line · P"); planned/locked tools show the
-gating reason instead. The insert-furniture button is covered too. New `tool.*.desc`
-catalog keys (en + fr) back the descriptions.
-- ✅ Tooltips on the **vector-edit toolbar** (select/draw/delete/done) and the title
-bar's icon actions + Export; all strings localized.
-- ➡️ Optional first-run hint / "what's this" affordance — deferred (the core loop is now
-self-explanatory via tooltips).
-- Note: status-bar toggles, inspector controls, and export-dialog options still use
-native `title=`; migrating those to the glass tooltip is a small follow-up.
+- ✅ Built-in style presets.
+- ✅ Hosted PMTiles, standard tile/style URLs, custom MapLibre style URLs,
+  custom PMTiles URLs, static image/PDF basemaps, and empty canvas.
+- ✅ Protomaps sublayer toggles persisted per project.
+- ➡️ Local PMTiles files move to desktop closeout because web persistence needs
+  a native path rather than a `blob:` URL.
+- ➡️ Offline regional packs move to desktop closeout.
 
-### Settings modal ✅ (M21)
+### M12 — Rich Data and Effects ✅
 
-Settings are now a real preferences surface backed by a typed app-level store.
+- ✅ deck.gl heatmap strategy for imported GeoJSON layers, including export path.
+- ✅ Dashed lines, arrowheads, hatch/pattern fills.
+- ✅ Halos, drop shadows, and blend modes mirrored in raster export.
 
-- ✅ Settings modal exists with language selection and persists the locale override.
-- ✅ Expanded Settings (⌘,) grouping: Appearance (theme + **accent** preset),
-Units (metric / imperial default), Canvas defaults (grid snap, smart guides, grid
-spacing), Autosave interval, Default basemap, and **Reset-to-defaults**.
-- ✅ Preferences persisted to `localStorage` (`src/state/preferencesStore.ts`,
-app-level, distinct from per-project `.cartoproj` settings) with a typed schema +
-versioned defaulting/migration (`migratePreferences` clamps and re-stamps old blobs).
-- ✅ Each setting is wired to its effect — autosave interval → `useAutosave`; units
-default → `annotationFactory` (measurement + scale bar); default basemap →
-`createEmptyProject`; canvas defaults seed `toolStore` at launch; accent → CSS tokens
-on `documentElement` (`src/ui/accent.ts`).
-- ✅ "One source of truth" by *ownership*: theme/locale keep their existing stores
-(both already persist; theme has a pre-paint bootstrap, so folding it in would
-reintroduce FOUC). The status-bar snap toggles mutate the **live** tool state only;
-preferences hold the **default** that seeds it — keeping `snapMemory` intact.
+### M13 — Map Furniture and Legend ✅
 
-### Folded-in Phase 2 completion ⬜ (M22–M24)
+- ✅ Title block, source credit, scale bar, north arrow.
+- ✅ Manual legend builder with linked or overridden swatches.
+- ✅ Screen-anchored furniture inserts from a single Insert menu.
 
-- ⬜ **Worker-thread importers** (M22) — move TopoJSON/KML/GPX/Shapefile parsing off the
-main thread (parsers are already pure/worker-ready).
-- ⬜ **GeoJSON-as-editable-vector-paths in SVG** (M22) — edited features export as real
-vector paths instead of being baked into the basemap raster; pairs with M17.
-- ✅ **Tauri 2 desktop shell** — already shipped (non-notarized): native open/save +
-export dialogs, HTTP-plugin basemap fetch, native window chrome, full web parity behind
-`isTauri()`. See the Phase 2 Desktop section + `src-tauri/README.md`. Phase 3 only adds
-the remaining desktop capabilities below.
-- ⬜ **Local PMTiles file basemaps** (M23) — resolved on desktop via the native FS path
-(the `blob:` save/reopen limitation that blocked web in M5/M11).
-- ⬜ **Offline regional basemap packs** (M24) — first-run download / bundle choice for
-desktop. Could be handled inside the settings modal?
+### M14 — Import Reach ✅
 
-### Resilience & stabilization 🟡 (M25)
+- ✅ TopoJSON, KML, GPX, and Shapefile import.
+- ✅ Heavy parsers are lazy-loaded.
+- ✅ Shapefile zips reproject from embedded `.prj` when available.
+- ✅ Image placement for PNG/JPEG/SVG raster.
+- ➡️ Worker-thread parsing moves to current closeout.
 
-- ✅ **Top-level React error boundary + crash-safe recovery** (`src/app/ErrorBoundary.tsx`,
-wrapping `<App>` in `main.tsx`). A render error anywhere below now lands in a localized
-glass fallback instead of a blank page. On catch it **force-flushes the active session**
-to the autosave draft (`flushActiveAutosave`) and gates the Reload button on that write
-resolving, so a reload recovers the work via the existing recovery prompt. A short-window
-`sessionStorage` crash counter detects the **poison-document loop** — where recovery
-restores the very state that crashed — and offers "discard project & reload" instead of
-looping forever. (Catches render/lifecycle errors, not event-handler/async errors.)
-- ✅ Playwright flows cover vector edit selection/vertex drag, blank-layer feature draw,
-feature delete, attribute edit, GeoJSON import/export, and updated localized UI
-selectors. Locale e2e is deterministic via an English browser context.
-- ✅ Unit tests cover the edit store, feature identity/defaulting, attribute mutation,
-GeoJSON export, i18n locale switching, and serialization/defaulting.
-- ✅ New unit tests: error boundary (catch + flush + crash-loop), glass tooltip
-(focus/hover + `aria-describedby` + disabled trigger), and preferences
-defaulting/migration/persistence.
-- ✅ Bundle-budget re-checked — still green (3698.5 KB / 3788.8 KB) after the new surfaces.
-- ⬜ Add remaining Playwright flows for locale switch, broader settings persistence, and
-tooltip presence.
-- ⬜ Add remaining unit tests for catalog completeness.
-- ⬜ Performance: editing a feature in a 10 MB layer stays within PRD §7 interaction targets.
+### M15 — SVG and PDF Export ✅
+
+- ✅ SVG export is well-formed and preserves editable vector annotations/furniture.
+- ✅ Imported data is currently baked into the exported map raster.
+- ✅ PDF export is raster-in-PDF.
+- ➡️ GeoJSON-as-vector SVG and editable-vector PDF move to later milestones.
 
 ---
 
-## Phase 4 / Cartographic Depth & Print Production ⬜
+## Shipped Phase 3 Capabilities ✅
 
-Goal: deepen the *cartography* — real GIS editing and analysis, non-Mercator
-projections, professional print output — and pay down the rendering debt that print
-output depends on. This phase turns GeoCarto from an editorial annotator into a tool
-that can produce analytically-correct, print-house-ready maps.
+### M16 — Tauri Desktop Shell ✅
 
-### GIS depth ⬜
+- ✅ Tauri 2 macOS shell with web-feature parity behind `isTauri()`.
+- ✅ Native file open/save dialogs through `plugin-dialog` and `plugin-fs`.
+- ✅ Native export save dialog.
+- ✅ Built-in basemap fetch through `plugin-http` for WKWebView CORS resilience.
+- ✅ Native window chrome, vibrancy, app menu, and macOS shortcuts.
+- ✅ Cross-platform Tauri config overlays are scaffolded for future Windows/Linux.
+- ⬜ App is not signed or notarized.
 
-- ⬜ Pro-grade vector editing: snapping to vertices/edges, split/merge, topology-aware
-      editing, multi-feature operations (extends the Phase 3 core editor).
-- ⬜ Analysis features: attribute joins, choropleth class wizard, proportional symbols,
-      dot density, simple buffering.
-- ⬜ Non-Mercator editorial projections (Robinson, Equal Earth, Winkel Tripel, Bonne…)
-      via a parallel d3-geo / d3-geo-projection pipeline.
-- ⬜ GeoPackage import.
+### M17 — GeoJSON Vector Editing ✅
 
-### Print production ⬜
+- ✅ `terra-draw` + MapLibre adapter wired as a controlled editor.
+- ✅ Layer `FeatureCollection` remains the canonical source of truth.
+- ✅ Per-layer edit mode for unlocked GeoJSON layers.
+- ✅ Move vertices, insert midpoints, drag whole features, rotate/scale selections.
+- ✅ Draw point, line, polygon, rectangle, and circle features.
+- ✅ Delete features and recompute feature metadata.
+- ✅ Geometry edits integrate with existing undo/redo.
 
-- ⬜ **Unified annotation scene-graph** (folded from the code audit). Today every
-      annotation kind is rendered three times over — `AnnotationStage.tsx` (Konva),
-      `export/renderAnnotations.ts` (raster), and `export/svg.ts` (SVG) each switch over
-      the same kinds and must be hand-mirrored or export drifts. Consolidate to one
-      render-spec that the on-canvas, raster, and SVG renderers all derive from. This is
-      the *prerequisite* for the next item.
-- ⬜ PDF export from the unified scene graph (editable vector PDF, replacing today's
-      raster-in-PDF); later CMYK + ICC for print houses.
+### M18 — Editable Attributes and Data Export ✅
+
+- ✅ Add, rename, delete, and edit feature properties from the Properties pane.
+- ✅ Layer locks are respected by geometry and attribute editing.
+- ✅ Editable data round-trips through `.cartoproj`.
+- ✅ Per-layer GeoJSON export and export-all GeoJSON.
+- ✅ Raster/SVG/PDF export includes edited data through the existing render path.
+
+### M19 — Localization ✅
+
+- ✅ Typed English and French message catalogs.
+- ✅ Catalog-backed strings across the main app surface.
+- ✅ Browser auto-detection plus Settings override.
+- ✅ Locale-aware number formatting.
+- ✅ Tauri menu rebuilds in the active app locale.
+
+### M20 — Discoverability ✅
+
+- ✅ Reusable glass tooltip component with focus/hover behavior and shortcut chips.
+- ✅ Tool rail, vector-edit toolbar, title-bar actions, and Export tooltips.
+- ✅ Disabled controls retain tooltip affordances.
+- 🟡 Status-bar toggles, inspector controls, and export options still have some
+  native `title=` usage.
+
+### M21 — Settings ✅
+
+- ✅ Settings modal with Appearance, Units, Canvas defaults, Autosave, Basemap,
+  and reset-to-defaults.
+- ✅ Versioned preferences store in `localStorage`.
+- ✅ Preferences are wired to actual behavior: autosave interval, unit defaults,
+  basemap defaults, launch-time canvas defaults, and accent tokens.
+
+### M22 — Crash Recovery ✅
+
+- ✅ Top-level React error boundary.
+- ✅ Active session is force-flushed to autosave before reload is offered.
+- ✅ Crash-loop guard can discard a poison project instead of restoring forever.
+
+---
+
+## Current Closeout Track 🟡
+
+This is the active near-term sequence. It is intentionally ordered around release
+confidence and desktop/data reliability before deeper feature work.
+
+### M23 — Quality Gates and Coverage 🟡
+
+- ⬜ Add CI workflow for lint, typecheck, unit tests, Playwright, and
+  `bundle-budget`.
+- ⬜ Add coverage reporting and pragmatic floors for document/store/export core.
+- ⬜ Add unit tests for i18n catalog completeness.
+- ⬜ Add Playwright flows for locale switching, settings persistence, and remaining
+  tooltip coverage.
+- ⬜ Keep bundle-budget green after worker/import and desktop changes.
+
+### M24 — Desktop File and Basemap Reliability 🟡
+
+- ⬜ Fix desktop drag-drop import. Current issue: Tauri intercepts OS drops through
+  `tauri://drag-drop`, while the web handler expects `dataTransfer.files`.
+- ⬜ Support local PMTiles file basemaps on desktop through the native FS path.
+- ⬜ Persist local basemap references in a way that survives save/reopen.
+- ⬜ Add desktop regression coverage for picker import, drag-drop import, save/open,
+  and export where practical.
+
+### M25 — Import and Export Technical Debt 🟡
+
+- ⬜ Move TopoJSON/KML/GPX/Shapefile parsing to a worker thread.
+- ⬜ Preserve progress/error reporting for large imports.
+- ⬜ Export edited GeoJSON features as real SVG vector paths instead of baking them
+  into the map raster.
+- ⬜ Decide whether vector GeoJSON SVG output is controlled by layer setting,
+  export setting, or automatic capability detection.
+
+### M26 — Performance Acceptance 🟡
+
+- ⬜ Verify web cold start stays under PRD target after the Phase 3 surface area.
+- ⬜ Verify 60 fps pan/zoom with demo basemap, 10k features, and 200 annotations.
+- ⬜ Verify 60 fps dragging 25 selected annotations.
+- ⬜ Verify 10 MB import parse + render target after worker migration.
+- ⬜ Verify PNG export target for 4000x3000 @2x.
+- ⬜ Verify desktop cold start and memory target.
+
+### M27 — Offline Basemap Packs ⬜
+
+- ⬜ First-run choice for bundled/downloaded regional basemap packs.
+- ⬜ Settings surface for managing downloaded packs.
+- ⬜ Clear fallback when offline packs are missing or unavailable.
+
+---
+
+## Phase 4 — Cartographic Depth and Print Production ⬜
+
+Goal: deepen GeoCarto's cartography and print output after the current editor is
+stable, covered, and performant.
+
+### M28 — Unified Annotation Scene Graph ⬜
+
+- ⬜ Replace the current triple-renderer duplication across Konva, raster export,
+  and SVG export with a shared render specification.
+- ⬜ Use that shared spec to reduce export drift for annotations, effects, and map
+  furniture.
+- ⬜ Treat this as the prerequisite for editable-vector PDF.
+
+### M29 — Print-Grade Export ⬜
+
+- ⬜ Editable-vector PDF generated from the unified scene graph.
+- ⬜ Later print-house features: CMYK/ICC handling, bleed/margins, and presets.
 - ⬜ Templates gallery for editorial and classroom outputs.
 
-### Quality foundation ⬜
+### M30 — Pro-Grade Vector Editing ⬜
 
-- ⬜ **CI pipeline** (folded from the code audit). The plan already gates on
-      `bundle-budget`, the Phase-tool vitest invariant, lint, typecheck, and Playwright,
-      but there is **no `.github/workflows`** — those gates run only locally. Stand up CI
-      that runs lint / typecheck / unit / e2e / bundle-budget on every PR.
-- ⬜ **Coverage thresholds** (folded from the code audit). No coverage tooling is
-      configured; add coverage reporting with a floor for the document/store/export core
-      so the heavy GIS additions below land with safety rails.
+- ⬜ Snap to existing vertices/edges.
+- ⬜ Split, merge, and reshape operations.
+- ⬜ Multi-feature operations.
+- ⬜ Topology-aware editing where useful.
+
+### M31 — Analysis and Thematic Mapping ⬜
+
+- ⬜ Attribute joins.
+- ⬜ Choropleth class wizard.
+- ⬜ Proportional symbols and dot density.
+- ⬜ Simple buffering.
+- ⬜ GeoPackage import.
+
+### M32 — Editorial Projections ⬜
+
+- ⬜ Non-Mercator map projections such as Robinson, Equal Earth, Winkel Tripel,
+  and Bonne.
+- ⬜ Parallel d3-geo / d3-geo-projection path for projection-aware rendering and
+  export.
 
 ---
 
-## Phase 5 / Collaboration, Platform & Extensibility ⬜
+## Phase 5 — Distribution, Collaboration, and Extensibility ⬜
 
-Goal: extend GeoCarto's *reach* — multi-user, multi-platform, and open to third-party
-extension — and harden the resilience and module boundaries that those capabilities
-require.
+Goal: broaden reach after the core editor, data editing, and print pipeline are
+stable.
 
-### Collaboration & sharing ⬜
+### M33 — Desktop Distribution ⬜
 
-- ⬜ Cloud project sync and share links.
-- ⬜ Real-time collaboration (Yjs CRDT over the `.cartoproj` model).
-- ⬜ Interactive HTML export (self-contained, pan/zoom/tooltips).
+- ⬜ Sign and notarize the macOS build.
+- ⬜ Produce and QA Windows and Linux desktop builds from the existing Tauri
+  overlays.
+- ⬜ Improve macOS platform integration where it helps real workflows.
 
-### Platform reach ⬜
+### M34 — Sharing and Collaboration ⬜
 
-- 🟡 Windows and Linux desktop builds (extends the existing macOS Tauri shell).
-      **Config scaffolding landed in v0.2.1:** `tauri.conf.json` is now a cross-platform
-      base (opaque, decorated, standard-chrome window), with the macOS-only treatment
-      (transparent window + `Overlay` title bar + traffic lights + `macOSPrivateApi`)
-      moved into a `tauri.macos.conf.json` overlay merged via JSON Merge Patch. Added
-      `tauri.windows.conf.json` (WebView2 bootstrapper) and `tauri.linux.conf.json` (`.deb`).
-      macOS behaviour is unchanged (base + overlay reconstructs it exactly). Remaining:
-      actually building/CI on Windows + Linux runners and platform QA.
-- ⬜ Better integration with plateform features on MacOS.
-- ⬜ Signing + notarization for the macOS build (the shell already ships unsigned;
-      this removes the Gatekeeper friction for public distribution) - deferred.
+- ⬜ Cloud project sync.
+- ⬜ Share links.
+- ⬜ Real-time collaboration over the `.cartoproj` model.
 
-### Extensibility ⬜
+### M35 — Interactive and Extensible Platform ⬜
 
+- ⬜ Interactive HTML export with pan/zoom/tooltips.
 - ⬜ Plugin / extension API.
-- ⬜ **Decompose god components & formalize module boundaries** (folded from the code
-      audit). `AnnotationStage.tsx` (~2.2k lines) and `AnnotationInspector.tsx` (~1.1k
-      lines) are the two largest files; a stable public extension surface needs clean,
-      documented seams first. Pairs with the Phase 4 scene-graph refactor.
+- ⬜ Decompose large editor components and formalize public module boundaries
+  before exposing extension points.
 
 ---
 
-## Cross-cutting concerns
+## Export Contract
 
-### Export contract (PRD §5.4)
+| Format | Status | Notes |
+| --- | --- | --- |
+| PNG | ✅ Shipped | Phase 1 raster export from the composition frame. |
+| JPEG | ✅ Shipped | Same raster pipeline, with quality controls. |
+| SVG | ✅ Shipped | Annotations/furniture are vector; map and data are raster. |
+| GeoJSON | ✅ Shipped | Editable data can be exported per layer or all at once. |
+| PDF | ✅ Shipped | Raster-in-PDF sized to the composition frame. |
+| Vector PDF | ⬜ Phase 4 | Depends on unified annotation scene graph. |
+| Interactive HTML | ⬜ Phase 5 | Planned with sharing/extensibility work. |
 
+## Architecture Invariants
 
-| Format           | Phase            | Status                                                                                   |
-| ---------------- | ---------------- | ---------------------------------------------------------------------------------------- |
-| PNG              | Phase 1          | ✅ Milestone 5                                                                            |
-| JPEG             | Phase 1          | 🟡 Milestone 5; broader acceptance coverage added                                        |
-| SVG              | v1 (after spike) | ✅ M15 (basemap raster + vector annotations); ➡️ GeoJSON-as-vector-paths in Phase 3 / M22 |
-| PDF              | Phase 2 / 4      | ✅ M15 (raster-in-PDF); ⬜ editable vector PDF from the unified scene graph in Phase 4    |
-| Interactive HTML | Phase 5          | ⬜ Phase 5 (Collaboration, Platform & Extensibility)                                     |
+- The `.cartoproj` document is the source of truth. MapLibre, deck.gl, Konva,
+  terra-draw, and export code are projections/renderers of that model.
+- App-level preferences live in `localStorage` and remain separate from per-project
+  `.cartoproj` state.
+- Annotation editing happens on the Konva stage above MapLibre.
+- Data-layer editing uses `terra-draw` as a controlled editor; commits update the
+  layer `FeatureCollection`.
+- Desktop behavior is additive and guarded by `isTauri()` so the web app remains a
+  first-class target.
 
+## Open Questions
 
-### Performance targets (PRD §7)
-
-- ⬜ Web cold start < 2s to interactive (cached)
-- ⬜ 60 fps pan/zoom with demo basemap + 10k features + 200 annotations
-- ⬜ 60 fps dragging 25 selected annotations
-- ⬜ 10 MB GeoJSON parse + render < 3s
-- ⬜ PNG export 4000×3000 @2x < 5s
-- ⬜ Desktop (Phase 3): < 1.5s cold start, 60 fps at editorial scale, < 700 MB resident
-
-### Platform delivery (PRD §5.5)
-
-- ✅ Phase 1 web — Vite SPA, static-hosting ready
-- ✅ Desktop macOS — Tauri 2 shell shipped (**not signed / not notarized**); native
-  dialogs + HTTP-plugin basemap fetch. Signing/notarization → Phase 5.
-- 🟡 Windows + Linux — **Phase 5**; build-config scaffolding ready in v0.2.1
-  (platform-specific `tauri.*.conf.json` overlays), builds themselves not yet produced
-
-### Architecture invariants (PRD §3–4)
-
-- The `.cartoproj` document is the single source of truth; MapLibre, deck.gl,
-Konva, and export are renderers/projections of it — never independent state.
-- Annotation editing lives on a Konva stage above the MapLibre canvas, camera-
-synced to the map's view state.
-- Dual anchoring (`geoAnchor` / `screenAnchor` / `hybridAnchor`) is exposed per
-annotation in the inspector.
-- **Phase 3:** `terra-draw` is a *controlled editor* — feature geometry edits commit
-into the layer's `FeatureCollection` (canonical), never a parallel store. App-level
-preferences (language, theme, units, snap defaults) live in `localStorage`, separate
-from per-project `.cartoproj` settings.
-
-### Code quality baseline (audit 2026-05-30)
-
-A quick audit at v0.1.0. The codebase is healthy overall — ~zero TODO/FIXME markers,
-only 5 `any` usages (all justified deck.gl / topojson typing gaps with `eslint-disable`),
-and 31 test files against 72 source files. Four findings are scheduled rather than left
-implicit; each is folded into the phase where it acts as an enabler:
-
-- **Triple-renderer duplication** — `AnnotationStage.tsx`, `export/renderAnnotations.ts`,
-  and `export/svg.ts` each switch over every annotation kind independently and must be
-  kept in sync by hand. → **Phase 4** unified scene-graph (enabler for vector PDF).
-- **No CI** — `bundle-budget`, the Phase-tool vitest invariant, lint/typecheck/e2e gates
-  run only locally; there is no `.github/workflows`. No coverage tooling. → **Phase 4**
-  quality foundation.
-- **No React error boundary** — a render error crashes the whole editor. → ✅ **Resolved in
-  Phase 3 / M25** (v0.2.1): top-level boundary with autosave flush + crash-loop guard wraps
-  the edit/i18n/settings paths.
-- **God components** — `AnnotationStage.tsx` (~2.2k lines), `AnnotationInspector.tsx`
-  (~1.1k lines). → **Phase 5** module-boundary work (prerequisite for the plugin API).
-
-### Open questions (PRD §10)
-
-Brand pass on the name, free vs paid model, minimum macOS/WebKit version,
-desktop basemap-pack strategy, bundled vs user fonts, SVG fidelity bar, and
-whether comments stay roadmap-only — to decide within the first sprints.
-
-**Phase 3 decisions taken:** vector editing ships at "core" depth (move/add/delete
-vertices, draw/delete features, edit attributes); pro-grade GIS editing moves to Phase 4.
-Localization launches with French + English on a typed in-house catalog (no heavy i18n
-runtime), auto-detected with a settings override. Remaining Phase 2 desktop / import /
-export items are folded into Phase 3 rather than shipped as a separate v1.
-
-**Phase 3 open questions:** i18n catalog format (flat keyed JSON vs nested) and whether
-to adopt ICU plurals now or defer; settings-modal scope creep (which scattered controls
-migrate in M21 vs later); how a local PMTiles file path persists across save/reopen on
-desktop; and the French terminology glossary owner for cartographic terms.
-(Desktop code-signing / notarization is now a Phase 5 concern, not Phase 3.)
+- How should desktop local PMTiles paths be represented inside `.cartoproj` without
+  breaking project portability?
+- Should offline basemap packs be bundled, downloaded on demand, or both?
+- What fidelity bar is required before SVG data layers switch from raster fallback
+  to default vector output?
+- Which print-house requirements matter first: editable-vector PDF, CMYK/ICC,
+  bleed/margins, or templates?
+- What is the French terminology owner/process for future cartographic strings?
