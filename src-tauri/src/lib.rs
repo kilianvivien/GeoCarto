@@ -218,6 +218,13 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
     let view_menu = SubmenuBuilder::new(app, tr(lang, "View", "Affichage"))
         .item(&item(
             app,
+            "open-command-palette",
+            tr(lang, "Command Palette", "Palette de commandes"),
+            Some("CmdOrCtrl+K"),
+        )?)
+        .separator()
+        .item(&item(
+            app,
             "toggle-theme",
             tr(lang, "Toggle Theme", "Basculer le thème"),
             Some("CmdOrCtrl+Shift+T"),

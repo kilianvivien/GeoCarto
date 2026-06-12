@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:visual": "RUN_VISUAL_DIFF=1 playwright test export-visual-diff.spec.ts",
     "fixtures:large": "node scripts/generate-large-fixture.mjs",
     "bundle-budget": "node scripts/check-bundle-budget.mjs",
     "tauri": "tauri",

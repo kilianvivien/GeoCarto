@@ -5,7 +5,6 @@ import {
   FileText,
   FolderOpen,
   Github,
-  Command,
   LockKeyhole,
   Magnet,
   Moon,
@@ -81,7 +80,6 @@ export function TitleBar() {
   const exportOpen = useUiStore((s) => s.exportDialogOpen);
   const openExport = useUiStore((s) => s.openExportDialog);
   const closeExport = useUiStore((s) => s.closeExportDialog);
-  const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const canUndo = useHistoryStore((s) => s.past.length > 0);
   const canRedo = useHistoryStore((s) => s.future.length > 0);
   const undo = useHistoryStore((s) => s.undo);
@@ -284,9 +282,6 @@ export function TitleBar() {
           onClick={toggleTheme}
         >
           {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
-        </IconButton>
-        <IconButton label={t('title.commandPalette')} onClick={openCommandPalette}>
-          <Command size={16} />
         </IconButton>
         <IconButton
           label={sharing ? t('title.sharing') : t('title.shareMap')}

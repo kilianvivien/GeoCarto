@@ -9,12 +9,20 @@ import { disableFileSystemAccess, openProjectFixture } from './helpers';
  * sub-pixel rasterizer jitter while still catching a single-pin shift.
  *
  * Baselines live next to this spec as `export-visual-diff.spec.ts-snapshots/`.
- * Regenerate them with `npx playwright test export-visual-diff --update-snapshots`.
+ * This spec is opt-in on CI because pixel baselines are platform-sensitive and
+ * slower than the standard preview gates. Run it deliberately with
+ * `npm run test:e2e:visual`; regenerate baselines with
+ * `RUN_VISUAL_DIFF=1 npx playwright test export-visual-diff --update-snapshots`.
  *
  * The second test deliberately shifts a pin annotation 8 px and asserts the
  * exported bytes diverge from the unshifted export — proving the harness
  * actually catches drift before it lands in main.
  */
+
+test.skip(
+  process.env.CI === 'true' && process.env.RUN_VISUAL_DIFF !== '1',
+  'Visual PNG baselines are opt-in on CI; run npm run test:e2e:visual when reviewing export rendering.',
+);
 
 async function exportPngBuffer(page: import('@playwright/test').Page): Promise<Buffer> {
   await page.getByRole('button', { name: 'Export (⌘E)' }).click();
