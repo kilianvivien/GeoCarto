@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
@@ -10,6 +10,10 @@ import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
 import { useUiStore } from '@/ui/uiStore';
 import { useStorageHealth } from '@/project/storageHealth';
 
+const tauriEventListeners = vi.hoisted(
+  () => new Map<string, (event: { payload: string }) => void>(),
+);
+
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
 vi.mock('@/canvas/MapView', () => ({
   MapView: () => <div data-testid="map-view" />,
@@ -17,6 +21,27 @@ vi.mock('@/canvas/MapView', () => ({
 
 vi.mock('@/canvas/AnnotationStage', () => ({
   AnnotationStage: () => <div data-testid="annotation-stage" />,
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(async (event: string, callback: (event: { payload: string }) => void) => {
+    tauriEventListeners.set(event, callback);
+    return vi.fn();
+  }),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(async () => undefined),
+}));
+
+vi.mock('@tauri-apps/api/window', () => ({
+  Effect: { Sidebar: 'sidebar' },
+  EffectState: { FollowsWindowActiveState: 'followsWindowActiveState' },
+  getCurrentWindow: () => ({
+    onDragDropEvent: vi.fn(async () => vi.fn()),
+    setEffects: vi.fn(async () => undefined),
+    show: vi.fn(async () => undefined),
+  }),
 }));
 
 function makeAnnotation(): Annotation {
@@ -39,6 +64,9 @@ function makeAnnotation(): Annotation {
 
 describe('App', () => {
   beforeEach(() => {
+    delete window.__geocartoTauriMenuListenerInstalled;
+    delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    tauriEventListeners.clear();
     useDocumentStore.setState({
       project: createEmptyProject(),
       selectedLayerId: null,
@@ -152,6 +180,23 @@ describe('App', () => {
 
     expect(screen.getByRole('dialog', { name: /settings/i })).toBeInTheDocument();
     await waitFor(() => expect(useStorageHealth.getState().checkedAt).not.toBeNull());
+  });
+
+  it('opens the command palette from the native Tauri menu event', async () => {
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {
+      invoke: vi.fn(async () => 0),
+      transformCallback: vi.fn(() => 0),
+    };
+    render(<App />);
+
+    await waitFor(() => expect(tauriEventListeners.has('geocarto-menu')).toBe(true));
+    await act(async () => {
+      tauriEventListeners.get('geocarto-menu')?.({ payload: 'open-command-palette' });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: /command palette/i })).toBeInTheDocument(),
+    );
   });
 
   it('closes settings with Escape and exposes tab panel relationships', async () => {

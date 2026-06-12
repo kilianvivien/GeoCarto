@@ -21,11 +21,14 @@ function isTypingTarget(target: EventTarget | null) {
 function ensureTauriMenuListener(): void {
   if (!isTauri() || window.__geocartoTauriMenuListenerInstalled) return;
   window.__geocartoTauriMenuListenerInstalled = true;
-  void import('@tauri-apps/api/event').then(({ listen }) =>
-    listen<AppCommand>('geocarto://menu', (event) => {
+  void import('@tauri-apps/api/event').then(({ listen }) => {
+    const runMenuCommand = (event: { payload: AppCommand }) => {
       void runAppCommand(event.payload);
-    }),
-  );
+    };
+    void listen<AppCommand>('geocarto-menu', runMenuCommand);
+    // Compatibility with desktop builds that emitted the older global event.
+    void listen<AppCommand>('geocarto://menu', runMenuCommand);
+  });
 }
 
 /** App-scoped keyboard shortcuts: tools, deletion, save/open/export. */

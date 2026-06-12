@@ -49,6 +49,7 @@ const APP_COMMAND_IDS: &[&str] = &[
     "tool-legend",
     "tool-comment",
 ];
+const COMMAND_PALETTE_MENU_ID: &str = "show-command-palette";
 
 /// Pick the English or French label for the current menu language. The web i18n
 /// store is the source of truth for the app language; it pushes the resolved
@@ -219,7 +220,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<Menu<
     let view_menu = SubmenuBuilder::new(app, tr(lang, "View", "Affichage"))
         .item(&item(
             app,
-            "open-command-palette",
+            COMMAND_PALETTE_MENU_ID,
             tr(lang, "Command Palette", "Palette de commandes"),
             Some("CmdOrCtrl+K"),
         )?)
@@ -442,8 +443,13 @@ pub fn run() {
         })
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
-            if APP_COMMAND_IDS.contains(&id) {
-                let _ = app.emit("geocarto://menu", id);
+            let command = if id == COMMAND_PALETTE_MENU_ID {
+                "open-command-palette"
+            } else {
+                id
+            };
+            if APP_COMMAND_IDS.contains(&command) {
+                let _ = app.emit_to("main", "geocarto-menu", command);
             }
         })
         .run(tauri::generate_context!())
