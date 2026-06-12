@@ -9,6 +9,7 @@ import type {
 import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
 import { useLocale } from '@/i18n/useLocale';
 import type { Locale } from '@/i18n/locales';
+import { isTauri } from '@/app/platform';
 
 /** Legacy same-origin PMTiles path; Vite dev and Vercel proxy it for local overrides. */
 export const DEFAULT_PMTILES_PATH = '/__geocarto_basemap/v4.pmtiles';
@@ -89,7 +90,7 @@ export function buildBasemapStyle(
   config: BasemapConfig,
   lang: Locale = useLocale.getState().locale,
 ): StyleSpecification | string {
-  if (config.kind === 'empty') {
+  if (config.kind === 'empty' || (config.kind === 'pmtiles-file' && !isTauri())) {
     return {
       version: 8,
       sources: {},
@@ -103,15 +104,20 @@ export function buildBasemapStyle(
   }
 
   const preset =
-    config.kind === 'pmtiles-url'
+    config.kind === 'pmtiles-url' || config.kind === 'pmtiles-file'
       ? config.preset
       : config.kind === 'builtin'
         ? config.preset
         : 'editorial-light';
-  const sourceUrl = config.kind === 'pmtiles-url' ? config.url : DEFAULT_PMTILES_URL;
+  const sourceUrl =
+    config.kind === 'pmtiles-url'
+      ? config.url
+      : config.kind === 'pmtiles-file'
+        ? config.path
+        : DEFAULT_PMTILES_URL;
   const spriteTheme = PRESET_TO_SPRITE[preset];
   const sublayers =
-    config.kind === 'builtin' || config.kind === 'pmtiles-url'
+    config.kind === 'builtin' || config.kind === 'pmtiles-url' || config.kind === 'pmtiles-file'
       ? config.sublayers
       : DEFAULT_BASEMAP_SUBLAYERS;
   const flavorLayers = layers(SOURCE, namedFlavor(PRESET_TO_FLAVOR[preset]), { lang });

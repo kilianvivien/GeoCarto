@@ -17,7 +17,7 @@ const SUBLAYER_ORDER: { key: BasemapSublayerKey; labelKey: TranslationKey }[] = 
 
 /**
  * Editorial sub-layer visibility chips. Only renders when the active basemap
- * is Protomaps-derived (built-in or pmtiles-url) — `style-url` and `static`
+ * is Protomaps-derived (built-in, pmtiles-url, or pmtiles-file) — `style-url` and `static`
  * sources are opaque, so per-layer filtering would be misleading.
  */
 export function BasemapSublayerToggles({ compact = false }: { compact?: boolean }) {
@@ -25,7 +25,13 @@ export function BasemapSublayerToggles({ compact = false }: { compact?: boolean 
   const basemap = useDocumentStore((s) => s.project.basemap);
   const setBasemapSublayer = useDocumentStore((s) => s.setBasemapSublayer);
 
-  if (basemap.kind !== 'builtin' && basemap.kind !== 'pmtiles-url') return null;
+  if (
+    basemap.kind !== 'builtin' &&
+    basemap.kind !== 'pmtiles-url' &&
+    basemap.kind !== 'pmtiles-file'
+  ) {
+    return null;
+  }
   const sublayers = basemap.sublayers;
 
   return (

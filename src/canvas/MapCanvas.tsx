@@ -11,13 +11,16 @@ import { DeckOverlay } from './DeckOverlay';
 import { AnnotationStage } from './AnnotationStage';
 import { StaticBasemapOverlay } from './StaticBasemapOverlay';
 import { MapSetupPanel } from './MapSetupPanel';
-import { importGeoJsonFiles } from '@/import/importLayers';
+import { importDataFiles, importGeoJsonFiles, nativePathsToFiles } from '@/import/importLayers';
 import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useViewTransformStore } from '@/state/viewTransformStore';
 import { useLocale } from '@/i18n/useLocale';
+import { isTauri } from '@/app/platform';
 import { canvasAnchorFromClientPoint } from './canvasCoordinates';
+import { Tooltip } from '@/ui/Tooltip';
+import { useNotices } from '@/ui/notices';
 
 type Point = { x: number; y: number };
 type SurfaceBox = { x: number; y: number; width: number; height: number };
@@ -33,36 +36,39 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
-        aria-label={t('canvas.zoomOut')}
-        title={t('canvas.zoomOut')}
-        onClick={() => setZoomAt(zoom / 1.2, anchor())}
-        className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-      >
-        <Minus size={15} />
-      </button>
+      <Tooltip label={t('canvas.zoomOut')} placement="bottom">
+        <button
+          type="button"
+          aria-label={t('canvas.zoomOut')}
+          onClick={() => setZoomAt(zoom / 1.2, anchor())}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Minus size={15} />
+        </button>
+      </Tooltip>
       <span className="mono min-w-12 text-center text-[11px] font-semibold text-[var(--text-2)]">
         {Math.round(zoom * 100)}%
       </span>
-      <button
-        type="button"
-        aria-label={t('canvas.zoomIn')}
-        title={t('canvas.zoomIn')}
-        onClick={() => setZoomAt(zoom * 1.2, anchor())}
-        className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-      >
-        <Plus size={15} />
-      </button>
-      <button
-        type="button"
-        aria-label={t('canvas.fit')}
-        title={t('canvas.fit')}
-        onClick={reset}
-        className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-      >
-        <Maximize2 size={14} />
-      </button>
+      <Tooltip label={t('canvas.zoomIn')} placement="bottom">
+        <button
+          type="button"
+          aria-label={t('canvas.zoomIn')}
+          onClick={() => setZoomAt(zoom * 1.2, anchor())}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Plus size={15} />
+        </button>
+      </Tooltip>
+      <Tooltip label={t('canvas.fit')} placement="bottom">
+        <button
+          type="button"
+          aria-label={t('canvas.fit')}
+          onClick={reset}
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+        >
+          <Maximize2 size={14} />
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -165,6 +171,41 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
   useEffect(() => {
     if (mode === 'mapSetup') reset();
   }, [mode, reset]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
+    void import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
+      getCurrentWindow()
+        .onDragDropEvent((event) => {
+          if (cancelled) return;
+          if (event.payload.type === 'enter' || event.payload.type === 'over') {
+            setDragging(true);
+            return;
+          }
+          if (event.payload.type === 'leave') {
+            setDragging(false);
+            return;
+          }
+          setDragging(false);
+          if (useDocumentStore.getState().project.mode !== 'editing') return;
+          void nativePathsToFiles(event.payload.paths)
+            .then(importDataFiles)
+            .catch((error) => {
+              const message = error instanceof Error ? error.message : 'Import failed.';
+              useNotices.getState().push(message, 'error');
+            });
+        })
+        .then((stop) => {
+          unlisten = stop;
+        }),
+    );
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     canInspectRef.current = canInspect;

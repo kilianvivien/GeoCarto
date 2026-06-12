@@ -10,6 +10,7 @@ src-tauri/target/
 src-tauri/gen/
 
 # test artifacts
+coverage/
 playwright-report/
 test-results/
 

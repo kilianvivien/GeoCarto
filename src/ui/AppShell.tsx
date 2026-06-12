@@ -12,6 +12,7 @@ import { ToastHost } from './ToastHost';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { useDocumentTitle } from './useDocumentTitle';
 import { SettingsDialog } from './SettingsDialog';
+import { CommandPalette } from './CommandPalette';
 import { useUiStore } from './uiStore';
 import { useLocale } from '@/i18n/useLocale';
 import { usePreferencesStore } from '@/state/preferencesStore';
@@ -36,6 +37,8 @@ export function AppShell() {
   const locale = useLocale((s) => s.locale);
   const settingsOpen = useUiStore((s) => s.settingsDialogOpen);
   const closeSettings = useUiStore((s) => s.closeSettingsDialog);
+  const commandPaletteOpen = useUiStore((s) => s.commandPaletteOpen);
+  const closeCommandPalette = useUiStore((s) => s.closeCommandPalette);
   const accent = usePreferencesStore((s) => s.accent);
   // Reflect the accent preference into the document's CSS custom properties.
   useEffect(() => applyAccent(accent), [accent]);
@@ -127,6 +130,7 @@ export function AppShell() {
       <StatusBar />
       <ToastHost />
       <SettingsDialog open={settingsOpen} onClose={closeSettings} />
+      <CommandPalette open={commandPaletteOpen} onClose={closeCommandPalette} />
       <KeyboardShortcuts />
     </div>
   );

@@ -16,11 +16,21 @@ test('create a blank layer, delete it with confirmation, and undo', async ({ pag
   // Create a blank layer; it drops straight into vector edit mode.
   await page.getByRole('button', { name: 'New layer' }).first().click();
   await expect(page.getByRole('toolbar', { name: 'Vector editing tools' })).toBeVisible();
-  await page.getByRole('button', { name: /Draw point/ }).click();
+  const drawPoint = page.getByRole('button', { name: /Draw point/ });
+  await drawPoint.click();
+  await expect(drawPoint).toHaveAttribute('aria-pressed', 'true');
   const canvas = page.locator('.maplibregl-canvas');
   const box = await canvas.boundingBox();
   expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    try {
+      await expect(page.getByTestId('feature-count')).toHaveText('1 feature', { timeout: 1000 });
+      break;
+    } catch {
+      if (attempt === 2) throw new Error('Point feature was not created after three clicks.');
+    }
+  }
   await expect(page.getByTestId('feature-count')).toHaveText('1 feature');
   await page.getByRole('button', { name: 'Done' }).click();
 

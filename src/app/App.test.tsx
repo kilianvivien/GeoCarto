@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
@@ -7,6 +7,8 @@ import { useToolStore } from '@/state/toolStore';
 import { useSessionsStore } from '@/state/sessionsStore';
 import { useHistoryStore } from '@/state/historyStore';
 import { DEFAULT_VIEWPORT } from '@/state/viewportStore';
+import { useUiStore } from '@/ui/uiStore';
+import { useStorageHealth } from '@/project/storageHealth';
 
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
 vi.mock('@/canvas/MapView', () => ({
@@ -62,6 +64,22 @@ describe('App', () => {
     };
     useSessionsStore.setState({ sessions: [fresh], activeSessionId: fresh.id });
     useHistoryStore.getState().reset();
+    useUiStore.setState({
+      exportDialogOpen: false,
+      settingsDialogOpen: false,
+      commandPaletteOpen: false,
+      pendingLegendFillSample: null,
+      pendingAnnotationFillSample: null,
+    });
+    useStorageHealth.setState({
+      available: true,
+      usage: null,
+      quota: null,
+      draftCount: 0,
+      recentCount: 0,
+      issues: [],
+      checkedAt: null,
+    });
   });
 
   it('renders the app shell chrome', () => {
@@ -119,5 +137,52 @@ describe('App', () => {
     expect(screen.getByDisplayValue('Hello map')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Delete' });
     expect(useDocumentStore.getState().project.annotations).toEqual([]);
+  });
+
+  it('opens the command palette from the keyboard and runs shared app commands', async () => {
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    expect(screen.getByRole('dialog', { name: /command palette/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/search commands/i), {
+      target: { value: 'settings' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Run Open settings$/i }));
+
+    expect(screen.getByRole('dialog', { name: /settings/i })).toBeInTheDocument();
+    await waitFor(() => expect(useStorageHealth.getState().checkedAt).not.toBeNull());
+  });
+
+  it('closes settings with Escape and exposes tab panel relationships', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Open settings$/i }));
+    const editorTab = screen.getByRole('tab', { name: /editor/i });
+    fireEvent.click(editorTab);
+
+    expect(editorTab).toHaveAttribute('aria-controls', 'settings-panel-editor');
+    const settingsDialog = screen.getByRole('dialog', { name: /settings/i });
+    expect(within(settingsDialog).getByRole('tabpanel')).toHaveAttribute(
+      'aria-labelledby',
+      'settings-tab-editor',
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /settings/i })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('explains export fidelity in the export dialog', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /export \(⌘e\)/i }));
+
+    expect(screen.getByText('Fidelity')).toBeInTheDocument();
+    expect(screen.getByText(/PNG, JPEG, and PDF flatten/)).toBeInTheDocument();
+    expect(screen.getByText(/SVG keeps annotations/)).toBeInTheDocument();
+    expect(screen.getByText(/GeoJSON export keeps edited layer features/)).toBeInTheDocument();
   });
 });

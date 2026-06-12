@@ -6,6 +6,7 @@ import { useDocumentStore } from '@/state/documentStore';
 import { ColorPickerPopover } from './ColorPickerPopover';
 import { useNotices } from './notices';
 import { useLocale } from '@/i18n/useLocale';
+import { useModalFocusTrap } from './useModalFocusTrap';
 
 // Defer each exporter (they pull maplibre-gl / jsPDF into the bundle) until the
 // user actually exports — keeps them out of the initial chunk.
@@ -24,6 +25,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const t = useLocale((s) => s.t);
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(open, dialogRef, onClose);
 
   useEffect(() => {
     if (open) {
@@ -108,6 +111,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className={`glass w-[420px] rounded-[var(--radius-md)] bg-[var(--surface-modal)] p-5 text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-[220ms] ease-out motion-reduce:transition-none motion-reduce:transform-none ${
           visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-1'
         }`}
@@ -269,6 +273,26 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           <span data-testid="export-output-size" className="mono shrink-0 font-semibold text-[var(--text)]">
             {outW} × {outH}
           </span>
+        </div>
+
+        <div className="mt-3 rounded-[9px] border border-[var(--divider)] bg-[var(--glass-thin)] p-3">
+          <div className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            {t('export.fidelity')}
+          </div>
+          <div className="grid gap-2 text-[11.5px] leading-snug text-[var(--text-2)]">
+            <div>
+              <span className="font-semibold text-[var(--text)]">PNG/JPEG/PDF:</span>{' '}
+              {t('export.fidelityRaster')}
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--text)]">SVG:</span>{' '}
+              {t('export.fidelitySvg')}
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--text)]">GeoJSON:</span>{' '}
+              {t('export.fidelityGeoJson')}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 flex justify-end gap-2">

@@ -7,6 +7,7 @@ import { translate } from '@/i18n/useLocale';
 import { DEFAULT_PMTILES_URL } from './basemapStyle';
 
 let registered = false;
+let protocolInstance: Protocol | null = null;
 const DEFAULT_PMTILES_RETRIES = 2;
 const BASEMAP_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
 const BASEMAP_CACHE_MAX_BYTES = 8 * 1024 * 1024;
@@ -261,6 +262,32 @@ class TauriHttpSource implements Source {
   }
 }
 
+class TauriFileSource implements Source {
+  constructor(private readonly path: string) {}
+
+  getKey(): string {
+    return this.path;
+  }
+
+  async getBytes(offset: number, length: number): Promise<RangeResponse> {
+    const { open, SeekMode } = await import('@tauri-apps/plugin-fs');
+    const file = await open(this.path, { read: true });
+    try {
+      await file.seek(offset, SeekMode.Start);
+      const buffer = new Uint8Array(length);
+      let cursor = 0;
+      while (cursor < length) {
+        const read = await file.read(buffer.subarray(cursor));
+        if (read === null) break;
+        cursor += read;
+      }
+      return { data: buffer.slice(0, cursor).buffer };
+    } finally {
+      await file.close();
+    }
+  }
+}
+
 /**
  * Register the `pmtiles://` protocol on MapLibre once per page.
  * Idempotent — safe under React StrictMode double-invoke and Vite HMR.
@@ -278,5 +305,13 @@ export function registerPmtilesProtocol(): void {
     : new FetchSource(DEFAULT_PMTILES_URL);
   protocol.add(new PMTiles(new CachedSource(new RetryingSource(source))));
   maplibregl.addProtocol('pmtiles', protocol.tile);
+  protocolInstance = protocol;
   registered = true;
+}
+
+export function ensureLocalPmtilesSource(path: string): void {
+  if (!path || !isTauri()) return;
+  if (!registered) registerPmtilesProtocol();
+  if (!protocolInstance || protocolInstance.get(path)) return;
+  protocolInstance.add(new PMTiles(new CachedSource(new TauriFileSource(path))));
 }

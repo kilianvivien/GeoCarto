@@ -142,4 +142,17 @@ describe('buildBasemapStyle', () => {
       { id: 'background', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } },
     ]);
   });
+
+  it('falls back to a blank style for desktop-only local PMTiles in the web build', () => {
+    const result = buildBasemapStyle({
+      kind: 'pmtiles-file',
+      name: 'Local archive',
+      path: '/Users/example/local.pmtiles',
+      preset: 'editorial-light',
+      attribution: 'Local archive',
+      sublayers: DEFAULT_BASEMAP_SUBLAYERS,
+    });
+    if (typeof result === 'string') throw new Error('Expected style spec, not URL');
+    expect(result.sources).toEqual({});
+  });
 });

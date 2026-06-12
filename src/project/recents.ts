@@ -1,5 +1,7 @@
 import { get, set as idbSet } from 'idb-keyval';
 import type { DocumentFileBinding } from '@/state/documentStore';
+import { translate } from '@/i18n/useLocale';
+import { reportStorageIssue } from './storageHealth';
 
 const RECENTS_KEY = 'cartoproj:recents';
 const MAX_RECENTS = 8;
@@ -61,6 +63,7 @@ export async function rememberRecentProject(file: DocumentFileBinding): Promise<
     await idbSet(RECENTS_KEY, updated);
   } catch {
     // Recents are a nicety — never break a save on storage failure.
+    reportStorageIssue('recents', translate('storage.recentsFailed'));
   }
 }
 

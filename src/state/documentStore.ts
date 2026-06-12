@@ -148,7 +148,13 @@ export const useDocumentStore = create<DocumentState>()(
     setBasemapSublayer: (key, visible) =>
       set((state) => {
         const basemap = state.project.basemap;
-        if (basemap.kind !== 'builtin' && basemap.kind !== 'pmtiles-url') return;
+        if (
+          basemap.kind !== 'builtin' &&
+          basemap.kind !== 'pmtiles-url' &&
+          basemap.kind !== 'pmtiles-file'
+        ) {
+          return;
+        }
         if (basemap.sublayers[key] === visible) return;
         basemap.sublayers[key] = visible;
         state.project.meta.updatedAt = new Date().toISOString();

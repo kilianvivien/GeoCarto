@@ -89,6 +89,14 @@ async function saveProjectViaTauri(
   return { handle: null, path, name: basename(path) };
 }
 
+async function validateDesktopBasemap(project: CartoProject): Promise<void> {
+  if (project.basemap.kind !== 'pmtiles-file') return;
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  if (!(await exists(project.basemap.path))) {
+    throw new ProjectLoadError(translate('basemap.localMissing', { path: project.basemap.path }));
+  }
+}
+
 /**
  * Save the project. If `existing` carries a handle (FSA) or path (desktop),
  * write in place. Otherwise prompt for a destination (native dialog / FSA) or
@@ -177,6 +185,7 @@ export async function openProjectFromDisk(): Promise<OpenResult> {
     const { readTextFile } = await import('@tauri-apps/plugin-fs');
     const text = await readTextFile(path);
     const project = deserializeProject(text);
+    await validateDesktopBasemap(project);
     return { project, file: { handle: null, path, name: basename(path) } };
   }
 

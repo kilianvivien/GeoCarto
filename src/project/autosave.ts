@@ -4,6 +4,8 @@ import type { CartoProject } from './cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { activeSessionId } from '@/state/sessionsStore';
 import { autosaveIntervalMs } from '@/state/preferencesStore';
+import { reportStorageIssue } from './storageHealth';
+import { translate } from '@/i18n/useLocale';
 
 /** Legacy single-session draft key (Phase 1) — still read on first launch
  *  so users with an existing draft don't lose it during the M8 upgrade. */
@@ -65,6 +67,7 @@ export async function writeAutosave(entry: AutosaveEntry): Promise<void> {
     await idbSet(keyFor(entry.sessionId), entry);
   } catch {
     // Storage failures (quota, private mode) shouldn't break editing.
+    reportStorageIssue('autosave', translate('storage.autosaveFailed'));
   }
 }
 

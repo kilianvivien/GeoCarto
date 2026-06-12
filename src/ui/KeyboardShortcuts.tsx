@@ -68,6 +68,11 @@ export function KeyboardShortcuts() {
           await runAppCommand('open-settings');
           return;
         }
+        if (key === 'k') {
+          event.preventDefault();
+          await runAppCommand('open-command-palette');
+          return;
+        }
         if (key === 'e') {
           event.preventDefault();
           await runAppCommand(event.shiftKey ? 'share-png' : 'export');

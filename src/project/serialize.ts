@@ -81,10 +81,10 @@ function validateProject(value: unknown): asserts value is CartoProject {
 
   if (!('basemap' in value)) value.basemap = { ...DEFAULT_BASEMAP };
   expect(isObject(value.basemap), translate('errors.basemapMissing'));
-  // M11: built-in / pmtiles-url basemaps gained editorial sub-layer toggles.
+  // M11/M24: Protomaps-derived basemaps gained editorial sub-layer toggles.
   // Older v1 documents are missing the field — default to all visible.
   const basemapKind = (value.basemap as { kind?: unknown }).kind;
-  if (basemapKind === 'builtin' || basemapKind === 'pmtiles-url') {
+  if (basemapKind === 'builtin' || basemapKind === 'pmtiles-url' || basemapKind === 'pmtiles-file') {
     const current = (value.basemap as { sublayers?: unknown }).sublayers;
     const labelsHidden = isObject(current) && current.labels === false;
     const landuseHidden = isObject(current) && current.landuse === false;

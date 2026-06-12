@@ -154,6 +154,14 @@ export type BasemapConfig =
       sublayers: BasemapSublayers;
     }
   | {
+      kind: 'pmtiles-file';
+      name: string;
+      path: string;
+      preset: BuiltInBasemapPreset;
+      attribution: string;
+      sublayers: BasemapSublayers;
+    }
+  | {
       kind: 'static';
       name: string;
       mediaType: 'image' | 'pdf';

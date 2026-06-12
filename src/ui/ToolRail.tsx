@@ -117,7 +117,6 @@ export function ToolRail() {
       aria-label={t('tools.toolbar')}
       aria-orientation="vertical"
       aria-disabled={editingVectors}
-      title={editingVectors ? t('tools.editingLayerHint') : undefined}
       className={`glass relative z-[5] m-1.5 flex flex-col items-center gap-1 p-2 transition-opacity ${
         editingVectors ? 'opacity-40' : ''
       }`}

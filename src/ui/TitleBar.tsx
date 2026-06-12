@@ -5,6 +5,7 @@ import {
   FileText,
   FolderOpen,
   Github,
+  Command,
   LockKeyhole,
   Magnet,
   Moon,
@@ -80,6 +81,7 @@ export function TitleBar() {
   const exportOpen = useUiStore((s) => s.exportDialogOpen);
   const openExport = useUiStore((s) => s.openExportDialog);
   const closeExport = useUiStore((s) => s.closeExportDialog);
+  const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const canUndo = useHistoryStore((s) => s.past.length > 0);
   const canRedo = useHistoryStore((s) => s.future.length > 0);
   const undo = useHistoryStore((s) => s.undo);
@@ -232,16 +234,17 @@ export function TitleBar() {
             style={{ minWidth: '8ch', width: `${Math.max(8, draftName.length + 1)}ch` }}
           />
         ) : (
-          <button
-            type="button"
-            aria-label={t('title.editProjectName')}
-            onClick={() => setEditingName(true)}
-            onDoubleClick={() => setEditingName(true)}
-            className="cursor-text font-medium text-[var(--text)]"
-            title={t('title.clickToRename')}
-          >
-            {displayName}
-          </button>
+          <Tooltip label={t('title.clickToRename')} placement="bottom">
+            <button
+              type="button"
+              aria-label={t('title.editProjectName')}
+              onClick={() => setEditingName(true)}
+              onDoubleClick={() => setEditingName(true)}
+              className="cursor-text font-medium text-[var(--text)]"
+            >
+              {displayName}
+            </button>
+          </Tooltip>
         )}
         <span className="mono text-[var(--text-3)]">— {dirty ? t('title.edited') : t('title.saved')}</span>
       </div>
@@ -282,6 +285,9 @@ export function TitleBar() {
         >
           {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
         </IconButton>
+        <IconButton label={t('title.commandPalette')} onClick={openCommandPalette}>
+          <Command size={16} />
+        </IconButton>
         <IconButton
           label={sharing ? t('title.sharing') : t('title.shareMap')}
           disabled={mode !== 'editing' || sharing}
@@ -309,24 +315,25 @@ export function TitleBar() {
             {t('title.export')}
           </button>
         </Tooltip>
-        <a
-          href={REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={t('title.github')}
-          title={t('title.github')}
-          onClick={(e) => {
-            // In the desktop shell, route through the OS opener so the webview
-            // doesn't navigate away from the app; the web build uses the anchor.
-            if (isTauri()) {
-              e.preventDefault();
-              void openExternalUrl(REPO_URL);
-            }
-          }}
-          className="ml-1 flex h-7 w-7 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-        >
-          <Github size={16} />
-        </a>
+        <Tooltip label={t('title.github')} placement="bottom">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('title.github')}
+            onClick={(e) => {
+              // In the desktop shell, route through the OS opener so the webview
+              // doesn't navigate away from the app; the web build uses the anchor.
+              if (isTauri()) {
+                e.preventDefault();
+                void openExternalUrl(REPO_URL);
+              }
+            }}
+            className="ml-1 flex h-7 w-7 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          >
+            <Github size={16} />
+          </a>
+        </Tooltip>
       </div>
       <ExportDialog open={exportOpen} onClose={closeExport} />
     </div>

@@ -1,6 +1,6 @@
 [package]
 name = "geocarto"
-version = "0.2.2"
+version = "0.3.0"
 description = "GeoCarto — a visual-first cartography app"
 authors = ["Kilian Vivien"]
 edition = "2021"

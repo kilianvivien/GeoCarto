@@ -10,6 +10,8 @@ import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
 import { useMapInstance } from './mapInstance';
 import { frameZoomDelta } from './compositionFrame';
+import { basename, isTauri } from '@/app/platform';
+import { Tooltip } from '@/ui/Tooltip';
 
 const ASPECT_PRESETS: { label: string; width: number; height: number }[] = [
   { label: '4:3', width: 1600, height: 1200 },
@@ -81,6 +83,7 @@ export function MapSetupPanel() {
   const push = useNotices((s) => s.push);
   const [styleUrl, setStyleUrl] = useState('');
   const [pmtilesUrl, setPmtilesUrl] = useState('');
+  const desktopShell = isTauri();
   // Start collapsed so a concurrently-visible RecoveryPrompt has the top
   // bar to itself; the user expands the panel when they want to set up.
   const [collapsed, setCollapsed] = useState(true);
@@ -125,6 +128,36 @@ export function MapSetupPanel() {
       );
     });
     input.click();
+  };
+
+  const selectLocalPmtiles = () => {
+    if (!desktopShell) {
+      push(t('setup.localPmtilesWebOnly'), 'error');
+      return;
+    }
+    void (async () => {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const path = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'PMTiles', extensions: ['pmtiles'] }],
+      });
+      if (typeof path !== 'string') return;
+      const name = basename(path);
+      chooseBasemap(
+        {
+          kind: 'pmtiles-file',
+          name,
+          path,
+          preset: 'editorial-light',
+          attribution: name,
+          sublayers: { ...DEFAULT_BASEMAP_SUBLAYERS },
+        },
+        t('setup.localPmtilesSelected', { name }),
+      );
+    })().catch((error) => {
+      push(error instanceof Error ? error.message : t('basemap.localUnavailable'), 'error');
+    });
   };
 
   const applyStyleUrl = () => {
@@ -221,16 +254,17 @@ export function MapSetupPanel() {
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {lockButton}
-              <button
-                type="button"
-                onClick={() => setCollapsed(true)}
-                data-testid="map-setup-minimize"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-                title={t('setup.minimize')}
-                aria-label={t('setup.minimizeAria')}
-              >
-                <ChevronDown size={16} />
-              </button>
+              <Tooltip label={t('setup.minimize')} placement="bottom">
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(true)}
+                  data-testid="map-setup-minimize"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+                  aria-label={t('setup.minimizeAria')}
+                >
+                  <ChevronDown size={16} />
+                </button>
+              </Tooltip>
             </div>
           </div>
 
@@ -278,6 +312,21 @@ export function MapSetupPanel() {
                 {t('setup.useStyleUrl')}
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={selectLocalPmtiles}
+              className={`${basemap.kind === 'pmtiles-file' ? cardActive : cardBase} ${sourceCard}`}
+            >
+              <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
+                <FileImage size={14} />
+                {t('setup.localPmtiles')}
+              </div>
+              <div className="text-[11px] leading-snug text-[var(--text-2)]">
+                {desktopShell ? t('setup.localPmtilesDescription') : t('setup.localPmtilesWebOnly')}
+              </div>
+              <span className={linkButton}>{t('setup.chooseLocalPmtiles')}</span>
+            </button>
 
             <div className={`${cardBase} ${sourceUrlCard}`}>
               <div className="flex items-start gap-2 text-[12px] font-semibold leading-tight">
@@ -327,7 +376,7 @@ export function MapSetupPanel() {
             </button>
           </div>
 
-          {(basemap.kind === 'builtin' || basemap.kind === 'pmtiles-url') && (
+          {(basemap.kind === 'builtin' || basemap.kind === 'pmtiles-url' || basemap.kind === 'pmtiles-file') && (
             <>
               <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
                 {t('setup.basemapSublayers')}
@@ -383,16 +432,17 @@ export function MapSetupPanel() {
         }`}
       >
         <div className="glass pointer-events-auto flex items-center gap-2.5 rounded-full bg-[var(--glass-strong)] py-1.5 pl-3 pr-1.5 text-[var(--text)]">
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            className="flex items-center gap-2 rounded-full px-1 text-left transition-colors hover:text-[var(--accent)]"
-            title={t('setup.expand')}
-          >
-            <Map size={14} className="text-[var(--text-3)]" />
-            <span className="max-w-[180px] truncate text-[12px] font-semibold">{collapsedBasemapName}</span>
-            <ChevronDown size={14} className="-rotate-90 text-[var(--text-3)]" />
-          </button>
+          <Tooltip label={t('setup.expand')} placement="bottom">
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="flex items-center gap-2 rounded-full px-1 text-left transition-colors hover:text-[var(--accent)]"
+            >
+              <Map size={14} className="text-[var(--text-3)]" />
+              <span className="max-w-[180px] truncate text-[12px] font-semibold">{collapsedBasemapName}</span>
+              <ChevronDown size={14} className="-rotate-90 text-[var(--text-3)]" />
+            </button>
+          </Tooltip>
           <span className="hidden text-[11px] text-[var(--text-3)] sm:inline">{t('setup.frameThenLock')}</span>
           {lockButton}
         </div>

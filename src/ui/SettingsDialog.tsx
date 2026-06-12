@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Check,
   Globe,
@@ -6,12 +6,13 @@ import {
   SquarePen,
   Save,
   Map as MapIcon,
+  RefreshCw,
   RotateCcw,
   X,
   type LucideIcon,
 } from 'lucide-react';
 import { LOCALE_OPTIONS, type LocaleMode, type TranslationKey } from '@/i18n/locales';
-import { useLocale } from '@/i18n/useLocale';
+import { localeNumber, useLocale } from '@/i18n/useLocale';
 import { useToolStore } from '@/state/toolStore';
 import {
   DEFAULT_PREFERENCES,
@@ -21,6 +22,8 @@ import {
 import type { BuiltInBasemapPreset, MeasurementUnitSystem } from '@/project/cartoproj';
 import { ACCENT_SWATCH } from './accent';
 import { useTheme, type Theme } from './useTheme';
+import { useModalFocusTrap } from './useModalFocusTrap';
+import { useStorageHealth } from '@/project/storageHealth';
 
 const TRANSITION_MS = 220;
 
@@ -130,10 +133,18 @@ function FieldGroup({ title, children }: { title?: string; children: React.React
   );
 }
 
+function formatBytes(value: number | null): string {
+  if (value == null) return '—';
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${Math.round(value / (1024 * 1024))} MB`;
+  return `${Math.round((value / (1024 * 1024 * 1024)) * 10) / 10} GB`;
+}
+
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
   const [tab, setTab] = useState<TabId>('general');
+  const dialogRef = useRef<HTMLDivElement>(null);
   const t = useLocale((s) => s.t);
   const localeMode = useLocale((s) => s.mode);
   const setLocaleMode = useLocale((s) => s.setMode);
@@ -153,6 +164,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const defaultBasemap = usePreferencesStore((s) => s.defaultBasemap);
   const setPreference = usePreferencesStore((s) => s.setPreference);
   const resetPreferences = usePreferencesStore((s) => s.resetPreferences);
+  const storage = useStorageHealth();
+  useModalFocusTrap(open, dialogRef, onClose);
 
   const setGridSnap = (next: boolean) => {
     setPreference('gridSnapDefault', next);
@@ -192,6 +205,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
     return () => window.clearTimeout(timeout);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    void useStorageHealth.getState().refresh();
+  }, [open]);
+
   if (!mounted) return null;
 
   const themeOptions: { value: Theme; label: string }[] = [
@@ -228,6 +246,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         className={`glass flex h-[440px] w-[680px] max-w-[94vw] flex-col overflow-hidden rounded-[var(--radius-md)] bg-[var(--surface-modal)] text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-[220ms] ease-out motion-reduce:transition-none motion-reduce:transform-none ${
           visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-1'
         }`}
@@ -262,6 +281,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-controls={`settings-panel-${id}`}
+                  id={`settings-tab-${id}`}
                   onClick={() => setTab(id)}
                   className={`flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[12.5px] font-medium transition-colors ${
                     active
@@ -276,11 +297,17 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             })}
           </nav>
 
-          <div role="tabpanel" className="flex-1 overflow-y-auto p-5">
+          <div
+            role="tabpanel"
+            id={`settings-panel-${tab}`}
+            aria-labelledby={`settings-tab-${tab}`}
+            className="flex-1 overflow-y-auto p-5"
+          >
             {tab === 'general' && (
               <FieldGroup>
                 <Field label={t('settings.language')}>
                   <select
+                    aria-label={t('settings.language')}
                     value={localeMode}
                     onChange={(event) => setLocaleMode(event.target.value as LocaleMode)}
                     className={selectClass}
@@ -367,33 +394,71 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             )}
 
             {tab === 'autosave' && (
-              <FieldGroup>
-                <Field label={t('settings.autosaveInterval')}>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={2}
-                      max={120}
-                      value={autosaveIntervalSec}
-                      onChange={(event) =>
-                        setPreference(
-                          'autosaveIntervalSec',
-                          Math.max(2, Math.min(120, Number(event.target.value))),
-                        )
-                      }
-                      className="w-[88px] rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
-                    />
-                    <span className="text-[11px] text-[var(--text-3)]">s</span>
+              <div className="flex flex-col gap-6">
+                <FieldGroup>
+                  <Field label={t('settings.autosaveInterval')}>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={2}
+                        max={120}
+                        value={autosaveIntervalSec}
+                        onChange={(event) =>
+                          setPreference(
+                            'autosaveIntervalSec',
+                            Math.max(2, Math.min(120, Number(event.target.value))),
+                          )
+                        }
+                        className="w-[88px] rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]"
+                      />
+                      <span className="text-[11px] text-[var(--text-3)]">s</span>
+                    </div>
+                  </Field>
+                  <Hint>{t('settings.autosaveHelp')}</Hint>
+                </FieldGroup>
+
+                <FieldGroup title={t('settings.storage')}>
+                  <div className="rounded-[9px] border border-[var(--divider)] bg-[var(--glass-thin)] p-3 text-[12px] text-[var(--text-2)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-semibold text-[var(--text)]">
+                        {storage.available
+                          ? storage.issues.length > 0
+                            ? t('settings.storageWarning')
+                            : t('settings.storageHealthy')
+                          : t('settings.storageUnavailable')}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={t('settings.storageRefresh')}
+                        onClick={() => void storage.refresh()}
+                        className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+                      >
+                        <RefreshCw size={13} />
+                      </button>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-[11.5px]">
+                      <div>
+                        {t('settings.storageUsage', {
+                          used: formatBytes(storage.usage),
+                          quota: formatBytes(storage.quota),
+                        })}
+                      </div>
+                      <div>{t('settings.storageDrafts', { count: localeNumber(storage.draftCount) })}</div>
+                      <div>{t('settings.storageRecents', { count: localeNumber(storage.recentCount) })}</div>
+                      {storage.issues[0] && (
+                        <div className="mt-1 text-[#ff3b30]">{storage.issues[0].message}</div>
+                      )}
+                    </div>
                   </div>
-                </Field>
-                <Hint>{t('settings.autosaveHelp')}</Hint>
-              </FieldGroup>
+                </FieldGroup>
+              </div>
             )}
 
             {tab === 'basemap' && (
               <FieldGroup>
                 <Field label={t('settings.defaultBasemap')}>
                   <select
+                    aria-label={t('settings.defaultBasemap')}
                     value={defaultBasemap}
                     onChange={(event) =>
                       setPreference('defaultBasemap', event.target.value as BuiltInBasemapPreset)

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
+import { ensureLocalPmtilesSource } from '@/basemap/pmtiles';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { useNotices } from '@/ui/notices';
 import { translate, useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
+import { isTauri } from '@/app/platform';
 
 const BASEMAP_LOADING_NOTICE_DELAY_MS = 1_200;
 const BASEMAP_LOADING_NOTICE_THROTTLE_MS = 10_000;
@@ -28,6 +30,12 @@ export function MapView() {
   const isStaticBasemap = basemap.kind === 'static';
   const isEmptyBasemap = basemap.kind === 'empty';
   const hidesMapCanvas = isStaticBasemap || isEmptyBasemap;
+
+  useEffect(() => {
+    if (basemap.kind === 'pmtiles-file' && !isTauri()) {
+      useNotices.getState().push(translate('basemap.localUnavailable'), 'error');
+    }
+  }, [basemap]);
 
   const armBasemapLoadingNotice = useCallback((map: maplibregl.Map) => {
     if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
@@ -56,9 +64,11 @@ export function MapView() {
     if (!container) return;
 
     const { center, zoom, bearing, pitch } = useViewportStore.getState().viewport;
+    const initialBasemap = useDocumentStore.getState().project.basemap;
+    if (initialBasemap.kind === 'pmtiles-file') ensureLocalPmtilesSource(initialBasemap.path);
     const map = new maplibregl.Map({
       container,
-      style: buildBasemapStyle(useDocumentStore.getState().project.basemap),
+      style: buildBasemapStyle(initialBasemap),
       center,
       zoom,
       bearing,
@@ -107,6 +117,7 @@ export function MapView() {
       return;
     }
     if (!isStaticBasemap && mapRef.current) {
+      if (basemap.kind === 'pmtiles-file') ensureLocalPmtilesSource(basemap.path);
       armBasemapLoadingNotice(mapRef.current);
       // `buildBasemapStyle` reads the active locale for built-in label language,
       // so changing the app language also re-renders the basemap labels.

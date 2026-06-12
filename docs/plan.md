@@ -233,33 +233,33 @@ confidence and desktop/data reliability before deeper feature work.
 
 ### M23 — Quality Gates and Coverage 🟡
 
-- ⬜ Add CI workflow for lint, typecheck, unit tests, Playwright, and
+- ✅ Add CI workflow for lint, typecheck, unit tests, Playwright, and
   `bundle-budget`.
-- ⬜ Add coverage reporting and pragmatic floors for document/store/export core.
-- ⬜ Add unit tests for i18n catalog completeness.
-- ⬜ Add Playwright flows for locale switching, settings persistence, and remaining
+- ✅ Add coverage reporting and pragmatic floors for document/store/export core.
+- ✅ Add unit tests for i18n catalog completeness.
+- 🟡 Add Playwright flows for locale switching, settings persistence, and remaining
   tooltip coverage.
-- ⬜ Add accessibility/keyboard closeout: Settings focus trap, Escape-to-close,
+- 🟡 Add accessibility/keyboard closeout: Settings focus trap, Escape-to-close,
   tab `aria-controls`, and keyboard-only coverage for modal and toolbar flows.
 - ⬜ Replace remaining native `title=` affordances with the glass tooltip system.
-- ⬜ Add a command palette / shortcut reference powered by the existing
+- ✅ Add a command palette / shortcut reference powered by the existing
   `AppCommand` model so web chrome, keyboard shortcuts, and native menu commands
   stay discoverable from one place.
 - ⬜ Keep bundle-budget green after worker/import and desktop changes.
 
 ### M24 — Desktop File and Basemap Reliability 🟡
 
-- ⬜ Fix desktop drag-drop import. Current issue: Tauri intercepts OS drops through
+- ✅ Fix desktop drag-drop import. Current issue: Tauri intercepts OS drops through
   `tauri://drag-drop`, while the web handler expects `dataTransfer.files`.
-- ⬜ Support local PMTiles file basemaps on desktop through the native FS path.
-- ⬜ Persist local PMTiles basemap references as absolute native paths for now.
+- ✅ Support local PMTiles file basemaps on desktop through the native FS path.
+- ✅ Persist local PMTiles basemap references as absolute native paths for now.
   Portability/relinking can come later; current priority is reliable save/reopen
   on the same machine.
-- ⬜ Validate missing/stale local basemap paths on open and show a clear recovery
+- ✅ Validate missing/stale local basemap paths on open and show a clear recovery
   state instead of silently falling back or failing the map.
 - ⬜ Tighten/review Tauri filesystem capability scope once local basemap paths and
   offline cache locations are settled.
-- ⬜ Keep desktop and web feature parity explicit: any desktop-only path must have
+- ✅ Keep desktop and web feature parity explicit: any desktop-only path must have
   a web fallback, and any web-only feature should either work in Tauri or be
   listed as a known gap.
 - ⬜ Add desktop regression coverage for picker import, drag-drop import, save/open,
@@ -270,12 +270,12 @@ confidence and desktop/data reliability before deeper feature work.
 - ⬜ Move TopoJSON/KML/GPX/Shapefile parsing to an import-job worker layer.
 - ⬜ Preserve progress/error reporting for large imports, with cancellation and
   per-file status.
-- ⬜ Add file-size / memory guardrails for very large imports and embedded images.
+- 🟡 Add file-size / memory guardrails for very large imports and embedded images.
 - ⬜ Export edited GeoJSON features as real SVG vector paths instead of baking them
   into the map raster.
 - ⬜ Decide whether vector GeoJSON SVG output is controlled by layer setting,
   export setting, or automatic capability detection.
-- ⬜ Add an export fidelity matrix in the export dialog/tests that explains what
+- ✅ Add an export fidelity matrix in the export dialog/tests that explains what
   stays editable per format and what is flattened/rasterized.
 
 ### M26 — Performance Acceptance 🟡
@@ -288,7 +288,7 @@ confidence and desktop/data reliability before deeper feature work.
 - ⬜ Verify desktop cold start and memory target.
 - ⬜ Emit trendable performance artifacts in CI: cold start, import parse/render,
   vector-edit interaction, export time, heap, and bundle sizes.
-- ⬜ Add storage-health reporting for autosave/recents: detect IndexedDB/quota
+- ✅ Add storage-health reporting for autosave/recents: detect IndexedDB/quota
   failures, show a non-blocking warning, and expose cache/draft size in Settings.
 
 ### M27 — Managed Offline Basemap Cache ⬜

@@ -6,6 +6,7 @@ import { useDocumentStore } from '@/state/documentStore';
 import { useToolStore } from '@/state/toolStore';
 import { useLocale, localeNumber } from '@/i18n/useLocale';
 import { useUiStore } from './uiStore';
+import { Tooltip } from './Tooltip';
 
 /** Approximate map scale denominator (1:N) at the given zoom and latitude. */
 function scaleDenominator(zoom: number, latitude: number): number {
@@ -28,7 +29,13 @@ function BasemapMenu() {
     return () => window.removeEventListener('pointerdown', close);
   }, [open]);
 
-  if (basemap.kind !== 'builtin' && basemap.kind !== 'pmtiles-url') return null;
+  if (
+    basemap.kind !== 'builtin' &&
+    basemap.kind !== 'pmtiles-url' &&
+    basemap.kind !== 'pmtiles-file'
+  ) {
+    return null;
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -113,15 +120,16 @@ export function StatusBar() {
         </span>
         <span>1:{localeNumber(scale)}</span>
         <span data-testid="zoom-readout">z{viewport.zoom.toFixed(2)}</span>
-        <button
-          type="button"
-          aria-label={t('settings.open')}
-          title={t('settings.open')}
-          onClick={openSettings}
-          className="flex h-5 w-5 items-center justify-center rounded-[6px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
-        >
-          <Settings size={12} />
-        </button>
+        <Tooltip label={t('settings.open')} placement="top">
+          <button
+            type="button"
+            aria-label={t('settings.open')}
+            onClick={openSettings}
+            className="flex h-5 w-5 items-center justify-center rounded-[6px] text-[var(--text-3)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          >
+            <Settings size={12} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

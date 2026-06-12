@@ -13,6 +13,7 @@ import { useNotices } from '@/ui/notices';
 import { useTheme } from '@/ui/useTheme';
 import { useUiStore } from '@/ui/uiStore';
 import { translate } from '@/i18n/useLocale';
+import type { TranslationKey } from '@/i18n/locales';
 
 export type AppCommand =
   | 'new-project'
@@ -32,11 +33,44 @@ export type AppCommand =
   | 'toggle-snap'
   | 'toggle-map-lock'
   | 'open-settings'
+  | 'open-command-palette'
   | 'open-github'
   | 'zoom-in'
   | 'zoom-out'
   | 'zoom-reset'
   | `tool-${ToolKey}`;
+
+export interface AppCommandDescriptor {
+  command: AppCommand;
+  labelKey: TranslationKey;
+  groupKey: TranslationKey;
+  shortcut?: string;
+}
+
+export const APP_COMMANDS: AppCommandDescriptor[] = [
+  { command: 'new-project', labelKey: 'title.newProject', groupKey: 'command.groupProject', shortcut: '⌘N' },
+  { command: 'open-project', labelKey: 'title.openProject', groupKey: 'command.groupProject', shortcut: '⌘O' },
+  { command: 'import-data', labelKey: 'layer.import', groupKey: 'command.groupProject', shortcut: '⌘⇧O' },
+  { command: 'save-project', labelKey: 'title.saveProject', groupKey: 'command.groupProject', shortcut: '⌘S' },
+  { command: 'save-project-as', labelKey: 'file.saveAs', groupKey: 'command.groupProject', shortcut: '⌘⇧S' },
+  { command: 'export', labelKey: 'title.export', groupKey: 'command.groupProject', shortcut: '⌘E' },
+  { command: 'share-png', labelKey: 'title.shareMap', groupKey: 'command.groupProject', shortcut: '⌘⇧E' },
+  { command: 'close-tab', labelKey: 'tab.closeCurrent', groupKey: 'command.groupProject', shortcut: '⌘W' },
+  { command: 'undo', labelKey: 'title.undo', groupKey: 'command.groupEdit', shortcut: '⌘Z' },
+  { command: 'redo', labelKey: 'title.redo', groupKey: 'command.groupEdit', shortcut: '⌘⇧Z' },
+  { command: 'delete-selection', labelKey: 'annotation.delete', groupKey: 'command.groupEdit', shortcut: 'Delete' },
+  { command: 'group-selection', labelKey: 'canvas.group', groupKey: 'command.groupEdit', shortcut: '⌘G' },
+  { command: 'ungroup-selection', labelKey: 'canvas.ungroup', groupKey: 'command.groupEdit', shortcut: '⌘⇧G' },
+  { command: 'toggle-theme', labelKey: 'settings.theme', groupKey: 'command.groupView' },
+  { command: 'toggle-snap', labelKey: 'status.gridSnap', groupKey: 'command.groupView' },
+  { command: 'toggle-map-lock', labelKey: 'title.lockMap', groupKey: 'command.groupView' },
+  { command: 'zoom-in', labelKey: 'canvas.zoomIn', groupKey: 'command.groupView' },
+  { command: 'zoom-out', labelKey: 'canvas.zoomOut', groupKey: 'command.groupView' },
+  { command: 'zoom-reset', labelKey: 'canvas.fit', groupKey: 'command.groupView' },
+  { command: 'open-settings', labelKey: 'settings.open', groupKey: 'command.groupHelp', shortcut: '⌘,' },
+  { command: 'open-command-palette', labelKey: 'command.openPalette', groupKey: 'command.groupHelp', shortcut: '⌘K' },
+  { command: 'open-github', labelKey: 'title.github', groupKey: 'command.groupHelp' },
+];
 
 async function saveProject(saveAs: boolean): Promise<void> {
   const { project, file, markSaved } = useDocumentStore.getState();
@@ -198,6 +232,9 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
       break;
     case 'open-settings':
       useUiStore.getState().openSettingsDialog();
+      break;
+    case 'open-command-palette':
+      useUiStore.getState().openCommandPalette();
       break;
     case 'open-github':
       await openExternalUrl(REPO_URL);
