@@ -28,6 +28,7 @@ const APP_COMMAND_IDS: &[&str] = &[
     "toggle-snap",
     "toggle-map-lock",
     "open-settings",
+    "open-command-palette",
     "open-github",
     "zoom-in",
     "zoom-out",

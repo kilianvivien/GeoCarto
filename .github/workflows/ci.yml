@@ -1,9 +1,8 @@
 name: CI
 
+# Temporarily disabled: keep manual dispatch available while CI is paused.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   quality:
