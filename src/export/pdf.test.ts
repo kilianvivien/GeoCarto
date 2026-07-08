@@ -27,6 +27,9 @@ vi.mock('./raster', async (importOriginal) => {
       width: 100,
       height: 100,
     })),
+    renderBasemapCanvas: vi.fn(async () => ({
+      toDataURL: () => `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
+    })),
   };
 });
 

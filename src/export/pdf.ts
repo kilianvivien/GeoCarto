@@ -1,5 +1,5 @@
 import type { CartoProject } from '@/project/cartoproj';
-import { ExportError, effectiveExportSize, exportRaster, type ExportResult } from './raster';
+import { ExportError, effectiveExportSize, exportRaster, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
 
 export type PdfMode = 'raster' | 'vector';
@@ -57,16 +57,40 @@ export async function exportPdf(project: CartoProject, options: PdfExportOptions
 }
 
 async function renderVectorPdf(project: CartoProject, doc: import('jspdf').jsPDF, pageW: number, pageH: number): Promise<void> {
+  const background = project.exportFrame.background ?? 'white';
+  if (background !== 'transparent') {
+    doc.setFillColor(background === 'white' ? '#ffffff' : background);
+    doc.rect(0, 0, pageW, pageH, 'F');
+  }
+
+  const basemapCanvas = await renderBasemapCanvas(project, pageW, pageH);
+  doc.addImage(basemapCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+
   const { exportSvg } = await import('./svg');
-  const svgResult = await exportSvg(project, { includeBasemap: true });
+  const overlayProject: CartoProject = {
+    ...project,
+    exportFrame: { ...project.exportFrame, background: 'transparent' },
+  };
+  const svgResult = await exportSvg(overlayProject, { includeBasemap: false });
   const svgString = await svgResult.blob.text();
-  const svgElement = new DOMParser().parseFromString(svgString, 'image/svg+xml').documentElement;
+  const parsed = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+  if (parsed.querySelector('parsererror')) {
+    throw new ExportError(translate('errors.vectorPdfFailed', { message: 'Invalid SVG' }));
+  }
+
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;';
+  const svgElement = document.importNode(parsed.documentElement, true);
+  host.appendChild(svgElement);
+  document.body.appendChild(host);
 
   const { svg2pdf } = await import('svg2pdf.js');
   try {
     await svg2pdf(svgElement, doc, { x: 0, y: 0, width: pageW, height: pageH });
   } catch (error) {
     throw new ExportError(translate('errors.vectorPdfFailed', { message: (error as Error).message }));
+  } finally {
+    host.remove();
   }
 }
 
