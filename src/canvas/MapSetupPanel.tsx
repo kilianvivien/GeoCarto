@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Check, ChevronDown, FileImage, Globe2, Link2, LockKeyhole, Map, Square } from 'lucide-react';
-import type { BasemapConfig, BuiltInBasemapPreset } from '@/project/cartoproj';
-import { DEFAULT_BASEMAP_SUBLAYERS } from '@/project/cartoproj';
+import { Check, ChevronDown, FileImage, Globe2, Grid3x3, Link2, LockKeyhole, Map, Square } from 'lucide-react';
+import type { BasemapConfig, BuiltInBasemapPreset, ProjectionId } from '@/project/cartoproj';
+import { DEFAULT_BASEMAP_SUBLAYERS, DEFAULT_PROJECTION_CONFIG } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { BasemapSublayerToggles } from '@/basemap/BasemapSublayerToggles';
@@ -19,6 +19,14 @@ const ASPECT_PRESETS: { label: string; width: number; height: number }[] = [
   { label: '16:9', width: 1920, height: 1080 },
   { label: '1:1', width: 1500, height: 1500 },
   { label: '3:4', width: 1200, height: 1600 },
+];
+
+const PROJECTIONS: { id: ProjectionId; labelKey: TranslationKey }[] = [
+  { id: 'equal-earth', labelKey: 'setup.projectionEqualEarth' },
+  { id: 'robinson', labelKey: 'setup.projectionRobinson' },
+  { id: 'winkel3', labelKey: 'setup.projectionWinkel3' },
+  { id: 'bonne', labelKey: 'setup.projectionBonne' },
+  { id: 'natural-earth-1', labelKey: 'setup.projectionNaturalEarth1' },
 ];
 
 const BUILT_INS: { preset: BuiltInBasemapPreset; labelKey: TranslationKey; descriptionKey: TranslationKey }[] = [
@@ -78,7 +86,9 @@ export function MapSetupPanel() {
   const mode = useDocumentStore((s) => s.project.mode);
   const basemap = useDocumentStore((s) => s.project.basemap);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
-  const { setBasemap, setExportFrame, lockMapArea } = useDocumentStore.getState();
+  const engine = useDocumentStore((s) => s.project.engine);
+  const projection = useDocumentStore((s) => s.project.projection);
+  const { setBasemap, setExportFrame, lockMapArea, setEngine, setProjectionConfig } = useDocumentStore.getState();
   const viewport = useViewportStore((s) => s.viewport);
   const push = useNotices((s) => s.push);
   const [styleUrl, setStyleUrl] = useState('');
@@ -192,6 +202,21 @@ export function MapSetupPanel() {
     );
   };
 
+  /** Pick a projection and fit its initial scale/center to the current export frame. */
+  const pickProjection = (id: ProjectionId) => {
+    void (async () => {
+      const [{ buildD3Projection }, { fitProjectionToFrame }] = await Promise.all([
+        import('@/projection/projections'),
+        import('@/projection/fitToFrame'),
+      ]);
+      const config = { ...DEFAULT_PROJECTION_CONFIG[id] };
+      const d3proj = buildD3Projection(config);
+      const fit = fitProjectionToFrame(d3proj, { width: exportFrame.width, height: exportFrame.height });
+      setProjectionConfig({ id, scale: fit.scale, center: fit.center, rotateLambda: 0, parallel: config.parallel });
+      push(t('setup.projectionSelected', { name: t(PROJECTIONS.find((p) => p.id === id)?.labelKey ?? 'setup.projectionEqualEarth') }));
+    })();
+  };
+
   /** Zoom the map so the composition box fills the canvas, then lock that view. */
   const handleLock = () => {
     const map = useMapInstance.getState().map;
@@ -268,6 +293,96 @@ export function MapSetupPanel() {
             </div>
           </div>
 
+          <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            {t('setup.engine')}
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setEngine('mercator')}
+              className={`${engine === 'mercator' ? cardActive : cardBase} grid min-h-[76px] grid-rows-[24px_1fr] p-3 text-left`}
+            >
+              <div className="flex items-center gap-2 text-[12px] font-semibold leading-tight">
+                {engine === 'mercator' ? <Check size={14} className="text-[var(--accent)]" /> : <Globe2 size={14} />}
+                {t('setup.engineMercator')}
+              </div>
+              <div className="text-[11px] leading-snug text-[var(--text-2)]">{t('setup.engineMercatorDescription')}</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (engine === 'projected') return;
+                setEngine('projected');
+                // `setEngine` seeds an unfit default (frame-agnostic scale/center) —
+                // immediately fit it to the current export frame, same as picking a
+                // projection card explicitly, so the initial view isn't tiny/off-center.
+                pickProjection('equal-earth');
+              }}
+              className={`${engine === 'projected' ? cardActive : cardBase} grid min-h-[76px] grid-rows-[24px_1fr] p-3 text-left`}
+            >
+              <div className="flex items-center gap-2 text-[12px] font-semibold leading-tight">
+                {engine === 'projected' ? <Check size={14} className="text-[var(--accent)]" /> : <Grid3x3 size={14} />}
+                {t('setup.engineProjected')}
+              </div>
+              <div className="text-[11px] leading-snug text-[var(--text-2)]">{t('setup.engineProjectedDescription')}</div>
+            </button>
+          </div>
+
+          {engine === 'projected' && projection && (
+            <>
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                {t('setup.projection')}
+              </div>
+              <div className="grid gap-2 md:grid-cols-5">
+                {PROJECTIONS.map((item) => {
+                  const active = projection.id === item.id;
+                  const name = t(item.labelKey);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => pickProjection(item.id)}
+                      className={`${active ? cardActive : cardBase} grid min-h-[72px] grid-rows-[20px_1fr] p-3 text-left`}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11.5px] font-semibold leading-tight">
+                        {active && <Check size={13} className="text-[var(--accent)]" />}
+                        {name}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-[11px] text-[var(--text-2)]">
+                  {t('setup.centerLongitude')}
+                  <input
+                    type="number"
+                    min={-180}
+                    max={180}
+                    value={projection.rotateLambda}
+                    onChange={(e) => setProjectionConfig({ rotateLambda: Number(e.target.value) })}
+                    className={sourceUrlInput}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[11px] text-[var(--text-2)]">
+                  {t('setup.projectionScale')}
+                  <input
+                    type="number"
+                    min={1}
+                    value={Math.round(projection.scale)}
+                    onChange={(e) => setProjectionConfig({ scale: Math.max(1, Number(e.target.value)) })}
+                    className={sourceUrlInput}
+                  />
+                </label>
+              </div>
+              <div className="rounded-[8px] border border-[var(--divider)] bg-[var(--glass-thin)] px-3 py-2 text-[11.5px] text-[var(--text-2)]">
+                {t('setup.projectedBasemapNote')}
+              </div>
+            </>
+          )}
+
+          {engine === 'mercator' && (
+          <>
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
             {t('setup.builtInBasemaps')}
           </div>
@@ -384,6 +499,8 @@ export function MapSetupPanel() {
               <BasemapSublayerToggles />
             </>
           )}
+          </>
+          )}
 
           <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
             {t('setup.compositionFrame')}
@@ -436,6 +553,7 @@ export function MapSetupPanel() {
             <button
               type="button"
               onClick={() => setCollapsed(false)}
+              data-testid="map-setup-expand"
               className="flex items-center gap-2 rounded-full px-1 text-left transition-colors hover:text-[var(--accent)]"
             >
               <Map size={14} className="text-[var(--text-3)]" />

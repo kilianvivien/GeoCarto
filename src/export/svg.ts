@@ -1,15 +1,22 @@
+import { geoPath, type GeoPermissibleObjects } from 'd3-geo';
 import type {
   Annotation,
   AnnotationStyle,
   CartoProject,
+  GeoJsonLayer,
   LegendFillStyle,
   LegendSymbol,
   PinIcon,
 } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
+import type { CanvasProjection } from '@/canvas/canvasProjection';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntrySymbol } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
+import { buildGraticule } from '@/projection/graticule';
+import { buildD3Projection } from '@/projection/projections';
+import { loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
+import { computeProportionalDomain, resolveCircleRadius, resolveFillColor } from '@/style/dataStyleEvaluate';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
 
@@ -202,6 +209,7 @@ function annotationToSvg(
   annotation: Annotation,
   origin: { x: number; y: number },
   scale: number,
+  projection: CanvasProjection | null,
 ): string {
   if (!annotation.visible) return '';
   const { style } = annotation;
@@ -345,11 +353,82 @@ function annotationToSvg(
     case 'comment':
       // Local-only review pins are omitted from exported artwork.
       return '';
+    case 'graticule': {
+      if (!projection) break;
+      const multiline = buildGraticule(annotation.intervalDeg);
+      const dash = dashAttr(style);
+      for (const line of multiline.coordinates) {
+        const projected = line
+          .map((lngLat) => projection.project(lngLat as [number, number]))
+          .filter((p): p is { x: number; y: number } => p !== null);
+        if (projected.length < 2) continue;
+        const points = projected.map((p) => `${n(p.x)},${n(p.y)}`).join(' ');
+        body += `<polyline points="${points}" fill="none" stroke="${esc(style.strokeColor)}" stroke-width="${n(style.strokeWidth)}"${dash}/>`;
+      }
+      break;
+    }
   }
 
   if (body === '') return '';
   const transform = `translate(${n(origin.x)},${n(origin.y)}) rotate(${n(annotation.rotation)}) scale(${n(scale)})`;
   return `<g transform="${transform}" opacity="${n(annotation.opacity)}">${body}</g>`;
+}
+
+function projectedLayerToSvg(layer: GeoJsonLayer, path: (object: GeoPermissibleObjects) => string | null): string {
+  const domain = computeProportionalDomain(layer);
+  let body = '';
+  for (const feature of layer.data.features) {
+    const type = feature.geometry?.type;
+    if (!type) continue;
+
+    if (type === 'Point' || type === 'MultiPoint') {
+      if (!layer.style.showPoints) continue;
+      const radius = resolveCircleRadius(feature, layer, domain);
+      if (radius <= 0) continue;
+      (path as unknown as { pointRadius: (r: number) => void }).pointRadius(radius);
+      const d = path(feature as GeoPermissibleObjects);
+      if (!d) continue;
+      const color = layer.style.dataStyle?.kind === 'proportional' ? layer.style.dataStyle.color : layer.style.pointColor;
+      body += `<path d="${d}" fill="${esc(color)}" stroke="#ffffff" stroke-width="1.5"/>`;
+      continue;
+    }
+
+    const d = path(feature as GeoPermissibleObjects);
+    if (!d) continue;
+    if (type === 'Polygon' || type === 'MultiPolygon') {
+      body += `<path d="${d}" fill="${esc(resolveFillColor(feature, layer))}" fill-opacity="${n(layer.style.fillOpacity)}" stroke="${esc(layer.style.strokeColor)}" stroke-width="${n(layer.style.strokeWidth)}"/>`;
+    } else {
+      body += `<path d="${d}" fill="none" stroke="${esc(layer.style.strokeColor)}" stroke-width="${n(layer.style.strokeWidth)}"/>`;
+    }
+  }
+  return body;
+}
+
+/**
+ * Emit a projected-engine document's land outlines + GeoJSON layers as real
+ * vector `<path>` elements (via `d3.geoPath`'s no-context string mode) instead
+ * of a raster `<image>` — projected maps have no tile basemap to rasterize, so
+ * SVG export gets true vector fidelity for data layers, unlike the Mercator path.
+ */
+async function projectedSceneToSvg(project: CartoProject, frameW: number): Promise<string> {
+  const config = project.projection;
+  if (!config) return '';
+  const scaleFactor = frameW / project.exportFrame.width;
+  const d3proj = buildD3Projection({
+    ...config,
+    scale: config.scale * scaleFactor,
+    center: [config.center[0] * scaleFactor, config.center[1] * scaleFactor],
+  });
+  const path = geoPath(d3proj);
+  let out = '';
+  const land = await loadNaturalEarthLand();
+  const landD = path(land as GeoPermissibleObjects);
+  if (landD) out += `<path d="${landD}" fill="#e8e6e1" stroke="#b8b4ac" stroke-width="${n(0.75 * scaleFactor)}"/>`;
+  for (const layer of project.layers) {
+    if (!layer.visible || layer.renderStrategy === 'heatmap') continue;
+    out += projectedLayerToSvg(layer, path);
+  }
+  return out;
 }
 
 /**
@@ -367,17 +446,19 @@ export async function exportSvg(
   const frameH = project.exportFrame.height;
   if (frameW <= 0 || frameH <= 0) throw new ExportError(translate('errors.invalidDimensions'));
 
-  const map = useMapInstance.getState().map;
+  const { map, projection, containerSize } = useMapInstance.getState();
   const container = map?.getContainer();
-  if (!container && project.basemap.kind !== 'static') throw new ExportError(translate('errors.mapNotReady'));
-  const containerW = container?.clientWidth ?? frameW;
+  const ready = Boolean(container) || Boolean(containerSize) || project.basemap.kind === 'static';
+  if (!ready) throw new ExportError(translate('errors.mapNotReady'));
+  const containerW = container?.clientWidth ?? containerSize?.width ?? frameW;
   const scale = frameW / containerW;
 
   const originOf = (annotation: Annotation): { x: number; y: number } => {
-    const editor =
-      annotation.anchorMode === 'map' && annotation.geoAnchor && map
-        ? map.project(annotation.geoAnchor)
-        : annotation.position;
+    const projected =
+      annotation.anchorMode === 'map' && annotation.geoAnchor && projection
+        ? projection.project(annotation.geoAnchor)
+        : null;
+    const editor = projected ?? annotation.position;
     // Uniform scale on both axes to match the raster exporter's annotation
     // layer (Konva scales x and y by the same factor); using a separate Y
     // factor would offset annotations vertically whenever the container aspect
@@ -394,14 +475,18 @@ export async function exportSvg(
   }
 
   if (options.includeBasemap) {
-    const canvas = await renderBasemapCanvas(project, frameW, frameH);
-    parts.push(
-      `<image x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" href="${canvas.toDataURL('image/png')}" preserveAspectRatio="none"/>`,
-    );
+    if (project.engine === 'projected') {
+      parts.push(await projectedSceneToSvg(project, frameW));
+    } else {
+      const canvas = await renderBasemapCanvas(project, frameW, frameH);
+      parts.push(
+        `<image x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" href="${canvas.toDataURL('image/png')}" preserveAspectRatio="none"/>`,
+      );
+    }
   }
 
   for (const annotation of project.annotations) {
-    parts.push(annotationToSvg(annotation, originOf(annotation), scale));
+    parts.push(annotationToSvg(annotation, originOf(annotation), scale, projection));
   }
 
   const svg =

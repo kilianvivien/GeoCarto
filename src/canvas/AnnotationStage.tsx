@@ -20,6 +20,7 @@ import type {
   BrushPreset,
   AnnotationStyle,
   CommentAnnotation,
+  GraticuleAnnotation,
   ImageAnnotation,
   LegendAnnotation,
   LegendSymbol,
@@ -38,12 +39,14 @@ import { useViewportStore } from '@/state/viewportStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
+import { buildGraticule } from '@/projection/graticule';
 import { legendEntrySymbol, legendFillFromStyle, legendSymbolFromAnnotation } from '@/style/legendSwatches';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { applyAnnotationTransform } from '@/tools/annotationTransforms';
 import { useUiStore } from '@/ui/uiStore';
 import { useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
+import type { CanvasProjection } from './canvasProjection';
 import { openFeatureMenuAtPoint } from './openFeatureMenu';
 import { layerIdFromRenderId, layerRenderIds } from './syncLayers';
 
@@ -63,18 +66,17 @@ function useStageSize(containerRef: React.RefObject<HTMLDivElement | null>) {
   return size;
 }
 
-function anchorPosition(annotation: Annotation, map: maplibregl.Map | null) {
-  if (annotation.anchorMode === 'map' && annotation.geoAnchor && map) {
-    const point = map.project(annotation.geoAnchor);
-    return { x: point.x, y: point.y };
+function anchorPosition(annotation: Annotation, projection: CanvasProjection | null) {
+  if (annotation.anchorMode === 'map' && annotation.geoAnchor && projection) {
+    const point = projection.project(annotation.geoAnchor);
+    if (point) return point;
   }
   return annotation.position;
 }
 
-function pointerGeo(map: maplibregl.Map | null, point: { x: number; y: number }) {
-  if (!map) return null;
-  const lngLat = map.unproject([point.x, point.y]);
-  return [lngLat.lng, lngLat.lat] as [number, number];
+function pointerGeo(projection: CanvasProjection | null, point: { x: number; y: number }) {
+  if (!projection) return null;
+  return projection.unproject(point);
 }
 
 function snapToGrid(point: { x: number; y: number }, enabled: boolean, spacing: number) {
@@ -85,9 +87,13 @@ function snapToGrid(point: { x: number; y: number }, enabled: boolean, spacing: 
   };
 }
 
-function normalizeDragPosition(annotation: Annotation, map: maplibregl.Map | null, position: { x: number; y: number }) {
+function normalizeDragPosition(
+  annotation: Annotation,
+  projection: CanvasProjection | null,
+  position: { x: number; y: number },
+) {
   if (annotation.anchorMode === 'map') {
-    return { position, geoAnchor: pointerGeo(map, position) };
+    return { position, geoAnchor: pointerGeo(projection, position) };
   }
   return { position, geoAnchor: annotation.geoAnchor };
 }
@@ -197,10 +203,12 @@ function FillShape({
   annotation,
   editing,
   map,
+  projection,
 }: {
   annotation: Annotation;
   editing?: boolean;
   map?: maplibregl.Map | null;
+  projection?: CanvasProjection | null;
 }) {
   const shadow = shadowProps(annotation.style);
   const common = {
@@ -451,6 +459,8 @@ function FillShape({
       return <ScaleBarShape annotation={annotation} map={map ?? null} />;
     case 'northarrow':
       return <NorthArrowShape annotation={annotation} map={map ?? null} />;
+    case 'graticule':
+      return <GraticuleShape annotation={annotation} projection={projection ?? null} />;
   }
 }
 
@@ -551,6 +561,40 @@ function NorthArrowShape({ annotation, map }: { annotation: NorthArrowAnnotation
         fontStyle="bold"
       />
     </Group>
+  );
+}
+
+function GraticuleShape({
+  annotation,
+  projection,
+}: {
+  annotation: GraticuleAnnotation;
+  projection: CanvasProjection | null;
+}) {
+  const lines = useMemo(() => {
+    if (!projection) return [];
+    const multiline = buildGraticule(annotation.intervalDeg);
+    return multiline.coordinates
+      .map((line) =>
+        line.map((lngLat) => projection.project(lngLat as [number, number])).filter((p): p is { x: number; y: number } => p !== null),
+      )
+      .filter((points) => points.length >= 2);
+  }, [annotation.intervalDeg, projection]);
+
+  return (
+    <>
+      {lines.map((points, index) => (
+        <Line
+          key={index}
+          points={points.flatMap((p) => [p.x, p.y])}
+          stroke={annotation.style.strokeColor}
+          strokeWidth={annotation.style.strokeWidth}
+          dash={strokeDash(annotation.style)}
+          opacity={annotation.opacity}
+          listening={false}
+        />
+      ))}
+    </>
   );
 }
 
@@ -1071,6 +1115,11 @@ function boundsFromAnnotation(annotation: Annotation, origin: { x: number; y: nu
     right += annotation.size;
     top -= annotation.style.textSize + 2;
     bottom += annotation.size;
+  } else if (annotation.kind === 'graticule') {
+    // Graticule always spans the current export frame, not a user-resizable box.
+    const frame = useDocumentStore.getState().project.exportFrame;
+    right += frame.width;
+    bottom += frame.height;
   } else {
     const xs = annotation.points.filter((_, index) => index % 2 === 0).map((x) => x + origin.x);
     const ys = annotation.points.filter((_, index) => index % 2 === 1).map((y) => y + origin.y);
@@ -1146,11 +1195,11 @@ function CommentPopover({ editorId, onClose }: { editorId: string; onClose: () =
   const annotation = useDocumentStore((s) =>
     s.project.annotations.find((item): item is CommentAnnotation => item.id === editorId && item.kind === 'comment'),
   );
-  const map = useMapInstance((s) => s.map);
+  const projection = useMapInstance((s) => s.projection);
   const [draft, setDraft] = useState(annotation?.text ?? '');
   useEffect(() => setDraft(annotation?.text ?? ''), [annotation?.text]);
   if (!annotation) return null;
-  const pos = anchorPosition(annotation, map);
+  const pos = anchorPosition(annotation, projection);
   const commit = () => {
     useDocumentStore.getState().updateAnnotation(editorId, { text: draft } as Partial<Annotation>);
     onClose();
@@ -1210,6 +1259,7 @@ export function AnnotationStage() {
   const transformerRef = useRef<Konva.Transformer>(null);
   const nodeRefs = useRef(new Map<string, Konva.Group>());
   const map = useMapInstance((s) => s.map);
+  const projection = useMapInstance((s) => s.projection);
   useViewportStore((s) => s.viewport);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const annotationGroups = useDocumentStore((s) => s.project.annotationGroups);
@@ -1292,7 +1342,7 @@ export function AnnotationStage() {
           !annotation.locked,
       ) ?? null
     : null;
-  const editingPosition = editingAnnotation ? anchorPosition(editingAnnotation, map) : null;
+  const editingPosition = editingAnnotation ? anchorPosition(editingAnnotation, projection) : null;
   const editorMetrics = editingAnnotation
     ? editingAnnotation.kind === 'pin'
       ? {
@@ -1455,8 +1505,8 @@ export function AnnotationStage() {
   );
 
   const currentBounds = useCallback(
-    (annotation: Annotation) => boundsFromAnnotation(annotation, anchorPosition(annotation, map)),
-    [map],
+    (annotation: Annotation) => boundsFromAnnotation(annotation, anchorPosition(annotation, projection)),
+    [projection],
   );
 
   const stagePointFromClient = useCallback(
@@ -1571,7 +1621,7 @@ export function AnnotationStage() {
     }
 
     if (activeTool === 'ruler') {
-      const geo = pointerGeo(map, rawPointer);
+      const geo = pointerGeo(projection, rawPointer);
       if (!geo) return;
       setDraftMeasurement((draft) => {
         if (!draft) {
@@ -1603,7 +1653,7 @@ export function AnnotationStage() {
     // Image tool: open a file picker, then place the loaded bitmap at the click point.
     if (activeTool === 'image') {
       const placePoint = pointer;
-      const placeGeo = defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null;
+      const placeGeo = defaultAnchorMode === 'map' ? pointerGeo(projection, pointer) : null;
       pickImageFile().then((picked) => {
         if (!picked) return;
         const annotation = createAnnotation({
@@ -1636,7 +1686,7 @@ export function AnnotationStage() {
       if (!draftArrow) {
         setDraftArrow({
           position: pointer,
-          geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null,
+          geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(projection, pointer) : null,
           previewPoint: null,
         });
         return;
@@ -1662,7 +1712,7 @@ export function AnnotationStage() {
         if (!draft) {
           return {
             position: pointer,
-            geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null,
+            geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(projection, pointer) : null,
             points: [0, 0],
             previewPoint: null,
           };
@@ -1681,7 +1731,7 @@ export function AnnotationStage() {
         kind: 'comment',
         anchorMode: 'map',
         position: pointer,
-        geoAnchor: pointerGeo(map, pointer),
+        geoAnchor: pointerGeo(projection, pointer),
         style: defaultStyle,
       });
       addAnnotation(annotation);
@@ -1695,7 +1745,7 @@ export function AnnotationStage() {
         kind,
         anchorMode: defaultAnchorMode,
         position: pointer,
-        geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, pointer) : null,
+        geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(projection, pointer) : null,
         style: defaultStyle,
       }),
     );
@@ -1839,7 +1889,7 @@ export function AnnotationStage() {
   const beginPaintDraft = (point: { x: number; y: number }) => {
     const draft: FreehandDraft = {
       position: point,
-      geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(map, point) : null,
+      geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(projection, point) : null,
       points: [0, 0],
     };
     paintDraftRef.current = draft;
@@ -1986,7 +2036,7 @@ export function AnnotationStage() {
             ))}
           {annotations.map((annotation) => {
             if (!annotation.visible) return null;
-            const position = anchorPosition(annotation, map);
+            const position = anchorPosition(annotation, projection);
             const selected = selectedAnnotationIds.includes(annotation.id);
             return (
               <Group
@@ -2085,7 +2135,7 @@ export function AnnotationStage() {
                       .map((id) => annotations.find((item) => item.id === id))
                       .filter((item): item is Annotation => Boolean(item))
                       .map((item) => {
-                        const pos = anchorPosition(item, map);
+                        const pos = anchorPosition(item, projection);
                         return [item.id, { x: pos.x, y: pos.y, geoAnchor: item.geoAnchor }];
                       }),
                   );
@@ -2121,7 +2171,7 @@ export function AnnotationStage() {
                       id,
                       ...normalizeDragPosition(
                         annotations.find((item) => item.id === id) ?? annotation,
-                        map,
+                        projection,
                         nextPosition,
                       ),
                     };
@@ -2139,13 +2189,18 @@ export function AnnotationStage() {
                     scaleY: node.scaleY(),
                   });
                   if (annotation.anchorMode === 'map') {
-                    patch.geoAnchor = pointerGeo(map, { x: node.x(), y: node.y() });
+                    patch.geoAnchor = pointerGeo(projection, { x: node.x(), y: node.y() });
                   }
                   node.scale({ x: 1, y: 1 });
                   updateAnnotation(annotation.id, patch);
                 }}
               >
-                <FillShape annotation={annotation} editing={editingText?.id === annotation.id} map={map} />
+                <FillShape
+                  annotation={annotation}
+                  editing={editingText?.id === annotation.id}
+                  map={map}
+                  projection={projection}
+                />
                 {selected && annotation.locked && (
                   <Rect
                     x={-8}

@@ -32,6 +32,7 @@ const TITLE: Record<AnnotationKind, TranslationKey> = {
   sourcecredit: 'annotation.sourceCredit',
   scalebar: 'annotation.scaleBar',
   northarrow: 'annotation.northArrow',
+  graticule: 'annotation.graticule',
 };
 
 function base({ kind, anchorMode, position, geoAnchor, style }: CreateAnnotationInput) {
@@ -132,5 +133,7 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
       return { ...seed, kind: 'scalebar', unitSystem: defaultUnitSystem(), maxWidth: 140 };
     case 'northarrow':
       return { ...seed, kind: 'northarrow', size: 48 };
+    case 'graticule':
+      return { ...seed, kind: 'graticule', intervalDeg: 15 };
   }
 }

@@ -7,6 +7,7 @@ import { useViewportStore } from '@/state/viewportStore';
 import { useNotices } from '@/ui/notices';
 import { translate, useLocale } from '@/i18n/useLocale';
 import { useMapInstance } from './mapInstance';
+import { createMercatorProjection } from './canvasProjection';
 import { isTauri } from '@/app/platform';
 
 const BASEMAP_LOADING_NOTICE_DELAY_MS = 1_200;
@@ -77,6 +78,7 @@ export function MapView() {
     });
     mapRef.current = map;
     useMapInstance.getState().setMap(map);
+    useMapInstance.getState().setProjection(createMercatorProjection(map));
     armBasemapLoadingNotice(map);
 
     const syncViewport = () => {
@@ -96,14 +98,22 @@ export function MapView() {
     map.on('mousemove', setCursor);
     map.on('mouseout', clearCursor);
 
-    const resizeObserver = new ResizeObserver(() => map.resize());
+    const syncContainerSize = () =>
+      useMapInstance.getState().setContainerSize({ width: container.clientWidth, height: container.clientHeight });
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize();
+      syncContainerSize();
+    });
     resizeObserver.observe(container);
+    syncContainerSize();
 
     return () => {
       loadingNoticeCycleRef.current += 1;
       if (loadingNoticeTimerRef.current) globalThis.clearTimeout(loadingNoticeTimerRef.current);
       resizeObserver.disconnect();
       useMapInstance.getState().setMap(null);
+      useMapInstance.getState().setProjection(null);
+      useMapInstance.getState().setContainerSize(null);
       map.remove();
       mapRef.current = null;
     };

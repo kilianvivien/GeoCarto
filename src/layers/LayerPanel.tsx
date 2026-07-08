@@ -29,6 +29,7 @@ import {
   Compass,
   Scaling,
   Layers,
+  Grid3x3,
   type LucideIcon,
 } from 'lucide-react';
 import type { AnnotationKind, GeometryKind } from '@/project/cartoproj';
@@ -72,6 +73,7 @@ const ANNOTATION_ICON: Record<AnnotationKind, LucideIcon> = {
   sourcecredit: Copyright,
   scalebar: Scaling,
   northarrow: Compass,
+  graticule: Grid3x3,
 };
 
 function LayerRow({ layerId }: { layerId: string }) {
@@ -83,12 +85,14 @@ function LayerRow({ layerId }: { layerId: string }) {
   const { selectLayer, renameLayer, setLayerVisible, setLayerLocked, moveLayer, removeLayer } =
     useDocumentStore.getState();
   const isEditingVectors = useEditStore((s) => s.editingLayerId === layerId);
+  const engine = useDocumentStore((s) => s.project.engine);
 
   const [editing, setEditing] = useState(false);
 
   if (!layer) return null;
   const Icon = GEOMETRY_ICON[layer.geometry];
   const canMutate = !layer.locked;
+  const vectorEditDisabled = engine === 'projected';
 
   return (
     <div
@@ -138,8 +142,14 @@ function LayerRow({ layerId }: { layerId: string }) {
       </div>
       <div className="flex items-center gap-0.5">
         <RowButton
-          label={isEditingVectors ? t('layer.finishEditing') : t('layer.editFeatures')}
-          disabled={!canMutate}
+          label={
+            vectorEditDisabled
+              ? t('layer.editUnavailableProjected')
+              : isEditingVectors
+                ? t('layer.finishEditing')
+                : t('layer.editFeatures')
+          }
+          disabled={!canMutate || vectorEditDisabled}
           active={isEditingVectors}
           onClick={() => {
             const edit = useEditStore.getState();

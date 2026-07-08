@@ -2,7 +2,12 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
-import { createEmptyProject, DEFAULT_ANNOTATION_STYLE, type Annotation } from '@/project/cartoproj';
+import {
+  createEmptyProject,
+  DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_PROJECTION_CONFIG,
+  type Annotation,
+} from '@/project/cartoproj';
 import { useToolStore } from '@/state/toolStore';
 import { useSessionsStore } from '@/state/sessionsStore';
 import { useHistoryStore } from '@/state/historyStore';
@@ -17,6 +22,10 @@ const tauriEventListeners = vi.hoisted(
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
 vi.mock('@/canvas/MapView', () => ({
   MapView: () => <div data-testid="map-view" />,
+}));
+
+vi.mock('@/canvas/ProjectedMapView', () => ({
+  ProjectedMapView: () => <div data-testid="projected-map-view" />,
 }));
 
 vi.mock('@/canvas/AnnotationStage', () => ({
@@ -108,6 +117,16 @@ describe('App', () => {
       issues: [],
       checkedAt: null,
     });
+  });
+
+  it('mounts ProjectedMapView instead of MapView when the document engine is projected', async () => {
+    useDocumentStore.setState((state) => ({
+      project: { ...state.project, engine: 'projected', projection: { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] } },
+    }));
+    render(<App />);
+    // ProjectedMapView is code-split (React.lazy) — its chunk resolves asynchronously.
+    expect(await screen.findByTestId('projected-map-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-view')).not.toBeInTheDocument();
   });
 
   it('renders the app shell chrome', () => {
@@ -226,7 +245,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /export \(⌘e\)/i }));
 
     expect(screen.getByText('Fidelity')).toBeInTheDocument();
-    expect(screen.getByText(/PNG, JPEG, and PDF flatten/)).toBeInTheDocument();
+    expect(screen.getByText(/PNG, JPEG, and raster PDF flatten/)).toBeInTheDocument();
+    expect(screen.getByText(/Vector PDF keeps annotations/)).toBeInTheDocument();
     expect(screen.getByText(/SVG keeps annotations/)).toBeInTheDocument();
     expect(screen.getByText(/GeoJSON export keeps edited layer features/)).toBeInTheDocument();
   });

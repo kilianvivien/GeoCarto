@@ -20,6 +20,7 @@ import {
   Copyright,
   Compass,
   Scaling,
+  Grid3x3,
   type LucideIcon,
 } from 'lucide-react';
 import { useNotices } from './notices';
@@ -36,6 +37,7 @@ const FURNITURE_ITEMS: { kind: FurnitureKind; labelKey: TranslationKey; icon: Lu
   { kind: 'sourcecredit', labelKey: 'furniture.sourcecredit', icon: Copyright },
   { kind: 'scalebar', labelKey: 'furniture.scalebar', icon: Scaling },
   { kind: 'northarrow', labelKey: 'furniture.northarrow', icon: Compass },
+  { kind: 'graticule', labelKey: 'furniture.graticule', icon: Grid3x3 },
 ];
 
 /** Tool groups from design.md §4.2. */
@@ -72,6 +74,7 @@ export function ToolRail() {
   const active = useToolStore((s) => s.activeTool);
   const setActiveTool = useToolStore((s) => s.setActiveTool);
   const mode = useDocumentStore((s) => s.project.mode);
+  const engine = useDocumentStore((s) => s.project.engine);
   const editingVectors = useEditStore((s) => s.editingLayerId !== null);
   const push = useNotices((s) => s.push);
   // Annotation tools are unavailable while the vector editor owns the map — the
@@ -220,18 +223,28 @@ export function ToolRail() {
             {FURNITURE_ITEMS.map((item) => {
               const ItemIcon = item.icon;
               const label = t(item.labelKey);
+              // North arrow follows the MapLibre camera bearing, which is meaningless
+              // once a document switches to the projected (non-Mercator) engine.
+              const engineDisabled = item.kind === 'northarrow' && engine === 'projected';
               return (
                 <button
                   key={item.kind}
                   type="button"
                   role="menuitem"
                   data-furniture={item.kind}
+                  disabled={engineDisabled}
+                  title={engineDisabled ? t('furniture.northarrowUnavailableProjected') : undefined}
                   onClick={() => {
+                    if (engineDisabled) return;
                     insertFurniture(item.kind);
                     setInsertOpen(false);
                     push(t('tools.furnitureInserted', { name: label }));
                   }}
-                  className="flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
+                  className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors ${
+                    engineDisabled
+                      ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+                      : 'hover:bg-[var(--hover)]'
+                  }`}
                 >
                   <ItemIcon size={14} className="text-[var(--text-2)]" />
                   {label}

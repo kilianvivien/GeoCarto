@@ -120,7 +120,8 @@ export type AnnotationKind =
   | 'titleblock'
   | 'sourcecredit'
   | 'scalebar'
-  | 'northarrow';
+  | 'northarrow'
+  | 'graticule';
 
 export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
@@ -208,6 +209,47 @@ export type BasemapConfig =
       name: string;
       attribution: string;
     };
+
+/**
+ * Rendering engine for the document. `mercator` (default) is today's MapLibre
+ * slippy-map path. `projected` swaps to a Canvas2D/d3-geo render path for
+ * editorial world/continental projections — MapLibre cannot reproject tile
+ * basemaps, so a projected document has no tile basemap (see BasemapConfig
+ * `empty` kind) and instead draws bundled Natural Earth outlines and/or the
+ * project's own GeoJSON layers.
+ */
+export type MapEngine = 'mercator' | 'projected';
+
+export type ProjectionId = 'equal-earth' | 'robinson' | 'winkel3' | 'bonne' | 'natural-earth-1';
+
+/** Configuration for a `projected`-engine document's d3-geo projection. */
+export interface ProjectionConfig {
+  id: ProjectionId;
+  /** Center longitude (degrees), applied as the projection's rotate-lambda. */
+  rotateLambda: number;
+  /** Standard parallel (degrees) — only meaningful for `bonne`. */
+  parallel?: number;
+  /** d3-geo projection scale factor. */
+  scale: number;
+  /** Translate offset in frame coordinates (px at 1× DPI). */
+  center: [number, number];
+}
+
+const PROJECTION_IDS: ProjectionId[] = ['equal-earth', 'robinson', 'winkel3', 'bonne', 'natural-earth-1'];
+
+/** Sane starting config per projection id, keyed for the setup-panel picker. */
+export const DEFAULT_PROJECTION_CONFIG: Record<ProjectionId, ProjectionConfig> = Object.fromEntries(
+  PROJECTION_IDS.map((id) => [
+    id,
+    {
+      id,
+      rotateLambda: 0,
+      parallel: id === 'bonne' ? 45 : undefined,
+      scale: 150,
+      center: [400, 300],
+    },
+  ]),
+) as Record<ProjectionId, ProjectionConfig>;
 
 export interface LockedMapView {
   viewport: Viewport;
@@ -465,6 +507,12 @@ export type NorthArrowAnnotation = AnnotationBase & {
   size: number;
 };
 
+/** Graticule (lat/lon grid) furniture — spans the full export frame, projected-engine only. */
+export type GraticuleAnnotation = AnnotationBase & {
+  kind: 'graticule';
+  intervalDeg: number;
+};
+
 export type Annotation =
   | TextAnnotation
   | RectAnnotation
@@ -479,7 +527,8 @@ export type Annotation =
   | TitleBlockAnnotation
   | SourceCreditAnnotation
   | ScaleBarAnnotation
-  | NorthArrowAnnotation;
+  | NorthArrowAnnotation
+  | GraticuleAnnotation;
 
 export interface AnnotationGroup {
   id: string;
@@ -533,6 +582,10 @@ export interface CartoProject {
   exportFrame: ExportFrame;
   basemap: BasemapConfig;
   lockedMapView: LockedMapView | null;
+  /** Rendering engine; `mercator` for all documents until Feature 3 (see serialize.ts defaulting). */
+  engine: MapEngine;
+  /** Active projection config when `engine === 'projected'`; null otherwise. */
+  projection: ProjectionConfig | null;
   /** Ordered bottom → top. `layers[0]` draws beneath the rest. */
   layers: GeoJsonLayer[];
   /** Ordered bottom → top editable annotation objects. */
@@ -551,6 +604,8 @@ export function createEmptyProject(name = translate('common.untitled')): CartoPr
     exportFrame: { width: 1600, height: 1200, preset: '4-3', margin: 0, background: 'white', dpiScale: 1 },
     basemap: builtinBasemap(defaultBasemapPreset()),
     lockedMapView: null,
+    engine: 'mercator',
+    projection: null,
     layers: [],
     annotations: [],
     annotationGroups: [],

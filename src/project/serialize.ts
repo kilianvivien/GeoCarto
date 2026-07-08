@@ -96,6 +96,11 @@ function validateProject(value: unknown): asserts value is CartoProject {
     };
   }
   if (!('lockedMapView' in value)) value.lockedMapView = null;
+  // Feature 3: documents saved before editorial projections shipped have
+  // neither field — default to today's Mercator/MapLibre behavior.
+  if (value.engine !== 'mercator' && value.engine !== 'projected') value.engine = 'mercator';
+  if (value.engine === 'mercator') value.projection = null;
+  else if (!isObject(value.projection)) value.projection = null;
   if (!('annotations' in value)) value.annotations = [];
   if (!('annotationGroups' in value)) value.annotationGroups = [];
   expect(Array.isArray(value.layers), translate('errors.layersArray'));

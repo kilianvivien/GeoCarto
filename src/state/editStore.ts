@@ -32,6 +32,9 @@ export const useEditStore = create<EditState>((set) => ({
   enterEdit: (layerId) => {
     const layer = useDocumentStore.getState().project.layers.find((l) => l.id === layerId);
     if (!layer || layer.locked) return;
+    // Vector editing (terra-draw) is Mercator-only in v1 — projected documents
+    // have no MapLibre camera for it to draw against.
+    if (useDocumentStore.getState().project.engine === 'projected') return;
     // Stamp stable ids so the editor↔document bridge can address each feature.
     hintHistoryLabel('Prepare layer for editing');
     useDocumentStore.getState().ensureFeatureIds(layerId);

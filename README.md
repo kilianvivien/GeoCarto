@@ -53,8 +53,13 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 ### Map furniture
 - **Title block and source credit**
 - **Scale bar** — snaps to round distances and tracks map scale
-- **North arrow** — follows map bearing
+- **North arrow** — follows map bearing (Mercator maps only)
 - **Legend builder** — manually editable swatches linked to layer styles
+- **Graticule** — a lat/lon grid, most useful on projected maps
+
+### Editorial projections
+- Switch a document to a **projected engine** (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) for editorial world/continental maps — MapLibre tiles aren't available in this mode, so projected documents render bundled Natural Earth land outlines plus your own imported layers
+- Numeric center-longitude and scale controls in map setup
 
 ### Canvas tools
 - Marquee multi-select with shift/cmd/alt modifiers
@@ -77,8 +82,8 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 
 ### Export
 - **PNG and JPEG** — 1×, 2×, or custom scale; white or transparent background; JPEG quality slider
-- **SVG** — annotations and map furniture export as editable vector objects; basemap and imported data layers are embedded as a raster image
-- **PDF** — raster-in-PDF sized to the composition frame
+- **SVG** — annotations and map furniture export as editable vector objects; on a projected-engine document, data layers export as real vector paths too (Mercator basemap/data still embed as a raster image)
+- **PDF** — vector PDF (default) with selectable text and vector annotations/furniture, or raster-in-PDF as a fallback, sized to the composition frame
 
 ### Desktop
 - Native macOS window via Tauri 2, with full feature parity with the web build
@@ -89,10 +94,10 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 
 GeoCarto is young and moving fast. A few things to expect at this stage:
 
-- Web Mercator is the only projection for now — editorial projections (Robinson, Equal Earth…) are on the roadmap.
-- Imported data layers export as raster inside SVG and PDF; annotations and map furniture stay fully editable vectors.
+- Editorial projections are a distinct document mode with no tile basemap and numeric-only controls (no drag-to-rotate yet); vector editing and feature picking aren't available there in v1.
+- Imported data layers still export as raster inside SVG/PDF on Mercator documents (projected documents get real vector paths); annotations and map furniture stay fully editable vectors either way.
 - The macOS desktop app is not yet signed or notarized, so Gatekeeper will warn on first launch.
-- GIS analysis (joins, choropleth, buffers) and offline basemap packs are planned, not shipped.
+- GIS analysis (attribute joins, buffers) and offline basemap packs are planned, not shipped.
 
 ---
 
@@ -100,11 +105,10 @@ GeoCarto is young and moving fast. A few things to expect at this stage:
 
 GeoCarto is built in phases. The browser core loop and the editorial toolset are in place — here's what's next.
 
-**Recently shipped (0.2.x)**
-- Edit imported GeoJSON: move/add/delete vertices, draw new features, edit attributes ✓
-- French + English localization with auto-detection and manual override ✓
-- Unified settings modal (appearance, units, canvas defaults, autosave, basemap) ✓
-- Top-level error boundary with crash-safe autosave recovery ✓
+**Recently shipped (0.3.x)**
+- Place search / geocoding and choropleth & proportional-symbol data styling ✓
+- Editorial projections (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) ✓
+- Vector PDF export with selectable text and vector annotations/furniture ✓
 
 **Next — discoverability & desktop reach**
 - In-app help and keyboard shortcut reference
@@ -112,9 +116,9 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 - Signed & notarized macOS release; Windows and Linux desktop builds
 
 **Later — cartographic depth & print**
-- Non-Mercator editorial projections (Robinson, Equal Earth, Winkel Tripel…)
-- GIS analysis: attribute joins, choropleth wizard, proportional symbols, buffering
-- Print-grade vector PDF and a templates gallery
+- Drag-to-rotate/wheel-to-scale interaction on projected maps; vector editing there
+- GIS analysis: attribute joins and buffering
+- Unified scene graph and a templates gallery
 
 **Future — collaboration & platform**
 - Cloud project sync, share links, and real-time collaboration

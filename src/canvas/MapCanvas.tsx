@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Maximize2, Minus, Plus } from 'lucide-react';
 import { MapView } from './MapView';
@@ -24,6 +24,10 @@ import { useNotices } from '@/ui/notices';
 
 type Point = { x: number; y: number };
 type SurfaceBox = { x: number; y: number; width: number; height: number };
+
+// Lazy: pulls in d3-geo/d3-geo-projection/world-atlas, which should never be
+// part of the app-shell chunk — only projected-engine documents pay this cost.
+const ProjectedMapView = lazy(() => import('./ProjectedMapView').then((m) => ({ default: m.ProjectedMapView })));
 
 function ViewZoomControls({ anchor }: { anchor: () => Point }) {
   const zoom = useViewTransformStore((s) => s.zoom);
@@ -151,6 +155,7 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
   const surfaceRef = useRef<SurfaceBox>({ width: 0, height: 0, x: 0, y: 0 });
   const mode = useDocumentStore((s) => s.project.mode);
   const basemap = useDocumentStore((s) => s.project.basemap);
+  const engine = useDocumentStore((s) => s.project.engine);
   const exportFrame = useDocumentStore((s) => s.project.exportFrame);
   const activeTool = useToolStore((s) => s.activeTool);
   const viewZoom = useViewTransformStore((s) => s.zoom);
@@ -330,11 +335,19 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
           transformOrigin: '0 0',
         }}
       >
-        <MapView />
-        <StaticBasemapOverlay />
-        <GeoJsonLayers />
-        <VectorEditor />
-        <DeckOverlay />
+        {engine === 'projected' ? (
+          <Suspense fallback={null}>
+            <ProjectedMapView />
+          </Suspense>
+        ) : (
+          <>
+            <MapView />
+            <StaticBasemapOverlay />
+            <GeoJsonLayers />
+            <VectorEditor />
+            <DeckOverlay />
+          </>
+        )}
         {mode === 'mapSetup' && <ExportFrame />}
         <AnnotationStage />
       </div>

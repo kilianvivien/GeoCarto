@@ -90,6 +90,7 @@ const ANNOTATION_KIND_LABELS: Record<AnnotationKind, TranslationKey> = {
   sourcecredit: 'annotation.sourceCredit',
   scalebar: 'annotation.scaleBar',
   northarrow: 'annotation.northArrow',
+  graticule: 'annotation.graticule',
 };
 
 const DEFAULT_ANNOTATION_NAMES: Record<AnnotationKind, string> = {
@@ -110,6 +111,7 @@ const DEFAULT_ANNOTATION_NAMES: Record<AnnotationKind, string> = {
   sourcecredit: 'Source credit',
   scalebar: 'Scale bar',
   northarrow: 'North arrow',
+  graticule: 'Graticule',
 };
 
 function kindLabel(kind: AnnotationKind, t: ReturnType<typeof useLocale.getState>['t']): string {
@@ -830,6 +832,22 @@ function GeometryControls({
             />
           </Row>
           <Hint>{t('annotation.northArrowHint')}</Hint>
+        </Section>
+      );
+    case 'graticule':
+      return (
+        <Section title={t('annotation.graticule')}>
+          <Row label={t('annotation.intervalDeg')}>
+            <Input
+              type="number"
+              min={1}
+              max={90}
+              value={annotation.intervalDeg}
+              disabled={disabled}
+              onChange={(e) => onChange({ intervalDeg: Number(e.target.value) } as Partial<Annotation>)}
+            />
+          </Row>
+          <Hint>{t('annotation.graticuleHint')}</Hint>
         </Section>
       );
   }

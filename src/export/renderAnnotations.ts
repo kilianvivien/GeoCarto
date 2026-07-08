@@ -1,9 +1,11 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
 import type { Annotation, AnnotationStyle, BrushPreset, LegendFillStyle, LegendSymbol, PinIcon } from '@/project/cartoproj';
+import type { CanvasProjection } from '@/canvas/canvasProjection';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntrySymbol } from '@/style/legendSwatches';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
+import { buildGraticule } from '@/projection/graticule';
 
 function shadowProps(style: AnnotationStyle) {
   if (style.shadowBlur <= 0 && style.shadowOffsetX === 0 && style.shadowOffsetY === 0) {
@@ -42,6 +44,8 @@ interface RenderOptions {
   annotations: Annotation[];
   /** Live editor map used to project geo-anchored annotations to editor canvas pixels. */
   map: maplibregl.Map | null;
+  /** Coordinate bridge for the active engine — used instead of `map` for anchoring/graticule. */
+  projection: CanvasProjection | null;
   /** Inset of the frame box on the editor canvas. */
   frameOffset: { x: number; y: number };
   /** Pixel scale from editor canvas to output canvas. */
@@ -323,6 +327,7 @@ function addAnnotation(
   annotation: Annotation,
   originPx: { x: number; y: number },
   map: maplibregl.Map | null,
+  projection: CanvasProjection | null,
 ): void {
   if (!annotation.visible) return;
 
@@ -748,6 +753,26 @@ function addAnnotation(
       group.add(inner);
       break;
     }
+    case 'graticule': {
+      if (!projection) break;
+      const multiline = buildGraticule(annotation.intervalDeg);
+      for (const line of multiline.coordinates) {
+        const projected = line
+          .map((lngLat) => projection.project(lngLat as [number, number]))
+          .filter((p): p is { x: number; y: number } => p !== null);
+        if (projected.length < 2) continue;
+        group.add(
+          new Konva.Line({
+            points: projected.flatMap((p) => [p.x, p.y]),
+            stroke: style.strokeColor,
+            strokeWidth: style.strokeWidth,
+            dash: strokeDash(style),
+            listening: false,
+          }),
+        );
+      }
+      break;
+    }
   }
 
   layer.add(group);
@@ -813,7 +838,7 @@ function polygonLocalBounds(points: number[]) {
  * paths share the same editor-canvas→output transform.
  */
 export function renderAnnotationsToCanvas(options: RenderOptions): HTMLCanvasElement {
-  const { width, height, annotations, map, frameOffset, scale } = options;
+  const { width, height, annotations, map, projection, frameOffset, scale } = options;
 
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-99999px;top:0;pointer-events:none;';
@@ -827,11 +852,12 @@ export function renderAnnotationsToCanvas(options: RenderOptions): HTMLCanvasEle
     stage.add(layer);
 
     for (const annotation of annotations) {
-      const editorPos =
-        annotation.anchorMode === 'map' && annotation.geoAnchor && map
-          ? map.project(annotation.geoAnchor)
-          : annotation.position;
-      addAnnotation(layer, annotation, { x: editorPos.x, y: editorPos.y }, map);
+      const projected =
+        annotation.anchorMode === 'map' && annotation.geoAnchor && projection
+          ? projection.project(annotation.geoAnchor)
+          : null;
+      const editorPos = projected ?? annotation.position;
+      addAnnotation(layer, annotation, { x: editorPos.x, y: editorPos.y }, map, projection);
     }
 
     layer.draw();

@@ -52,6 +52,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const push = useNotices((s) => s.push);
 
   const [format, setFormat] = useState<DialogFormat>('png');
+  const [pdfMode, setPdfMode] = useState<'raster' | 'vector'>('vector');
   const [svgIncludeBasemap, setSvgIncludeBasemap] = useState(true);
   const projectScale = project.exportFrame.dpiScale ?? 1;
   const initialPreset: ScalePreset = projectScale === 1 ? '1x' : projectScale === 2 ? '2x' : 'custom';
@@ -82,7 +83,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
         result = await exportSvg(project, { includeBasemap: svgIncludeBasemap });
       } else if (format === 'pdf') {
         const { exportPdf } = await import('@/export/pdf');
-        result = await exportPdf(project, { scale });
+        result = await exportPdf(project, { scale, mode: pdfMode });
       } else {
         const { exportRaster } = await loadRaster();
         result = await exportRaster(project, { format, scale, background: exportBackground, quality });
@@ -147,7 +148,20 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           />
         </Field>
 
-        {format !== 'svg' && (
+        {format === 'pdf' && (
+          <Field label={t('export.pdfMode')}>
+            <Segmented
+              value={pdfMode}
+              options={[
+                { value: 'vector', label: t('export.pdfModeVector') },
+                { value: 'raster', label: t('export.pdfModeRaster') },
+              ]}
+              onChange={setPdfMode}
+            />
+          </Field>
+        )}
+
+        {format !== 'svg' && !(format === 'pdf' && pdfMode === 'vector') && (
         <Field label={t('export.scale')}>
           <Segmented
             value={scalePreset}
@@ -281,8 +295,12 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
           <div className="grid gap-2 text-[11.5px] leading-snug text-[var(--text-2)]">
             <div>
-              <span className="font-semibold text-[var(--text)]">PNG/JPEG/PDF:</span>{' '}
+              <span className="font-semibold text-[var(--text)]">PNG/JPEG/Raster PDF:</span>{' '}
               {t('export.fidelityRaster')}
+            </div>
+            <div>
+              <span className="font-semibold text-[var(--text)]">Vector PDF:</span>{' '}
+              {t('export.fidelityVectorPdf')}
             </div>
             <div>
               <span className="font-semibold text-[var(--text)]">SVG:</span>{' '}
