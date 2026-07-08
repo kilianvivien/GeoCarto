@@ -76,6 +76,11 @@ export function KeyboardShortcuts() {
           await runAppCommand('open-command-palette');
           return;
         }
+        if (key === 'f' && event.shiftKey) {
+          event.preventDefault();
+          await runAppCommand('go-to-place');
+          return;
+        }
         if (key === 'e') {
           event.preventDefault();
           await runAppCommand(event.shiftKey ? 'share-png' : 'export');

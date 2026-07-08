@@ -159,6 +159,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
   const { setGridSnapEnabled, setGridSpacing, setSmartGuidesEnabled } = useToolStore.getState();
 
   const accent = usePreferencesStore((s) => s.accent);
+  const onlineSearchEnabled = usePreferencesStore((s) => s.onlineSearchEnabled);
   const unitSystem = usePreferencesStore((s) => s.unitSystem);
   const autosaveIntervalSec = usePreferencesStore((s) => s.autosaveIntervalSec);
   const defaultBasemap = usePreferencesStore((s) => s.defaultBasemap);
@@ -320,6 +321,12 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
                   </select>
                 </Field>
                 <Hint>{t('settings.languageHelp')}</Hint>
+                <ToggleRow
+                  label={t('settings.onlineSearch')}
+                  checked={onlineSearchEnabled}
+                  onChange={(checked) => setPreference('onlineSearchEnabled', checked)}
+                />
+                <Hint>{t('settings.onlineSearchHelp')}</Hint>
               </FieldGroup>
             )}
 

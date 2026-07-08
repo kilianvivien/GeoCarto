@@ -5,6 +5,7 @@ import {
   DEFAULT_BASEMAP,
   DEFAULT_GEOJSON_STYLE,
   type Annotation,
+  type ChoroplethStyle,
   type GeoJsonLayer,
 } from './cartoproj';
 import { deserializeProject, ProjectLoadError, serializeProject } from './serialize';
@@ -122,6 +123,31 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.annotations).toHaveLength(3);
     expect(restored.annotationGroups[0].annotationIds).toEqual(['a1', 'a3']);
     expect(restored.layers[0].data.features).toHaveLength(1);
+  });
+
+  it('round-trips a layer with a materialized choropleth dataStyle', () => {
+    const original = createEmptyProject('Population');
+    const choropleth: ChoroplethStyle = {
+      kind: 'choropleth',
+      attribute: 'population',
+      method: 'quantile',
+      classCount: 5,
+      breaks: [10, 20, 30, 40],
+      paletteId: 'blues',
+      reverse: false,
+      missingColor: '#cccccc',
+    };
+    original.layers.push({ ...geoLayer(), style: { ...DEFAULT_GEOJSON_STYLE, dataStyle: choropleth } });
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored).toEqual(original);
+    expect(restored.layers[0].style.dataStyle).toEqual(choropleth);
+  });
+
+  it('loads an older v1 project file with no dataStyle field at all', () => {
+    const original = createEmptyProject('Legacy');
+    original.layers.push(geoLayer());
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored.layers[0].style.dataStyle).toBeUndefined();
   });
 
   it('rejects malformed JSON', () => {

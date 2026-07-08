@@ -10,6 +10,7 @@ import {
   Moon,
   Redo2,
   Save,
+  Search,
   Share,
   Sun,
   Undo2,
@@ -25,6 +26,7 @@ import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledErr
 import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
 import { rememberRecentProject } from '@/project/recents';
 import { ExportDialog } from './ExportDialog';
+import { PlaceSearch } from './PlaceSearch';
 import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
 import { useNotices } from './notices';
@@ -80,6 +82,9 @@ export function TitleBar() {
   const exportOpen = useUiStore((s) => s.exportDialogOpen);
   const openExport = useUiStore((s) => s.openExportDialog);
   const closeExport = useUiStore((s) => s.closeExportDialog);
+  const placeSearchOpen = useUiStore((s) => s.placeSearchOpen);
+  const openPlaceSearch = useUiStore((s) => s.openPlaceSearch);
+  const closePlaceSearch = useUiStore((s) => s.closePlaceSearch);
   const canUndo = useHistoryStore((s) => s.past.length > 0);
   const canRedo = useHistoryStore((s) => s.future.length > 0);
   const undo = useHistoryStore((s) => s.undo);
@@ -277,6 +282,10 @@ export function TitleBar() {
           <Magnet size={16} />
         </IconButton>
         <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
+        <IconButton label={t('place.goToPlace')} onClick={openPlaceSearch}>
+          <Search size={16} />
+        </IconButton>
+        <span className="mx-1 h-5 w-px bg-[var(--divider)]" />
         <IconButton
           label={theme === 'dark' ? t('title.lightTheme') : t('title.darkTheme')}
           onClick={toggleTheme}
@@ -331,6 +340,7 @@ export function TitleBar() {
         </Tooltip>
       </div>
       <ExportDialog open={exportOpen} onClose={closeExport} />
+      <PlaceSearch open={placeSearchOpen} onClose={closePlaceSearch} />
     </div>
   );
 }

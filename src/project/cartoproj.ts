@@ -14,6 +14,38 @@ export interface FeatureFillStyle {
   hatchSpacing: number;
 }
 
+export type ClassificationMethod = 'quantile' | 'equal' | 'jenks' | 'manual';
+
+/** Color-by-value styling for polygon/line layers (choropleth map). */
+export interface ChoroplethStyle {
+  kind: 'choropleth';
+  attribute: string;
+  method: ClassificationMethod;
+  /** Requested class count (3–9); the effective count may be lower when the
+   *  attribute has fewer distinct values. */
+  classCount: number;
+  /** Materialized interior breaks (length = classCount - 1), recomputed by the
+   *  UI whenever attribute/method/classCount change (or on demand after a data
+   *  edit) — never at render time, so a saved project renders identically even
+   *  if classification code changes later. */
+  breaks: number[];
+  paletteId: string;
+  reverse: boolean;
+  missingColor: string;
+}
+
+/** Size-by-value styling for point layers (proportional symbols). */
+export interface ProportionalStyle {
+  kind: 'proportional';
+  attribute: string;
+  minRadius: number;
+  maxRadius: number;
+  scale: 'sqrt' | 'linear';
+  color: string;
+}
+
+export type DataStyle = ChoroplethStyle | ProportionalStyle;
+
 /** Render style for an imported GeoJSON layer (Milestone 4 makes this editable). */
 export interface GeoJsonStyle {
   fillColor: string;
@@ -32,6 +64,8 @@ export interface GeoJsonStyle {
   pointRadius: number;
   /** Whether point features in this layer should be rendered as circles. */
   showPoints: boolean;
+  /** Data-driven styling (choropleth / proportional symbols). Absent = single style (default). */
+  dataStyle?: DataStyle;
 }
 
 export const DEFAULT_GEOJSON_STYLE: GeoJsonStyle = {
@@ -388,6 +422,11 @@ export type LegendAnnotation = AnnotationBase & {
   title: string;
   entries: LegendEntry[];
   width: number;
+  /** Source layer this legend's entries were generated from, if any — lets the
+   *  "Refresh from layer" action regenerate `entries` after the layer's data
+   *  style changes. Entries stay materialized (not recomputed at render time)
+   *  so the legend still renders correctly if the source layer is later removed. */
+  dataStyleLink?: { layerId: string };
 };
 
 export type CommentAnnotation = AnnotationBase & {

@@ -1,4 +1,6 @@
-import type { Annotation, AnnotationStyle, LegendEntry, LegendFillStyle, LegendSymbol } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, ChoroplethStyle, LegendEntry, LegendFillStyle, LegendSymbol } from '@/project/cartoproj';
+import { localeNumber, translate } from '@/i18n/useLocale';
+import { sampleRamp } from './ramps';
 
 export function legendFillFromStyle(style: AnnotationStyle): LegendFillStyle {
   return {
@@ -94,4 +96,44 @@ export function legendSwatchBackgroundSize(fill: LegendFillStyle): string | unde
   if (fill.fillPattern !== 'dots') return undefined;
   const spacing = Math.max(4, fill.hatchSpacing);
   return `${spacing}px ${spacing}px, auto`;
+}
+
+function formatNumber(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return localeNumber(rounded);
+}
+
+/**
+ * Materialize legend entries from a choropleth data style — one entry per
+ * class range plus a trailing "missing" swatch when the layer has any. Called
+ * once when the user creates/refreshes the legend (`LegendAnnotation.dataStyleLink`);
+ * entries then live in the document like any other legend, not recomputed at
+ * render time.
+ */
+export function choroplethLegendEntries(dataStyle: ChoroplethStyle, missingCount: number): LegendEntry[] {
+  const colors = sampleRamp(dataStyle.paletteId, dataStyle.breaks.length + 1, dataStyle.reverse);
+  const bounds = [-Infinity, ...dataStyle.breaks, Infinity];
+  const entries: LegendEntry[] = colors.map((color, i) => {
+    const lower = bounds[i];
+    const upper = bounds[i + 1];
+    const label =
+      lower === -Infinity ? `< ${formatNumber(upper)}` : upper === Infinity ? `≥ ${formatNumber(lower)}` : `${formatNumber(lower)}–${formatNumber(upper)}`;
+    return {
+      label,
+      swatchColor: color,
+      symbol: { kind: 'fill', fillColor: color, fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+      fillStyle: { fillColor: color, fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+      visible: true,
+    };
+  });
+  if (missingCount > 0) {
+    entries.push({
+      label: translate('style.noDataLegend'),
+      swatchColor: dataStyle.missingColor,
+      symbol: { kind: 'fill', fillColor: dataStyle.missingColor, fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+      fillStyle: { fillColor: dataStyle.missingColor, fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 },
+      visible: true,
+    });
+  }
+  return entries;
 }

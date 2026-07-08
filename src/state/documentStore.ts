@@ -16,7 +16,20 @@ import {
   type PageBackground,
   type PagePresetKey,
 } from '@/project/cartoproj';
+import { computeBreaks, scanAttribute } from '@/style/classify';
 import type { Viewport } from './viewportStore';
+
+/**
+ * Refresh a choropleth's materialized breaks after the layer's underlying
+ * data changes (vector edit, undo/redo of a feature op). Manual breaks are
+ * intentionally left alone — the user owns those once they switch to `manual`.
+ */
+function recomputeChoroplethBreaks(layer: GeoJsonLayer): void {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind !== 'choropleth' || dataStyle.method === 'manual') return;
+  const stats = scanAttribute(layer.data.features, dataStyle.attribute);
+  dataStyle.breaks = computeBreaks(stats.values, dataStyle.method, dataStyle.classCount);
+}
 
 /** A feature picked on the map, surfaced in the attribute inspector. */
 export interface SelectedFeature {
@@ -357,6 +370,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.data = data;
         layer.featureCount = data.features.length;
         layer.geometry = detectGeometry(data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -368,6 +382,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.data.features.push(feature);
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -381,6 +396,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (layer.data.features.length === before) return;
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -392,6 +408,7 @@ export const useDocumentStore = create<DocumentState>()(
         const feature = layer.data.features.find((f) => f.id === featureId);
         if (!feature) return;
         feature.properties = properties;
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
