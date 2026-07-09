@@ -23,15 +23,20 @@ const BUDGETS = {
   // Export path — pulled lazily on click. Itself just the wrapper; maplibre
   // is reused from its own chunk.
   raster: 30 * 1024,
+  // Feature 3 (editorial projections): d3-geo + d3-geo-projection + topojson-client,
+  // lazy — only loaded when a projected-engine document mounts ProjectedMapView or
+  // exports. The 110m land TopoJSON itself is a separate `?url`-fetched asset, not
+  // part of this JS chunk, so it doesn't count against the JS budget at all.
+  projection: 60 * 1024,
   // CSS — Tailwind + custom tokens.
   css: 200 * 1024,
 };
 
-// 3.7 MB total JS/CSS allowance. Raised from 3 MB in M12: deck.gl (core +
-// luma.gl + aggregation layers, ~585 KB) lands in lazy chunks loaded only when
-// a layer uses the heatmap render strategy, and jsPDF (M15) is likewise lazy.
-// Neither touches the initial `index` shell, which stays under its own budget.
-const TOTAL_BUDGET = 3.7 * 1024 * 1024;
+// 3.85 MB total JS/CSS allowance. Raised from 3.7 MB for Feature 3 (editorial
+// projections, ~25 KB gzip-able JS in the lazy `naturalEarthOutlines` chunk)
+// and Feature 4 (svg2pdf.js, lazy inside the existing PDF export chunk). Both
+// additions are lazy-loaded on demand, so the initial `index` shell is unaffected.
+const TOTAL_BUDGET = 3.85 * 1024 * 1024;
 
 function pickChunk(files, prefix, extension) {
   return files.find((f) => f.startsWith(prefix) && f.endsWith(extension));
@@ -56,6 +61,7 @@ const matches = {
   konva: pickByPattern(files, /^konva-/, '.js'),
   pmtiles: pickByPattern(files, /^pmtiles-/, '.js'),
   raster: pickByPattern(files, /^raster-/, '.js'),
+  projection: pickByPattern(files, /^naturalEarthOutlines-/, '.js'),
   css: pickByPattern(files, /^index-/, '.css'),
 };
 

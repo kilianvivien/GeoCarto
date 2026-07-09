@@ -98,5 +98,8 @@ export function applyAnnotationTransform(
     case 'comment':
       // Comment pins are uniformly scaled like map pins — they reuse the pin size.
       return base as Partial<Annotation>;
+    case 'graticule':
+      // Graticule always spans the frame — not user-resizable.
+      return base as Partial<Annotation>;
   }
 }

@@ -4,7 +4,9 @@ import {
   DEFAULT_ANNOTATION_STYLE,
   DEFAULT_BASEMAP,
   DEFAULT_GEOJSON_STYLE,
+  DEFAULT_PROJECTION_CONFIG,
   type Annotation,
+  type ChoroplethStyle,
   type GeoJsonLayer,
 } from './cartoproj';
 import { deserializeProject, ProjectLoadError, serializeProject } from './serialize';
@@ -122,6 +124,31 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.annotations).toHaveLength(3);
     expect(restored.annotationGroups[0].annotationIds).toEqual(['a1', 'a3']);
     expect(restored.layers[0].data.features).toHaveLength(1);
+  });
+
+  it('round-trips a layer with a materialized choropleth dataStyle', () => {
+    const original = createEmptyProject('Population');
+    const choropleth: ChoroplethStyle = {
+      kind: 'choropleth',
+      attribute: 'population',
+      method: 'quantile',
+      classCount: 5,
+      breaks: [10, 20, 30, 40],
+      paletteId: 'blues',
+      reverse: false,
+      missingColor: '#cccccc',
+    };
+    original.layers.push({ ...geoLayer(), style: { ...DEFAULT_GEOJSON_STYLE, dataStyle: choropleth } });
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored).toEqual(original);
+    expect(restored.layers[0].style.dataStyle).toEqual(choropleth);
+  });
+
+  it('loads an older v1 project file with no dataStyle field at all', () => {
+    const original = createEmptyProject('Legacy');
+    original.layers.push(geoLayer());
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored.layers[0].style.dataStyle).toBeUndefined();
   });
 
   it('rejects malformed JSON', () => {
@@ -337,6 +364,47 @@ describe('serializeProject / deserializeProject', () => {
       pinColor: '#ff3b30',
       pinIcon: 'star',
     });
+  });
+
+  it('defaults engine/projection to mercator/null for older v1 project files missing the fields', () => {
+    const project = createEmptyProject('Legacy engine') as unknown as {
+      engine?: unknown;
+      projection?: unknown;
+    };
+    delete project.engine;
+    delete project.projection;
+
+    const restored = deserializeProject(JSON.stringify(project));
+    expect(restored.engine).toBe('mercator');
+    expect(restored.projection).toBeNull();
+  });
+
+  it('round-trips a projected-engine document with a full ProjectionConfig', () => {
+    const original = createEmptyProject('World map');
+    original.engine = 'projected';
+    original.projection = { ...DEFAULT_PROJECTION_CONFIG['equal-earth'], rotateLambda: -30, scale: 180 };
+
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored).toEqual(original);
+    expect(restored.projection).toEqual({
+      id: 'equal-earth',
+      rotateLambda: -30,
+      parallel: undefined,
+      scale: 180,
+      center: [400, 300],
+    });
+  });
+
+  it('forces projection to null when engine is mercator even if a stale projection is present', () => {
+    const project = createEmptyProject('Stale projection') as unknown as {
+      engine: string;
+      projection: unknown;
+    };
+    project.engine = 'mercator';
+    project.projection = { ...DEFAULT_PROJECTION_CONFIG['robinson'] };
+
+    const restored = deserializeProject(JSON.stringify(project));
+    expect(restored.projection).toBeNull();
   });
 
   it('rejects invalid export frame dimensions', () => {

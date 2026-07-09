@@ -1,9 +1,11 @@
 import type maplibregl from 'maplibre-gl';
-import type { FeatureCollection } from 'geojson';
+import type { Feature, FeatureCollection } from 'geojson';
 import type { FeatureFillStyle, GeoJsonLayer } from '@/project/cartoproj';
 import type { SelectedFeature } from '@/state/documentStore';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
 import { hatchTileImageData } from '@/style/annotationPatterns';
+import { coerceNumber, scanAttribute } from '@/style/classify';
+import { sampleRamp } from '@/style/ramps';
 
 const sourceId = (layerId: string) => `gc:${layerId}`;
 
@@ -81,7 +83,52 @@ function addLayerGraphics(map: maplibregl.Map, layer: GeoJsonLayer): void {
   });
 }
 
+/**
+ * Exact `@id` set of features whose attribute doesn't coerce to a finite
+ * number — computed with the same rule as `scanAttribute`/`missingCount` so
+ * the rendered "missing" color always agrees with the UI/legend. A MapLibre
+ * `to-number(x, 0)` fallback alone isn't enough: it silently coerces
+ * non-numeric strings (e.g. "N/A") to 0, which would misclassify them into
+ * the lowest step instead of routing them to `missingColor`.
+ */
+function missingFeatureIds(features: Feature[], attribute: string): string[] {
+  const ids: string[] = [];
+  for (const feature of features) {
+    if (coerceNumber(feature.properties?.[attribute]) !== null) continue;
+    const key = feature.properties?.[FEATURE_FILL_PROPERTY];
+    if (typeof key === 'string') ids.push(key);
+  }
+  return ids;
+}
+
+/** True when a feature is in the precomputed missing-attribute set. */
+function attributeMissingExpression(missingIds: string[]): unknown {
+  if (missingIds.length === 0) return false;
+  return ['in', ['to-string', ['get', FEATURE_FILL_PROPERTY]], ['literal', missingIds]];
+}
+
+/** Data-driven `fill-color` for a choropleth: a `step` expression over materialized breaks. */
+export function choroplethFillColorExpression(
+  features: Feature[],
+  attribute: string,
+  breaks: number[],
+  colors: string[],
+  missingColor: string,
+): unknown[] {
+  const valueExpr = ['to-number', ['get', attribute], 0];
+  const stepArgs: unknown[] = ['step', valueExpr, colors[0]];
+  for (let i = 0; i < breaks.length; i++) {
+    stepArgs.push(breaks[i], colors[i + 1]);
+  }
+  return ['case', attributeMissingExpression(missingFeatureIds(features, attribute)), missingColor, stepArgs];
+}
+
 export function fillColorExpression(layer: GeoJsonLayer): string | unknown[] {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind === 'choropleth') {
+    const colors = sampleRamp(dataStyle.paletteId, dataStyle.breaks.length + 1, dataStyle.reverse);
+    return choroplethFillColorExpression(layer.data.features, dataStyle.attribute, dataStyle.breaks, colors, dataStyle.missingColor);
+  }
   const overrides = featureStyleEntries(layer).map(([key, style]) => [key, style.fillColor]);
   if (overrides.length === 0) return layer.style.fillColor;
   return [
@@ -90,6 +137,33 @@ export function fillColorExpression(layer: GeoJsonLayer): string | unknown[] {
     ...overrides.flatMap(([key, color]) => [key, color]),
     layer.style.fillColor,
   ];
+}
+
+/** Data-driven `circle-radius` for proportional symbols: an `interpolate` expression over the attribute's live domain. */
+export function proportionalRadiusExpression(layer: GeoJsonLayer): number | unknown[] {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind !== 'proportional') return layer.style.pointRadius;
+  const { attribute, minRadius, maxRadius, scale } = dataStyle;
+  const stats = scanAttribute(layer.data.features, attribute);
+  if (stats.values.length === 0) return layer.style.pointRadius;
+
+  const dataMin = Math.max(0, stats.values[0]);
+  const dataMax = Math.max(0, stats.values[stats.values.length - 1]);
+  const rawExpr = ['to-number', ['get', attribute], 0];
+  const missing: unknown = attributeMissingExpression(missingFeatureIds(layer.data.features, attribute));
+
+  if (dataMin >= dataMax) {
+    // Degenerate (single-value or zero-span) domain — a ramp needs two distinct
+    // stops, so fall back to a constant radius rather than dividing by zero.
+    const flat = (minRadius + maxRadius) / 2;
+    return ['case', missing, 0, flat];
+  }
+
+  if (scale === 'sqrt') {
+    const domainExpr = ['sqrt', ['max', 0, rawExpr]];
+    return ['case', missing, 0, ['interpolate', ['linear'], domainExpr, Math.sqrt(dataMin), minRadius, Math.sqrt(dataMax), maxRadius]];
+  }
+  return ['case', missing, 0, ['interpolate', ['linear'], rawExpr, dataMin, minRadius, dataMax, maxRadius]];
 }
 
 function featureStyleEntries(layer: GeoJsonLayer): [string, FeatureFillStyle][] {
@@ -128,8 +202,12 @@ function updateLayerGraphics(
   applyFeatureFillPatterns(map, layer);
   map.setPaintProperty(ids.line, 'line-color', style.strokeColor);
   map.setPaintProperty(ids.line, 'line-width', style.strokeWidth);
-  map.setPaintProperty(ids.circle, 'circle-color', style.pointColor);
-  map.setPaintProperty(ids.circle, 'circle-radius', style.pointRadius);
+  map.setPaintProperty(
+    ids.circle,
+    'circle-color',
+    style.dataStyle?.kind === 'proportional' ? style.dataStyle.color : style.pointColor,
+  );
+  map.setPaintProperty(ids.circle, 'circle-radius', proportionalRadiusExpression(layer));
   map.setPaintProperty(ids.circle, 'circle-stroke-color', '#ffffff');
   map.setPaintProperty(ids.circle, 'circle-stroke-width', 1.5);
   map.setFilter(ids.selectedFill, ['all', ['==', ['geometry-type'], 'Polygon'], selectedFilter]);
@@ -165,7 +243,8 @@ function applyFillPattern(map: maplibregl.Map, layer: GeoJsonLayer): void {
     if ((id === imageId || id.startsWith(featureImagePrefix)) && map.hasImage(id)) map.removeImage(id);
   }
 
-  if (layer.renderStrategy === 'heatmap' || layer.style.fillPattern === 'none') return;
+  // Choropleth fill is fully data-driven — hatch patterns don't compose with it in v1.
+  if (layer.renderStrategy === 'heatmap' || layer.style.fillPattern === 'none' || layer.style.dataStyle?.kind === 'choropleth') return;
   const tile = hatchTileImageData(layer.style);
   if (!tile) return;
   map.addImage(imageId, tile, { pixelRatio: 1 });
@@ -178,7 +257,8 @@ function applyFeatureFillPatterns(map: maplibregl.Map, layer: GeoJsonLayer): voi
   const overrides = featureStyleEntries(layer).filter(([, style]) => style.fillPattern !== 'none');
   map.setPaintProperty(patternId, 'fill-pattern', undefined);
   map.setFilter(patternId, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['to-string', ['get', FEATURE_FILL_PROPERTY]], ['literal', []]]]);
-  if (overrides.length === 0) return;
+  // Choropleth fill supersedes per-feature overrides in v1 — the two modes are mutually exclusive.
+  if (overrides.length === 0 || layer.style.dataStyle?.kind === 'choropleth') return;
 
   const expression: unknown[] = ['match', ['to-string', ['get', FEATURE_FILL_PROPERTY]]];
   const keys: string[] = [];

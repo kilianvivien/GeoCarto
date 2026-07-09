@@ -49,3 +49,22 @@ export function basename(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] || path;
 }
+
+/**
+ * Fetch and parse a JSON endpoint. On desktop this routes through Tauri's HTTP
+ * plugin (a native reqwest call) since third-party APIs commonly omit
+ * `Access-Control-Allow-Origin` and a direct fetch from the `tauri://localhost`
+ * origin would be blocked by CORS — the same reason pmtiles range requests do
+ * (see `src/basemap/pmtiles.ts`). The web build uses the normal `fetch`.
+ */
+export async function fetchJson<T>(url: string, opts: { signal?: AbortSignal } = {}): Promise<T> {
+  if (isTauri()) {
+    const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
+    const response = await tauriFetch(url, { method: 'GET', signal: opts.signal });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return (await response.json()) as T;
+  }
+  const response = await window.fetch(url, { signal: opts.signal });
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  return (await response.json()) as T;
+}

@@ -1,9 +1,14 @@
 import maplibregl from 'maplibre-gl';
+import { geoPath } from 'd3-geo';
 import { basename, isTauri } from '@/app/platform';
 import { translate } from '@/i18n/useLocale';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { syncLayersToMap } from '@/canvas/syncLayers';
 import { useMapInstance } from '@/canvas/mapInstance';
+import { createMercatorProjection } from '@/canvas/canvasProjection';
+import { drawProjectedScene } from '@/canvas/projectedRender';
+import { buildD3Projection } from '@/projection/projections';
+import { loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
 import type { CartoProject, PageBackground } from '@/project/cartoproj';
 import { renderAnnotationsToCanvas } from './renderAnnotations';
 
@@ -100,6 +105,7 @@ async function renderMapCanvas(
       height: outH,
       annotations: project.annotations.filter((annotation) => annotation.anchorMode === 'map'),
       map,
+      projection: createMercatorProjection(map),
       frameOffset: { x: 0, y: 0 },
       scale: outW / renderW,
     });
@@ -146,6 +152,36 @@ async function renderStaticBasemapCanvas(
   return canvas;
 }
 
+/**
+ * Render a projected-engine document's land outlines + GeoJSON layers directly
+ * at output resolution via `d3.geoPath` — there's no tile/raster basemap to
+ * upscale (unlike Mercator's `renderMapCanvas`), so the projection is simply
+ * built with a scale/center multiplied to the target pixel size.
+ */
+async function renderProjectedBasemapCanvas(
+  project: CartoProject,
+  outW: number,
+  outH: number,
+): Promise<HTMLCanvasElement> {
+  const config = project.projection;
+  if (!config) throw new ExportError(translate('errors.mapNotReady'));
+  const scaleFactor = outW / project.exportFrame.width;
+  const d3proj = buildD3Projection({
+    ...config,
+    scale: config.scale * scaleFactor,
+    center: [config.center[0] * scaleFactor, config.center[1] * scaleFactor],
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new ExportError(translate('errors.no2dContext'));
+  const path = geoPath(d3proj, ctx);
+  const land = await loadNaturalEarthLand();
+  drawProjectedScene(ctx, path, land, project.layers, 0.75 * scaleFactor);
+  return canvas;
+}
+
 export interface ExportResult {
   blob: Blob;
   fileName: string;
@@ -163,6 +199,7 @@ export async function renderBasemapCanvas(
   outW: number,
   outH: number,
 ): Promise<HTMLCanvasElement> {
+  if (project.engine === 'projected') return renderProjectedBasemapCanvas(project, outW, outH);
   if (project.basemap.kind === 'static') return renderStaticBasemapCanvas(project, outW, outH);
   const { basemapCanvas } = await renderMapCanvas(project, outW, outH);
   return basemapCanvas;
@@ -198,29 +235,37 @@ export async function exportRaster(project: CartoProject, options: ExportOptions
   fillBackground(ctx, outW, outH, options.format === 'jpeg' ? 'white' : options.background);
 
   const mapCanvases =
-    project.basemap.kind === 'static'
-      ? {
-          basemapCanvas: await renderStaticBasemapCanvas(project, outW, outH),
-          mapAnchoredAnnotations: null,
-        }
-      : await renderMapCanvas(project, outW, outH);
+    project.engine === 'projected'
+      ? { basemapCanvas: await renderProjectedBasemapCanvas(project, outW, outH), mapAnchoredAnnotations: null }
+      : project.basemap.kind === 'static'
+        ? {
+            basemapCanvas: await renderStaticBasemapCanvas(project, outW, outH),
+            mapAnchoredAnnotations: null,
+          }
+        : await renderMapCanvas(project, outW, outH);
   const { basemapCanvas } = mapCanvases;
   ctx.drawImage(basemapCanvas, 0, 0, outW, outH);
   if (mapCanvases.mapAnchoredAnnotations) ctx.drawImage(mapCanvases.mapAnchoredAnnotations, 0, 0);
 
   // Canvas-pinned annotations from the live editor stage, scaled to output coordinates.
-  const liveMap = useMapInstance.getState().map;
+  // Projected-engine documents have no separate high-res offscreen map step (like
+  // Mercator's renderMapCanvas), so ALL annotations — geo- and canvas-anchored —
+  // are positioned from the live projection here, same as the static-basemap path.
+  const { map: liveMap, projection: liveProjection, containerSize: liveContainerSize } = useMapInstance.getState();
   const liveContainer = liveMap?.getContainer();
-  if (liveContainer) {
+  const liveWidth = liveContainer?.clientWidth ?? liveContainerSize?.width;
+  if (liveWidth) {
     const annotationCanvas = renderAnnotationsToCanvas({
       width: outW,
       height: outH,
       annotations: project.annotations.filter(
-        (annotation) => project.basemap.kind === 'static' || annotation.anchorMode !== 'map',
+        (annotation) =>
+          project.engine === 'projected' || project.basemap.kind === 'static' || annotation.anchorMode !== 'map',
       ),
       map: liveMap,
+      projection: liveProjection,
       frameOffset: { x: 0, y: 0 },
-      scale: outW / liveContainer.clientWidth,
+      scale: outW / liveWidth,
     });
     ctx.drawImage(annotationCanvas, 0, 0);
   }

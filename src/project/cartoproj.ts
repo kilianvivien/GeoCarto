@@ -14,6 +14,38 @@ export interface FeatureFillStyle {
   hatchSpacing: number;
 }
 
+export type ClassificationMethod = 'quantile' | 'equal' | 'jenks' | 'manual';
+
+/** Color-by-value styling for polygon/line layers (choropleth map). */
+export interface ChoroplethStyle {
+  kind: 'choropleth';
+  attribute: string;
+  method: ClassificationMethod;
+  /** Requested class count (3–9); the effective count may be lower when the
+   *  attribute has fewer distinct values. */
+  classCount: number;
+  /** Materialized interior breaks (length = classCount - 1), recomputed by the
+   *  UI whenever attribute/method/classCount change (or on demand after a data
+   *  edit) — never at render time, so a saved project renders identically even
+   *  if classification code changes later. */
+  breaks: number[];
+  paletteId: string;
+  reverse: boolean;
+  missingColor: string;
+}
+
+/** Size-by-value styling for point layers (proportional symbols). */
+export interface ProportionalStyle {
+  kind: 'proportional';
+  attribute: string;
+  minRadius: number;
+  maxRadius: number;
+  scale: 'sqrt' | 'linear';
+  color: string;
+}
+
+export type DataStyle = ChoroplethStyle | ProportionalStyle;
+
 /** Render style for an imported GeoJSON layer (Milestone 4 makes this editable). */
 export interface GeoJsonStyle {
   fillColor: string;
@@ -32,6 +64,8 @@ export interface GeoJsonStyle {
   pointRadius: number;
   /** Whether point features in this layer should be rendered as circles. */
   showPoints: boolean;
+  /** Data-driven styling (choropleth / proportional symbols). Absent = single style (default). */
+  dataStyle?: DataStyle;
 }
 
 export const DEFAULT_GEOJSON_STYLE: GeoJsonStyle = {
@@ -86,7 +120,8 @@ export type AnnotationKind =
   | 'titleblock'
   | 'sourcecredit'
   | 'scalebar'
-  | 'northarrow';
+  | 'northarrow'
+  | 'graticule';
 
 export type AnnotationAnchorMode = 'map' | 'canvas';
 export type ProjectMode = 'mapSetup' | 'editing';
@@ -174,6 +209,47 @@ export type BasemapConfig =
       name: string;
       attribution: string;
     };
+
+/**
+ * Rendering engine for the document. `mercator` (default) is today's MapLibre
+ * slippy-map path. `projected` swaps to a Canvas2D/d3-geo render path for
+ * editorial world/continental projections — MapLibre cannot reproject tile
+ * basemaps, so a projected document has no tile basemap (see BasemapConfig
+ * `empty` kind) and instead draws bundled Natural Earth outlines and/or the
+ * project's own GeoJSON layers.
+ */
+export type MapEngine = 'mercator' | 'projected';
+
+export type ProjectionId = 'equal-earth' | 'robinson' | 'winkel3' | 'bonne' | 'natural-earth-1';
+
+/** Configuration for a `projected`-engine document's d3-geo projection. */
+export interface ProjectionConfig {
+  id: ProjectionId;
+  /** Center longitude (degrees), applied as the projection's rotate-lambda. */
+  rotateLambda: number;
+  /** Standard parallel (degrees) — only meaningful for `bonne`. */
+  parallel?: number;
+  /** d3-geo projection scale factor. */
+  scale: number;
+  /** Translate offset in frame coordinates (px at 1× DPI). */
+  center: [number, number];
+}
+
+const PROJECTION_IDS: ProjectionId[] = ['equal-earth', 'robinson', 'winkel3', 'bonne', 'natural-earth-1'];
+
+/** Sane starting config per projection id, keyed for the setup-panel picker. */
+export const DEFAULT_PROJECTION_CONFIG: Record<ProjectionId, ProjectionConfig> = Object.fromEntries(
+  PROJECTION_IDS.map((id) => [
+    id,
+    {
+      id,
+      rotateLambda: 0,
+      parallel: id === 'bonne' ? 45 : undefined,
+      scale: 150,
+      center: [400, 300],
+    },
+  ]),
+) as Record<ProjectionId, ProjectionConfig>;
 
 export interface LockedMapView {
   viewport: Viewport;
@@ -388,6 +464,11 @@ export type LegendAnnotation = AnnotationBase & {
   title: string;
   entries: LegendEntry[];
   width: number;
+  /** Source layer this legend's entries were generated from, if any — lets the
+   *  "Refresh from layer" action regenerate `entries` after the layer's data
+   *  style changes. Entries stay materialized (not recomputed at render time)
+   *  so the legend still renders correctly if the source layer is later removed. */
+  dataStyleLink?: { layerId: string };
 };
 
 export type CommentAnnotation = AnnotationBase & {
@@ -426,6 +507,12 @@ export type NorthArrowAnnotation = AnnotationBase & {
   size: number;
 };
 
+/** Graticule (lat/lon grid) furniture — spans the full export frame, projected-engine only. */
+export type GraticuleAnnotation = AnnotationBase & {
+  kind: 'graticule';
+  intervalDeg: number;
+};
+
 export type Annotation =
   | TextAnnotation
   | RectAnnotation
@@ -440,7 +527,8 @@ export type Annotation =
   | TitleBlockAnnotation
   | SourceCreditAnnotation
   | ScaleBarAnnotation
-  | NorthArrowAnnotation;
+  | NorthArrowAnnotation
+  | GraticuleAnnotation;
 
 export interface AnnotationGroup {
   id: string;
@@ -494,6 +582,10 @@ export interface CartoProject {
   exportFrame: ExportFrame;
   basemap: BasemapConfig;
   lockedMapView: LockedMapView | null;
+  /** Rendering engine; `mercator` for all documents until Feature 3 (see serialize.ts defaulting). */
+  engine: MapEngine;
+  /** Active projection config when `engine === 'projected'`; null otherwise. */
+  projection: ProjectionConfig | null;
   /** Ordered bottom → top. `layers[0]` draws beneath the rest. */
   layers: GeoJsonLayer[];
   /** Ordered bottom → top editable annotation objects. */
@@ -512,6 +604,8 @@ export function createEmptyProject(name = translate('common.untitled')): CartoPr
     exportFrame: { width: 1600, height: 1200, preset: '4-3', margin: 0, background: 'white', dpiScale: 1 },
     basemap: builtinBasemap(defaultBasemapPreset()),
     lockedMapView: null,
+    engine: 'mercator',
+    projection: null,
     layers: [],
     annotations: [],
     annotationGroups: [],

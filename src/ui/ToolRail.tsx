@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   MousePointer2,
   SquareDashed,
@@ -20,6 +20,7 @@ import {
   Copyright,
   Compass,
   Scaling,
+  Grid3x3,
   type LucideIcon,
 } from 'lucide-react';
 import { useNotices } from './notices';
@@ -36,7 +37,10 @@ const FURNITURE_ITEMS: { kind: FurnitureKind; labelKey: TranslationKey; icon: Lu
   { kind: 'sourcecredit', labelKey: 'furniture.sourcecredit', icon: Copyright },
   { kind: 'scalebar', labelKey: 'furniture.scalebar', icon: Scaling },
   { kind: 'northarrow', labelKey: 'furniture.northarrow', icon: Compass },
+  { kind: 'graticule', labelKey: 'furniture.graticule', icon: Grid3x3 },
 ];
+
+const MENU_VIEWPORT_MARGIN = 8;
 
 /** Tool groups from design.md §4.2. */
 const ICONS: Record<ToolDefinition['key'], LucideIcon> = {
@@ -72,13 +76,17 @@ export function ToolRail() {
   const active = useToolStore((s) => s.activeTool);
   const setActiveTool = useToolStore((s) => s.setActiveTool);
   const mode = useDocumentStore((s) => s.project.mode);
+  const engine = useDocumentStore((s) => s.project.engine);
   const editingVectors = useEditStore((s) => s.editingLayerId !== null);
   const push = useNotices((s) => s.push);
   // Annotation tools are unavailable while the vector editor owns the map — the
   // two modes are mutually exclusive, and the rail dims to make that obvious.
   const setupDisabled = mode !== 'editing' || editingVectors;
   const [insertOpen, setInsertOpen] = useState(false);
+  const [insertMenuOffset, setInsertMenuOffset] = useState(0);
   const insertRef = useRef<HTMLDivElement>(null);
+  const insertButtonRef = useRef<HTMLButtonElement>(null);
+  const insertMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!insertOpen) return;
@@ -91,6 +99,28 @@ export function ToolRail() {
       window.removeEventListener('pointerdown', close);
       window.removeEventListener('keydown', close);
     };
+  }, [insertOpen]);
+
+  useLayoutEffect(() => {
+    if (!insertOpen) {
+      setInsertMenuOffset(0);
+      return;
+    }
+
+    const updateMenuOffset = () => {
+      const buttonRect = insertButtonRef.current?.getBoundingClientRect();
+      const menuRect = insertMenuRef.current?.getBoundingClientRect();
+      if (!buttonRect || !menuRect) return;
+
+      const viewportBottom = window.innerHeight - MENU_VIEWPORT_MARGIN;
+      const bottomOverflow = buttonRect.top + menuRect.height - viewportBottom;
+      const availableShift = Math.max(0, buttonRect.top - MENU_VIEWPORT_MARGIN);
+      setInsertMenuOffset(bottomOverflow > 0 ? -Math.min(bottomOverflow, availableShift) : 0);
+    };
+
+    updateMenuOffset();
+    window.addEventListener('resize', updateMenuOffset);
+    return () => window.removeEventListener('resize', updateMenuOffset);
   }, [insertOpen]);
 
   const activate = (tool: ToolDefinition) => {
@@ -157,8 +187,8 @@ export function ToolRail() {
                     disabled
                       ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
                       : isActive
-                      ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
-                      : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
+                        ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
+                        : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
                   }`}
                 >
                   <Icon size={18} />
@@ -183,55 +213,68 @@ export function ToolRail() {
           }
           placement="right"
         >
-        <button
-          type="button"
-          aria-label={t('tools.insertFurniture')}
-          aria-haspopup="menu"
-          aria-expanded={insertOpen}
-          disabled={setupDisabled}
-          onClick={() => {
-            if (editingVectors) {
-              push(t('tools.finishLayerFurniture'), 'error');
-              return;
-            }
-            if (setupDisabled) {
-              push(t('tools.lockMapFurniture'), 'error');
-              return;
-            }
-            setInsertOpen((prev) => !prev);
-          }}
-          className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
-            setupDisabled
-              ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
-              : insertOpen
-              ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
-              : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
-          }`}
-        >
-          <LayoutTemplate size={18} />
-        </button>
+          <button
+            ref={insertButtonRef}
+            type="button"
+            aria-label={t('tools.insertFurniture')}
+            aria-haspopup="menu"
+            aria-expanded={insertOpen}
+            disabled={setupDisabled}
+            onClick={() => {
+              if (editingVectors) {
+                push(t('tools.finishLayerFurniture'), 'error');
+                return;
+              }
+              if (setupDisabled) {
+                push(t('tools.lockMapFurniture'), 'error');
+                return;
+              }
+              setInsertOpen((prev) => !prev);
+            }}
+            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
+              setupDisabled
+                ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+                : insertOpen
+                  ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
+                  : 'text-[var(--text-2)] hover:scale-105 hover:bg-[var(--hover)] active:scale-95'
+            }`}
+          >
+            <LayoutTemplate size={18} />
+          </button>
         </Tooltip>
         {insertOpen && (
           <div
+            ref={insertMenuRef}
             role="menu"
             aria-label={t('tools.insertFurniture')}
+            style={{ transform: `translateY(${insertMenuOffset}px)` }}
             className="absolute left-[calc(100%+8px)] top-0 z-40 flex w-44 flex-col gap-px rounded-[10px] border border-[var(--divider)] bg-[var(--glass-strong)] p-1 text-[12px] text-[var(--text)] shadow-[0_12px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl"
           >
             {FURNITURE_ITEMS.map((item) => {
               const ItemIcon = item.icon;
               const label = t(item.labelKey);
+              // North arrow follows the MapLibre camera bearing, which is meaningless
+              // once a document switches to the projected (non-Mercator) engine.
+              const engineDisabled = item.kind === 'northarrow' && engine === 'projected';
               return (
                 <button
                   key={item.kind}
                   type="button"
                   role="menuitem"
                   data-furniture={item.kind}
+                  disabled={engineDisabled}
+                  title={engineDisabled ? t('furniture.northarrowUnavailableProjected') : undefined}
                   onClick={() => {
+                    if (engineDisabled) return;
                     insertFurniture(item.kind);
                     setInsertOpen(false);
                     push(t('tools.furnitureInserted', { name: label }));
                   }}
-                  className="flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)]"
+                  className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors ${
+                    engineDisabled
+                      ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
+                      : 'hover:bg-[var(--hover)]'
+                  }`}
                 >
                   <ItemIcon size={14} className="text-[var(--text-2)]" />
                   {label}

@@ -4,6 +4,7 @@ import type { Feature, FeatureCollection } from 'geojson';
 import { detectGeometry, ensureFeatureIdentity } from '@/import/geojson';
 import {
   createEmptyProject,
+  DEFAULT_PROJECTION_CONFIG,
   type Annotation,
   type AnnotationStyle,
   type BasemapConfig,
@@ -13,10 +14,25 @@ import {
   type GeoJsonLayer,
   type GeoJsonStyle,
   type LayerRenderStrategy,
+  type MapEngine,
   type PageBackground,
   type PagePresetKey,
+  type ProjectionConfig,
 } from '@/project/cartoproj';
+import { computeBreaks, scanAttribute } from '@/style/classify';
 import type { Viewport } from './viewportStore';
+
+/**
+ * Refresh a choropleth's materialized breaks after the layer's underlying
+ * data changes (vector edit, undo/redo of a feature op). Manual breaks are
+ * intentionally left alone — the user owns those once they switch to `manual`.
+ */
+function recomputeChoroplethBreaks(layer: GeoJsonLayer): void {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind !== 'choropleth' || dataStyle.method === 'manual') return;
+  const stats = scanAttribute(layer.data.features, dataStyle.attribute);
+  dataStyle.breaks = computeBreaks(stats.values, dataStyle.method, dataStyle.classCount);
+}
 
 /** A feature picked on the map, surfaced in the attribute inspector. */
 export interface SelectedFeature {
@@ -52,6 +68,10 @@ interface DocumentState {
   renameProject: (name: string) => void;
   setBasemap: (basemap: BasemapConfig) => void;
   setBasemapSublayer: (key: BasemapSublayerKey, visible: boolean) => void;
+  /** Switch the render engine. `projected` forces an empty basemap (no tile source applies) and seeds a default projection; `mercator` clears the projection. */
+  setEngine: (engine: MapEngine) => void;
+  /** Patch the active projection config (id/rotateLambda/scale/center/parallel). No-op on a mercator document. */
+  setProjectionConfig: (patch: Partial<ProjectionConfig>) => void;
   setExportFrame: (frame: ExportFrame | { width: number; height: number }) => void;
   setExportFramePreset: (preset: PagePresetKey, dims?: { width: number; height: number }) => void;
   setExportFrameSize: (dims: { width: number; height: number }) => void;
@@ -157,6 +177,30 @@ export const useDocumentStore = create<DocumentState>()(
         }
         if (basemap.sublayers[key] === visible) return;
         basemap.sublayers[key] = visible;
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setEngine: (engine) =>
+      set((state) => {
+        if (state.project.engine === engine) return;
+        state.project.engine = engine;
+        if (engine === 'projected') {
+          state.project.projection = { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] };
+          // MapLibre can't reproject tiles — projected documents get an empty
+          // canvas (bundled land outlines + the user's own layers) instead.
+          state.project.basemap = { kind: 'empty', name: 'Empty canvas', attribution: '' };
+        } else {
+          state.project.projection = null;
+        }
+        state.project.meta.updatedAt = new Date().toISOString();
+        state.dirty = true;
+      }),
+
+    setProjectionConfig: (patch) =>
+      set((state) => {
+        if (!state.project.projection) return;
+        state.project.projection = { ...state.project.projection, ...patch };
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -357,6 +401,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.data = data;
         layer.featureCount = data.features.length;
         layer.geometry = detectGeometry(data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -368,6 +413,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.data.features.push(feature);
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -381,6 +427,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (layer.data.features.length === before) return;
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -392,6 +439,7 @@ export const useDocumentStore = create<DocumentState>()(
         const feature = layer.data.features.find((f) => f.id === featureId);
         if (!feature) return;
         feature.properties = properties;
+        recomputeChoroplethBreaks(layer);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),

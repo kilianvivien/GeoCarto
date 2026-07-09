@@ -325,7 +325,12 @@ stable, covered, and performant.
 
 ### M29 — Print-Grade Export ⬜
 
-- ⬜ Editable-vector PDF generated from the unified scene graph.
+- ✅ Vector PDF shipped via a pragmatic route — reuses the existing SVG
+  exporter's output (all 14 annotation/furniture kinds) converted with
+  svg2pdf.js, rather than waiting on the unified scene graph. Raster PDF
+  remains the fallback option.
+- ⬜ Editable-vector PDF generated from the unified scene graph (M28) — not
+  needed for the above, but still the long-term dedup fix.
 - ⬜ Later print-house features: CMYK/ICC handling, bleed/margins, and presets.
 - ⬜ Templates gallery for editorial and classroom outputs.
 
@@ -344,12 +349,16 @@ stable, covered, and performant.
 - ⬜ Simple buffering.
 - ⬜ GeoPackage import.
 
-### M32 — Editorial Projections ⬜
+### M32 — Editorial Projections ✅
 
-- ⬜ Non-Mercator map projections such as Robinson, Equal Earth, Winkel Tripel,
-  and Bonne.
-- ⬜ Parallel d3-geo / d3-geo-projection path for projection-aware rendering and
-  export.
+- ✅ Non-Mercator map projections: Equal Earth, Robinson, Winkel Tripel, Bonne,
+  Natural Earth I, chosen via a distinct `projected` document engine (no tile
+  basemap; bundled Natural Earth land outlines + the user's own layers).
+- ✅ Parallel d3-geo / d3-geo-projection path (`ProjectedMapView`, `CanvasProjection`
+  bridge) for projection-aware rendering, raster export, and vector SVG export.
+- ⬜ Interactive drag-to-rotate/wheel-to-scale composition (v1 shipped numeric
+  center-longitude/scale controls only).
+- ⬜ Vector editing (terra-draw) and feature-picking on projected documents.
 
 ---
 
@@ -386,10 +395,10 @@ stable.
 | --- | --- | --- |
 | PNG | ✅ Shipped | Phase 1 raster export from the composition frame. |
 | JPEG | ✅ Shipped | Same raster pipeline, with quality controls. |
-| SVG | ✅ Shipped | Annotations/furniture are vector; map and data are raster. |
+| SVG | ✅ Shipped | Annotations/furniture are vector; Mercator map/data are raster, projected-engine data layers are real vector paths. |
 | GeoJSON | ✅ Shipped | Editable data can be exported per layer or all at once. |
-| PDF | ✅ Shipped | Raster-in-PDF sized to the composition frame. |
-| Vector PDF | ⬜ Phase 4 | Depends on unified annotation scene graph. |
+| PDF (raster) | ✅ Shipped | Raster-in-PDF sized to the composition frame; kept as the safe fallback. |
+| PDF (vector) | ✅ Shipped | Default mode — SVG exporter output converted with svg2pdf.js; data layers still rasterize on Mercator documents. |
 | Interactive HTML | ⬜ Phase 5 | Planned with sharing/extensibility work. |
 
 ## Architecture Invariants

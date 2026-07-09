@@ -90,3 +90,28 @@ test('export custom transparent PNG and JPEG variants', async ({ page }) => {
   expect(jpg[0]).toBe(0xff);
   expect(jpg[1]).toBe(0xd8);
 });
+
+test('export a vector PDF with real (non-flattened) content', async ({ page }) => {
+  await disableFileSystemAccess(page);
+  await page.goto('/');
+  await openProjectFixture(page);
+
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export image' });
+  await dialog.getByRole('button', { name: 'PDF' }).click();
+  // Vector is the default PDF mode.
+  await expect(dialog.getByRole('button', { name: 'Vector', exact: true })).toHaveClass(/bg-\[var\(--accent\)\]/);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button', { name: 'Export' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('Reference Project.pdf');
+  const stream = await download.createReadStream();
+  expect(stream).not.toBeNull();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const buffer = Buffer.concat(chunks);
+  expect(buffer.subarray(0, 4).toString('ascii')).toBe('%PDF');
+  expect(buffer.length).toBeGreaterThan(100);
+});

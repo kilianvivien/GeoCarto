@@ -2,7 +2,12 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/app/App';
 import { useDocumentStore } from '@/state/documentStore';
-import { createEmptyProject, DEFAULT_ANNOTATION_STYLE, type Annotation } from '@/project/cartoproj';
+import {
+  createEmptyProject,
+  DEFAULT_ANNOTATION_STYLE,
+  DEFAULT_PROJECTION_CONFIG,
+  type Annotation,
+} from '@/project/cartoproj';
 import { useToolStore } from '@/state/toolStore';
 import { useSessionsStore } from '@/state/sessionsStore';
 import { useHistoryStore } from '@/state/historyStore';
@@ -17,6 +22,10 @@ const tauriEventListeners = vi.hoisted(
 // MapLibre needs a real WebGL context — stub the map for the jsdom render.
 vi.mock('@/canvas/MapView', () => ({
   MapView: () => <div data-testid="map-view" />,
+}));
+
+vi.mock('@/canvas/ProjectedMapView', () => ({
+  ProjectedMapView: () => <div data-testid="projected-map-view" />,
 }));
 
 vi.mock('@/canvas/AnnotationStage', () => ({
@@ -110,6 +119,20 @@ describe('App', () => {
     });
   });
 
+  it('mounts ProjectedMapView instead of MapView when the document engine is projected', async () => {
+    useDocumentStore.setState((state) => ({
+      project: {
+        ...state.project,
+        engine: 'projected',
+        projection: { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] },
+      },
+    }));
+    render(<App />);
+    // ProjectedMapView is code-split (React.lazy) — its chunk resolves asynchronously.
+    expect(await screen.findByTestId('projected-map-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-view')).not.toBeInTheDocument();
+  });
+
   it('renders the app shell chrome', () => {
     render(<App />);
     expect(screen.getByRole('application', { name: /geocarto/i })).toBeInTheDocument();
@@ -126,6 +149,67 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /text/i }));
     expect(useToolStore.getState().activeTool).toBe('text');
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
+  });
+
+  it('keeps the map furniture submenu inside the viewport bottom edge', async () => {
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this instanceof HTMLButtonElement && this.getAttribute('aria-haspopup') === 'menu') {
+          return {
+            x: 0,
+            y: 500,
+            width: 36,
+            height: 36,
+            top: 500,
+            right: 36,
+            bottom: 536,
+            left: 0,
+            toJSON: () => ({}),
+          };
+        }
+        if (this.getAttribute('role') === 'menu') {
+          return {
+            x: 44,
+            y: 500,
+            width: 176,
+            height: 200,
+            top: 500,
+            right: 220,
+            bottom: 700,
+            left: 44,
+            toJSON: () => ({}),
+          };
+        }
+        return {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          toJSON: () => ({}),
+        };
+      });
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
+
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
+      fireEvent.click(screen.getByRole('button', { name: /insert map furniture/i }));
+
+      const menu = screen.getByRole('menu', { name: /insert map furniture/i });
+      await waitFor(() => expect(menu).toHaveStyle({ transform: 'translateY(-108px)' }));
+    } finally {
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+      });
+      rectSpy.mockRestore();
+    }
   });
 
   it('enables canvas-aid + previously-gated Phase 2 tools, with Snap and Share now interactive', () => {
@@ -226,7 +310,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /export \(⌘e\)/i }));
 
     expect(screen.getByText('Fidelity')).toBeInTheDocument();
-    expect(screen.getByText(/PNG, JPEG, and PDF flatten/)).toBeInTheDocument();
+    expect(screen.getByText(/PNG, JPEG, and raster PDF flatten/)).toBeInTheDocument();
+    expect(screen.getByText(/Vector PDF keeps annotations/)).toBeInTheDocument();
     expect(screen.getByText(/SVG keeps annotations/)).toBeInTheDocument();
     expect(screen.getByText(/GeoJSON export keeps edited layer features/)).toBeInTheDocument();
   });

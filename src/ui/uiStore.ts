@@ -4,6 +4,7 @@ interface UiState {
   exportDialogOpen: boolean;
   settingsDialogOpen: boolean;
   commandPaletteOpen: boolean;
+  placeSearchOpen: boolean;
   pendingLegendFillSample: { legendId: string; entryIndex: number } | null;
   pendingAnnotationFillSample: { annotationId: string } | null;
   openExportDialog: () => void;
@@ -12,6 +13,9 @@ interface UiState {
   closeSettingsDialog: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  openPlaceSearch: () => void;
+  closePlaceSearch: () => void;
+  togglePlaceSearch: () => void;
   startLegendFillSample: (legendId: string, entryIndex: number) => void;
   cancelLegendFillSample: () => void;
   startAnnotationFillSample: (annotationId: string) => void;
@@ -24,6 +28,7 @@ export const useUiStore = create<UiState>((set) => ({
   exportDialogOpen: false,
   settingsDialogOpen: false,
   commandPaletteOpen: false,
+  placeSearchOpen: false,
   pendingLegendFillSample: null,
   pendingAnnotationFillSample: null,
   openExportDialog: () => set({ exportDialogOpen: true }),
@@ -32,6 +37,9 @@ export const useUiStore = create<UiState>((set) => ({
   closeSettingsDialog: () => set({ settingsDialogOpen: false }),
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
+  openPlaceSearch: () => set({ placeSearchOpen: true }),
+  closePlaceSearch: () => set({ placeSearchOpen: false }),
+  togglePlaceSearch: () => set((state) => ({ placeSearchOpen: !state.placeSearchOpen })),
   startLegendFillSample: (legendId, entryIndex) =>
     set({ pendingLegendFillSample: { legendId, entryIndex }, pendingAnnotationFillSample: null }),
   cancelLegendFillSample: () => set({ pendingLegendFillSample: null }),

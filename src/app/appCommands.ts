@@ -34,6 +34,7 @@ export type AppCommand =
   | 'toggle-map-lock'
   | 'open-settings'
   | 'open-command-palette'
+  | 'go-to-place'
   | 'open-github'
   | 'zoom-in'
   | 'zoom-out'
@@ -69,6 +70,7 @@ export const APP_COMMANDS: AppCommandDescriptor[] = [
   { command: 'zoom-reset', labelKey: 'canvas.fit', groupKey: 'command.groupView' },
   { command: 'open-settings', labelKey: 'settings.open', groupKey: 'command.groupHelp', shortcut: '⌘,' },
   { command: 'open-command-palette', labelKey: 'command.openPalette', groupKey: 'command.groupHelp', shortcut: '⌘K' },
+  { command: 'go-to-place', labelKey: 'place.goToPlace', groupKey: 'command.groupView', shortcut: '⌘⇧F' },
   { command: 'open-github', labelKey: 'title.github', groupKey: 'command.groupHelp' },
 ];
 
@@ -235,6 +237,9 @@ export async function runAppCommand(command: AppCommand): Promise<void> {
       break;
     case 'open-command-palette':
       useUiStore.getState().openCommandPalette();
+      break;
+    case 'go-to-place':
+      useUiStore.getState().openPlaceSearch();
       break;
     case 'open-github':
       await openExternalUrl(REPO_URL);

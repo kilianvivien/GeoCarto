@@ -28,6 +28,8 @@ export interface Preferences {
   gridSpacingDefault: number;
   /** Accent colour preset. */
   accent: AccentKey;
+  /** Whether the place-search box may reach the third-party geocoder. When off, only direct coordinate entry works. */
+  onlineSearchEnabled: boolean;
 }
 
 export const PREFERENCES_VERSION = 1;
@@ -41,6 +43,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   smartGuidesDefault: true,
   gridSpacingDefault: 20,
   accent: 'blue',
+  onlineSearchEnabled: true,
 };
 
 const STORAGE_KEY = 'geocarto-preferences';
@@ -87,6 +90,10 @@ export function migratePreferences(raw: unknown): Preferences {
     accent: ACCENTS.includes(value.accent as AccentKey)
       ? (value.accent as AccentKey)
       : DEFAULT_PREFERENCES.accent,
+    onlineSearchEnabled:
+      typeof value.onlineSearchEnabled === 'boolean'
+        ? value.onlineSearchEnabled
+        : DEFAULT_PREFERENCES.onlineSearchEnabled,
   };
 }
 
@@ -119,6 +126,7 @@ function snapshot(state: Preferences): Preferences {
     smartGuidesDefault: state.smartGuidesDefault,
     gridSpacingDefault: state.gridSpacingDefault,
     accent: state.accent,
+    onlineSearchEnabled: state.onlineSearchEnabled,
   };
 }
 

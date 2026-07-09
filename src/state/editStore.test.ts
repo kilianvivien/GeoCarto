@@ -53,6 +53,13 @@ describe('editStore', () => {
     expect(useEditStore.getState().editingLayerId).toBeNull();
   });
 
+  it('refuses to enter vector editing on a projected-engine document', () => {
+    const layer = seedLayer();
+    useDocumentStore.setState((state) => ({ project: { ...state.project, engine: 'projected' } }));
+    useEditStore.getState().enterEdit(layer.id);
+    expect(useEditStore.getState().editingLayerId).toBeNull();
+  });
+
   it('tracks tool and feature selection, and clears them on exit', () => {
     const layer = seedLayer();
     useEditStore.getState().enterEdit(layer.id);
