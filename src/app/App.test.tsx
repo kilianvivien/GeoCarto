@@ -121,7 +121,11 @@ describe('App', () => {
 
   it('mounts ProjectedMapView instead of MapView when the document engine is projected', async () => {
     useDocumentStore.setState((state) => ({
-      project: { ...state.project, engine: 'projected', projection: { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] } },
+      project: {
+        ...state.project,
+        engine: 'projected',
+        projection: { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] },
+      },
     }));
     render(<App />);
     // ProjectedMapView is code-split (React.lazy) — its chunk resolves asynchronously.
@@ -145,6 +149,67 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /text/i }));
     expect(useToolStore.getState().activeTool).toBe('text');
     expect(screen.getByText(/text defaults/i)).toBeInTheDocument();
+  });
+
+  it('keeps the map furniture submenu inside the viewport bottom edge', async () => {
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this instanceof HTMLButtonElement && this.getAttribute('aria-haspopup') === 'menu') {
+          return {
+            x: 0,
+            y: 500,
+            width: 36,
+            height: 36,
+            top: 500,
+            right: 36,
+            bottom: 536,
+            left: 0,
+            toJSON: () => ({}),
+          };
+        }
+        if (this.getAttribute('role') === 'menu') {
+          return {
+            x: 44,
+            y: 500,
+            width: 176,
+            height: 200,
+            top: 500,
+            right: 220,
+            bottom: 700,
+            left: 44,
+            toJSON: () => ({}),
+          };
+        }
+        return {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          toJSON: () => ({}),
+        };
+      });
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
+
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: /lock map area/i }));
+      fireEvent.click(screen.getByRole('button', { name: /insert map furniture/i }));
+
+      const menu = screen.getByRole('menu', { name: /insert map furniture/i });
+      await waitFor(() => expect(menu).toHaveStyle({ transform: 'translateY(-108px)' }));
+    } finally {
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        value: originalInnerHeight,
+      });
+      rectSpy.mockRestore();
+    }
   });
 
   it('enables canvas-aid + previously-gated Phase 2 tools, with Snap and Share now interactive', () => {
