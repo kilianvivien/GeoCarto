@@ -25,7 +25,13 @@ const KIND_LABEL_KEYS: Record<string, TranslationKey> = {
 
 function flyToResult(result: GeocodeResult): void {
   const map = useMapInstance.getState().map;
-  if (!map) return;
+  if (!map) {
+    const { project, setProjectionConfig } = useDocumentStore.getState();
+    if (project.engine === 'projected' && project.projection) {
+      setProjectionConfig({ rotateLambda: -result.center[0] });
+    }
+    return;
+  }
   if (result.bbox) {
     const [minLng, minLat, maxLng, maxLat] = result.bbox;
     const camera = map.cameraForBounds(
@@ -93,13 +99,17 @@ export function PlaceSearch({ open, onClose }: PlaceSearchProps) {
 
   const selectCoordinate = () => {
     if (!coordinateMatch) return;
-    const map = useMapInstance.getState().map;
-    if (map) map.flyTo({ center: coordinateMatch.center, zoom: 12 });
+    flyToResult({
+      id: 'coordinates',
+      label: query.trim(),
+      kind: 'coordinates',
+      center: coordinateMatch.center,
+    });
     onClose();
   };
 
   const selectResult = (result: GeocodeResult) => {
-    if (mode === 'mapSetup') flyToResult(result);
+    flyToResult(result);
     onClose();
   };
 
@@ -198,8 +208,7 @@ export function PlaceSearch({ open, onClose }: PlaceSearchProps) {
                   <button
                     type="button"
                     onClick={() => selectResult(result)}
-                    disabled={mode !== 'mapSetup'}
-                    className="flex flex-1 items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex flex-1 items-center gap-2 text-left"
                   >
                     <span className="rounded-[5px] bg-[var(--glass-thin)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-3)]">
                       {kindLabel}

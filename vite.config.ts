@@ -37,9 +37,13 @@ export default defineConfig({
         // PRD §7 < 2 s target.
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          if (id.includes('?raw') && (id.includes('/maplibre-gl/') || id.includes('/pmtiles/'))) {
+            return 'html-runtime';
+          }
           if (id.includes('/maplibre-gl/')) return 'maplibre';
           if (id.includes('/pmtiles/') || id.includes('@protomaps/')) return 'pmtiles';
           if (id.includes('/konva/') || id.includes('/react-konva/')) return 'konva';
+          if (id.includes('/@deck.gl/') || id.includes('/@luma.gl/')) return 'deck';
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
             return 'react';
           }

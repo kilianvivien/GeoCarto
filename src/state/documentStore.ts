@@ -20,6 +20,7 @@ import {
   type ProjectionConfig,
 } from '@/project/cartoproj';
 import { computeBreaks, scanAttribute } from '@/style/classify';
+import { choroplethLegendEntries, proportionalLegendEntries } from '@/style/legendSwatches';
 import type { Viewport } from './viewportStore';
 
 /**
@@ -32,6 +33,23 @@ function recomputeChoroplethBreaks(layer: GeoJsonLayer): void {
   if (dataStyle?.kind !== 'choropleth' || dataStyle.method === 'manual') return;
   const stats = scanAttribute(layer.data.features, dataStyle.attribute);
   dataStyle.breaks = computeBreaks(stats.values, dataStyle.method, dataStyle.classCount);
+}
+
+/** Keep legends that are explicitly linked to a choropleth in sync with its materialized style. */
+function refreshLinkedChoroplethLegends(layer: GeoJsonLayer, annotations: Annotation[]): void {
+  const dataStyle = layer.style.dataStyle;
+  if (!dataStyle) return;
+  const stats = scanAttribute(layer.data.features, dataStyle.attribute);
+  const entries = dataStyle.kind === 'choropleth'
+    ? choroplethLegendEntries(dataStyle, stats.missingCount)
+    : stats.values.length
+      ? proportionalLegendEntries(dataStyle, stats.values[0], stats.values[stats.values.length - 1])
+      : [];
+  for (const annotation of annotations) {
+    if (annotation.kind === 'legend' && annotation.dataStyleLink?.layerId === layer.id) {
+      annotation.entries = entries;
+    }
+  }
 }
 
 /** A feature picked on the map, surfaced in the attribute inspector. */
@@ -320,6 +338,7 @@ export const useDocumentStore = create<DocumentState>()(
         const layer = state.project.layers.find((l) => l.id === id);
         if (!layer || layer.locked) return;
         layer.style = { ...layer.style, ...patch };
+        refreshLinkedChoroplethLegends(layer, state.project.annotations);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -402,6 +421,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.featureCount = data.features.length;
         layer.geometry = detectGeometry(data);
         recomputeChoroplethBreaks(layer);
+        refreshLinkedChoroplethLegends(layer, state.project.annotations);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -414,6 +434,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
         recomputeChoroplethBreaks(layer);
+        refreshLinkedChoroplethLegends(layer, state.project.annotations);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -428,6 +449,7 @@ export const useDocumentStore = create<DocumentState>()(
         layer.featureCount = layer.data.features.length;
         layer.geometry = detectGeometry(layer.data);
         recomputeChoroplethBreaks(layer);
+        refreshLinkedChoroplethLegends(layer, state.project.annotations);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),
@@ -440,6 +462,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!feature) return;
         feature.properties = properties;
         recomputeChoroplethBreaks(layer);
+        refreshLinkedChoroplethLegends(layer, state.project.annotations);
         state.project.meta.updatedAt = new Date().toISOString();
         state.dirty = true;
       }),

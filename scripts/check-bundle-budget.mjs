@@ -28,6 +28,9 @@ const BUDGETS = {
   // exports. The 110m land TopoJSON itself is a separate `?url`-fetched asset, not
   // part of this JS chunk, so it doesn't count against the JS budget at all.
   projection: 60 * 1024,
+  // Embedded verbatim into exported HTML files. This chunk is fetched only
+  // when the user chooses HTML export and is excluded from the app-load total.
+  htmlRuntime: 1_300 * 1024,
   // CSS — Tailwind + custom tokens.
   css: 200 * 1024,
 };
@@ -62,6 +65,7 @@ const matches = {
   pmtiles: pickByPattern(files, /^pmtiles-/, '.js'),
   raster: pickByPattern(files, /^raster-/, '.js'),
   projection: pickByPattern(files, /^naturalEarthOutlines-/, '.js'),
+  htmlRuntime: pickByPattern(files, /^html-runtime-/, '.js'),
   css: pickByPattern(files, /^index-/, '.css'),
 };
 
@@ -76,7 +80,7 @@ for (const [name, file] of Object.entries(matches)) {
     continue;
   }
   const size = statSync(resolve(DIST, file)).size;
-  total += size;
+  if (name !== 'htmlRuntime') total += size;
   const ok = size <= budget;
   if (!ok) failed = true;
   results.push({ name, file, size, budget, ok });

@@ -165,7 +165,7 @@ function pinGlyph(group: Konva.Group, color: string, icon: PinIcon, size: number
 }
 
 function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return undefined;
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return undefined;
   switch (symbol.strokePattern) {
     case 'dotted':
       return [1, Math.max(3, symbol.strokeWidth * 1.8)];
@@ -177,7 +177,7 @@ function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
 }
 
 function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return 1;
   switch (symbol.brushPreset) {
     case 'marker':
       return symbol.strokeWidth * 1.8;
@@ -256,6 +256,16 @@ function addLegendSwatch(group: Konva.Group, symbol: LegendSymbol, style: Annota
         group.add(pin);
         return;
       }
+      case 'circle':
+        group.add(new Konva.Circle({
+          x: x + size / 2,
+          y: centerY,
+          radius: Math.max(2, (size / 2) * (symbol.radius / Math.max(1, symbol.maxRadius))),
+          fill: symbol.color,
+          stroke: '#ffffff',
+          strokeWidth: 1,
+        }));
+        return;
     }
   }
   const fill: LegendFillStyle = {

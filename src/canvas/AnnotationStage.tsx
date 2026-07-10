@@ -79,6 +79,22 @@ function pointerGeo(projection: CanvasProjection | null, point: { x: number; y: 
   return projection.unproject(point);
 }
 
+/** Annotation ids under a pointer, topmost first, for Alt-click overlap cycling. */
+function annotationIdsAtPointer(event: KonvaEventObject<MouseEvent>, annotations: Annotation[]): string[] {
+  const stage = event.target.getStage();
+  const pointer = stage?.getPointerPosition();
+  if (!stage || !pointer) return [];
+  const annotationIds = new Set(annotations.map((annotation) => annotation.id));
+  const hits: string[] = [];
+  for (const shape of stage.getAllIntersections(pointer).reverse()) {
+    let node: Konva.Node | null = shape;
+    while (node && !annotationIds.has(node.id())) node = node.getParent();
+    const id = node?.id();
+    if (id && !hits.includes(id)) hits.push(id);
+  }
+  return hits;
+}
+
 function snapToGrid(point: { x: number; y: number }, enabled: boolean, spacing: number) {
   if (!enabled) return point;
   return {
@@ -688,7 +704,7 @@ function LegendShape({ annotation }: { annotation: LegendAnnotation }) {
 }
 
 function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return undefined;
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return undefined;
   switch (symbol.strokePattern) {
     case 'dotted':
       return [1, Math.max(3, symbol.strokeWidth * 1.8)];
@@ -700,7 +716,7 @@ function legendSymbolDash(symbol: LegendSymbol): number[] | undefined {
 }
 
 function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return 1;
   switch (symbol.brushPreset) {
     case 'marker':
       return symbol.strokeWidth * 1.8;
@@ -790,6 +806,17 @@ function LegendSymbolMark({
           <Group x={x + size / 2} y={size / 2}>
             <PinGlyph color={symbol.pinColor} icon={symbol.pinIcon} size={size * 0.82} />
           </Group>
+        );
+      case 'circle':
+        return (
+          <Circle
+            x={x + size / 2}
+            y={size / 2}
+            radius={Math.max(2, (size / 2) * (symbol.radius / Math.max(1, symbol.maxRadius)))}
+            fill={symbol.color}
+            stroke="#ffffff"
+            strokeWidth={1}
+          />
         );
     }
   }
@@ -2105,6 +2132,14 @@ export function AnnotationStage() {
                     return;
                   }
                   blurFocusedControl();
+                  if (event.evt.altKey) {
+                    const hits = annotationIdsAtPointer(event, annotations);
+                    if (hits.length > 0) {
+                      const currentIndex = hits.indexOf(selectedAnnotationId ?? '');
+                      selectAnnotation(hits[(currentIndex + 1) % hits.length]);
+                    }
+                    return;
+                  }
                   if (event.evt.metaKey || event.evt.ctrlKey || event.evt.shiftKey) {
                     toggleAnnotationSelection(annotation.id);
                   } else {

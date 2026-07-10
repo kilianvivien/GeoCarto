@@ -15,7 +15,7 @@ async function loadRaster() {
 }
 
 /** Dialog-level format, including the vector targets added in M15. */
-type DialogFormat = 'png' | 'jpeg' | 'svg' | 'pdf';
+type DialogFormat = 'png' | 'jpeg' | 'svg' | 'pdf' | 'html';
 
 type ScalePreset = '1x' | '2x' | 'custom';
 
@@ -54,6 +54,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [format, setFormat] = useState<DialogFormat>('png');
   const [pdfMode, setPdfMode] = useState<'raster' | 'vector'>('vector');
   const [svgIncludeBasemap, setSvgIncludeBasemap] = useState(true);
+  const [htmlPanZoom, setHtmlPanZoom] = useState(true);
+  const [htmlTooltipProperties, setHtmlTooltipProperties] = useState<Record<string, string[]>>({});
   const projectScale = project.exportFrame.dpiScale ?? 1;
   const initialPreset: ScalePreset = projectScale === 1 ? '1x' : projectScale === 2 ? '2x' : 'custom';
   const scalePreset: ScalePreset = initialPreset;
@@ -84,6 +86,14 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       } else if (format === 'pdf') {
         const { exportPdf } = await import('@/export/pdf');
         result = await exportPdf(project, { scale, mode: pdfMode });
+      } else if (format === 'html') {
+        const { exportHtml } = await import('@/export/html');
+        result = await exportHtml(project, {
+          panZoom: htmlPanZoom,
+          minZoom: Math.max(0, project.viewport.zoom - 4),
+          maxZoom: Math.min(22, project.viewport.zoom + 6),
+          tooltipProperties: htmlTooltipProperties,
+        });
       } else {
         const { exportRaster } = await loadRaster();
         result = await exportRaster(project, { format, scale, background: exportBackground, quality });
@@ -143,6 +153,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               { value: 'jpeg', label: 'JPEG' },
               { value: 'svg', label: 'SVG' },
               { value: 'pdf', label: 'PDF' },
+              { value: 'html', label: 'HTML' },
             ]}
             onChange={setFormat}
           />
@@ -161,7 +172,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           </Field>
         )}
 
-        {format !== 'svg' && !(format === 'pdf' && pdfMode === 'vector') && (
+        {format !== 'svg' && format !== 'html' && !(format === 'pdf' && pdfMode === 'vector') && (
         <Field label={t('export.scale')}>
           <Segmented
             value={scalePreset}
@@ -207,6 +218,46 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               {t('export.svgNote')}
             </div>
           </>
+        )}
+
+        {format === 'html' && (
+          <div className="mt-3 flex max-h-[260px] flex-col gap-3 overflow-y-auto rounded-[9px] border border-[var(--divider)] bg-[var(--glass-thin)] p-3">
+            <label className="flex items-center justify-between gap-3 text-[12px] text-[var(--text-2)]">
+              <span>{t('export.htmlPanZoom')}</span>
+              <input type="checkbox" checked={htmlPanZoom} onChange={(event) => setHtmlPanZoom(event.target.checked)} className="accent-[var(--accent)]" />
+            </label>
+            <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-3)]">{t('export.htmlTooltips')}</div>
+            {project.layers.filter((layer) => layer.visible).map((layer) => {
+              const properties = [...new Set(layer.data.features.flatMap((feature) => Object.keys(feature.properties ?? {})).filter((key) => !key.startsWith('@')))];
+              const selected = htmlTooltipProperties[layer.id] ?? properties.slice(0, 6);
+              return (
+                <div key={layer.id} className="flex flex-col gap-1.5">
+                  <div className="text-[11.5px] font-medium text-[var(--text)]">{layer.name}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {properties.map((property) => (
+                      <label key={property} className="flex items-center gap-1 rounded-full border border-[var(--divider)] px-2 py-1 text-[10.5px] text-[var(--text-2)]">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(property)}
+                          onChange={(event) => setHtmlTooltipProperties((current) => ({
+                            ...current,
+                            [layer.id]: event.target.checked
+                              ? [...selected, property]
+                              : selected.filter((item) => item !== property),
+                          }))}
+                          className="accent-[var(--accent)]"
+                        />
+                        {property}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="text-[10.5px] leading-snug text-[var(--text-3)]">
+              {t('export.htmlSizeEstimate', { size: (1.25 + project.layers.reduce((sum, layer) => sum + JSON.stringify(layer.data).length, 0) / 1_000_000).toFixed(1) })}
+            </div>
+          </div>
         )}
 
         {format === 'png' && (
@@ -307,6 +358,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               {t('export.fidelitySvg')}
             </div>
             <div>
+              <span className="font-semibold text-[var(--text)]">HTML:</span>{' '}
+              {t('export.fidelityHtml')}
+            </div>
+            <div>
               <span className="font-semibold text-[var(--text)]">GeoJSON:</span>{' '}
               {t('export.fidelityGeoJson')}
             </div>
@@ -356,7 +411,7 @@ interface SegmentedProps<T extends string> {
 
 function Segmented<T extends string>({ value, options, onChange }: SegmentedProps<T>) {
   return (
-    <div className="inline-flex gap-1 rounded-full border border-[var(--divider)] bg-[var(--hover)] p-0.5">
+    <div className="inline-flex flex-wrap gap-1 rounded-[14px] border border-[var(--divider)] bg-[var(--hover)] p-0.5">
       {options.map((option) => {
         const active = option.value === value;
         return (

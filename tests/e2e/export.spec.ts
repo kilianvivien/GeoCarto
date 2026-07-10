@@ -115,3 +115,27 @@ test('export a vector PDF with real (non-flattened) content', async ({ page }) =
   expect(buffer.subarray(0, 4).toString('ascii')).toBe('%PDF');
   expect(buffer.length).toBeGreaterThan(100);
 });
+
+test('export a self-contained interactive HTML map', async ({ page }) => {
+  await disableFileSystemAccess(page);
+  await page.goto('/');
+  await openProjectFixture(page);
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export image' });
+  await dialog.getByRole('button', { name: 'HTML' }).click();
+  await expect(dialog.getByText(/Estimated file size/)).toBeVisible();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button', { name: 'Export', exact: true }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('Reference Project.html');
+  const stream = await download.createReadStream();
+  expect(stream).not.toBeNull();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const html = Buffer.concat(chunks).toString('utf8');
+  expect(html).toContain('maplibregl.Map');
+  expect(html).toContain('pmtiles.Protocol');
+  expect(html).not.toContain('<script src=');
+});

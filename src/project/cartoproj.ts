@@ -350,7 +350,13 @@ export type LegendPinSymbol = {
   pinColor: string;
   pinIcon: PinIcon;
 };
-export type LegendSymbol = LegendFillSymbol | LegendLineSymbol | LegendPinSymbol;
+export type LegendCircleSymbol = {
+  kind: 'circle';
+  color: string;
+  radius: number;
+  maxRadius: number;
+};
+export type LegendSymbol = LegendFillSymbol | LegendLineSymbol | LegendPinSymbol | LegendCircleSymbol;
 
 export const DEFAULT_ANNOTATION_STYLE: AnnotationStyle = {
   fillColor: '#007aff',

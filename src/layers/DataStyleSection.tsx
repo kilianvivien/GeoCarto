@@ -11,7 +11,7 @@ import type {
 import { useDocumentStore } from '@/state/documentStore';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { computeBreaks, dedupeAscending, listNumericAttributes, scanAttribute } from '@/style/classify';
-import { choroplethLegendEntries } from '@/style/legendSwatches';
+import { choroplethLegendEntries, proportionalLegendEntries } from '@/style/legendSwatches';
 import { COLOR_RAMPS, DEFAULT_RAMP_ID, sampleRamp } from '@/style/ramps';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { DEFAULT_ANNOTATION_STYLE } from '@/project/cartoproj';
@@ -79,6 +79,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function Histogram({ values }: { values: number[] }) {
+  const bins = useMemo(() => {
+    if (values.length === 0) return [];
+    const min = values[0];
+    const max = values[values.length - 1];
+    if (min === max) return [values.length];
+    const counts = Array.from({ length: 12 }, () => 0);
+    for (const value of values) counts[Math.min(11, Math.floor(((value - min) / (max - min)) * 12))]++;
+    return counts;
+  }, [values]);
+  const peak = Math.max(1, ...bins);
+  return (
+    <div className="flex h-8 items-end gap-px rounded-[5px] bg-[var(--glass-thin)] px-1 py-1" aria-hidden="true">
+      {bins.map((count, index) => (
+        <span key={index} className="flex-1 rounded-t-[1px] bg-[var(--accent)] opacity-70" style={{ height: `${Math.max(8, (count / peak) * 100)}%` }} />
+      ))}
+    </div>
+  );
+}
+
 const selectClass =
   'min-w-0 rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1.5 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-ring)]';
 const numberClass =
@@ -92,7 +112,7 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
   const updateAnnotation = useDocumentStore((s) => s.updateAnnotation);
   const annotations = useDocumentStore((s) => s.project.annotations);
   const documentMode = useDocumentStore((s) => s.project.mode);
-  const disabled = layer.locked;
+  const disabled = layer.locked || layer.renderStrategy === 'heatmap';
   const mode = modeOf(layer.style.dataStyle);
   const canChoropleth = layer.geometry === 'polygon' || layer.geometry === 'mixed';
   const canProportional = layer.geometry === 'point' || layer.geometry === 'mixed';
@@ -118,6 +138,11 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
   const proportional = layer.style.dataStyle?.kind === 'proportional' ? layer.style.dataStyle : null;
 
   const missingCount = choropleth ? scanAttribute(layer.data.features, choropleth.attribute).missingCount : 0;
+  const activeAttribute = choropleth?.attribute ?? proportional?.attribute;
+  const activeStats = useMemo(
+    () => activeAttribute ? scanAttribute(layer.data.features, activeAttribute) : null,
+    [activeAttribute, layer.data.features],
+  );
 
   const linkedLegend = useMemo(
     () => annotations.find((a) => a.kind === 'legend' && a.dataStyleLink?.layerId === layer.id),
@@ -125,8 +150,12 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
   );
 
   const createOrRefreshLegend = () => {
-    if (!choropleth || documentMode !== 'editing') return;
-    const entries = choroplethLegendEntries(choropleth, missingCount);
+    if ((!choropleth && !proportional) || documentMode !== 'editing') return;
+    const entries = choropleth
+      ? choroplethLegendEntries(choropleth, missingCount)
+      : proportional && activeStats?.values.length
+        ? proportionalLegendEntries(proportional, activeStats.values[0], activeStats.values[activeStats.values.length - 1])
+        : [];
     if (linkedLegend) {
       hintHistoryLabel('Refresh legend');
       updateAnnotation(linkedLegend.id, { entries } as Partial<Annotation>);
@@ -158,8 +187,8 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
         {(
           [
             { value: 'single', labelKey: 'style.dataStyleSingle', icon: Square, enabled: true },
-            { value: 'choropleth', labelKey: 'style.dataStyleChoropleth', icon: Palette, enabled: canChoropleth },
-            { value: 'proportional', labelKey: 'style.dataStyleProportional', icon: CircleDot, enabled: canProportional },
+            { value: 'choropleth', labelKey: 'style.dataStyleChoropleth', icon: Palette, enabled: canChoropleth && numericAttributes.length > 0 },
+            { value: 'proportional', labelKey: 'style.dataStyleProportional', icon: CircleDot, enabled: canProportional && numericAttributes.length > 0 },
           ] as const
         ).map((option) => {
           const active = option.value === mode;
@@ -221,6 +250,7 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
                   ))}
                 </select>
               </Field>
+              {activeStats && <Histogram values={activeStats.values} />}
               <Field label={t('style.dataStyleClassCount')}>
                 <input
                   type="number"
@@ -339,12 +369,17 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
                   max={60}
                   disabled={disabled}
                   value={proportional.minRadius}
-                  onChange={(event) =>
-                    setDataStyle(buildProportional(layer, proportional.attribute, { minRadius: Math.max(1, Number(event.target.value) || 1) }))
-                  }
+                  onChange={(event) => {
+                    const minRadius = Math.min(
+                      proportional.maxRadius,
+                      Math.max(1, Math.min(60, Number(event.target.value) || 1)),
+                    );
+                    setDataStyle(buildProportional(layer, proportional.attribute, { minRadius }));
+                  }}
                   className={numberClass}
                 />
               </Field>
+              {activeStats && <Histogram values={activeStats.values} />}
               <Field label={t('style.dataStyleMaxRadius')}>
                 <input
                   type="number"
@@ -352,9 +387,13 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
                   max={120}
                   disabled={disabled}
                   value={proportional.maxRadius}
-                  onChange={(event) =>
-                    setDataStyle(buildProportional(layer, proportional.attribute, { maxRadius: Math.max(1, Number(event.target.value) || 1) }))
-                  }
+                  onChange={(event) => {
+                    const maxRadius = Math.max(
+                      proportional.minRadius,
+                      Math.max(1, Math.min(120, Number(event.target.value) || 1)),
+                    );
+                    setDataStyle(buildProportional(layer, proportional.attribute, { maxRadius }));
+                  }}
                   className={numberClass}
                 />
               </Field>
@@ -379,6 +418,14 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
                   onChange={(color) => setDataStyle(buildProportional(layer, proportional.attribute, { color }))}
                 />
               </div>
+              <button
+                type="button"
+                disabled={disabled || documentMode !== 'editing'}
+                onClick={createOrRefreshLegend}
+                className="self-start rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {linkedLegend ? t('style.dataStyleRefreshLegend') : t('style.dataStyleCreateLegend')}
+              </button>
             </>
           )}
         </div>

@@ -28,6 +28,21 @@ test('switch to a projected engine, pick Robinson, add a pin, and export SVG+PNG
   await centerLongitude.fill('-30');
   await expect(centerLongitude).toHaveValue('-30');
 
+  // Direct manipulation mirrors the numeric projection controls.
+  const projectedView = page.getByTestId('projected-map-view');
+  const projectedBox = await projectedView.boundingBox();
+  expect(projectedBox).not.toBeNull();
+  await page.mouse.move(projectedBox!.x + projectedBox!.width / 2, projectedBox!.y + projectedBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(projectedBox!.x + projectedBox!.width / 2 + 60, projectedBox!.y + projectedBox!.height / 2);
+  await page.mouse.up();
+  await expect(centerLongitude).not.toHaveValue('-30');
+  const scaleInput = page.getByLabel('Scale', { exact: true });
+  const scaleBefore = await scaleInput.inputValue();
+  await projectedView.hover();
+  await page.mouse.wheel(0, -120);
+  await expect(scaleInput).not.toHaveValue(scaleBefore);
+
   await page.getByRole('button', { name: 'Lock Map Area' }).click();
   await expect(page.getByTestId('projected-map-view')).toBeVisible();
 

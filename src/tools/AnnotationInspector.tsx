@@ -72,6 +72,7 @@ const LEGEND_SYMBOL_KINDS: { value: LegendSymbol['kind']; labelKey: TranslationK
   { value: 'arrow', labelKey: 'legendSymbol.arrow' },
   { value: 'measurement', labelKey: 'legendSymbol.measurement' },
   { value: 'pin', labelKey: 'legendSymbol.pin' },
+  { value: 'circle', labelKey: 'legendSymbol.circle' },
 ];
 
 const ANNOTATION_KIND_LABELS: Record<AnnotationKind, TranslationKey> = {
@@ -871,6 +872,7 @@ function legendEntryPatchFromSymbol(symbol: LegendSymbol): Partial<LegendEntry> 
 function legendSymbolColor(symbol: LegendSymbol): string {
   if (symbol.kind === 'fill') return symbol.fillColor;
   if (symbol.kind === 'pin') return symbol.pinColor;
+  if (symbol.kind === 'circle') return symbol.color;
   return symbol.strokeColor;
 }
 
@@ -909,6 +911,13 @@ function convertLegendSymbol(symbol: LegendSymbol, kind: LegendSymbol['kind']): 
         pinColor: color,
         pinIcon: symbol.kind === 'pin' ? symbol.pinIcon : DEFAULT_ANNOTATION_STYLE.pinIcon,
       };
+    case 'circle':
+      return {
+        kind,
+        color,
+        radius: symbol.kind === 'circle' ? symbol.radius : 8,
+        maxRadius: symbol.kind === 'circle' ? symbol.maxRadius : 16,
+      };
   }
 }
 
@@ -942,6 +951,14 @@ function LegendSymbolPreview({ symbol }: { symbol: LegendSymbol }) {
             <path d="M12 8v8" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
           </>
         )}
+      </svg>
+    );
+  }
+
+  if (symbol.kind === 'circle') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-full w-full">
+        <circle cx="12" cy="12" r={Math.max(2.5, 9 * (symbol.radius / Math.max(1, symbol.maxRadius)))} fill={symbol.color} stroke="#ffffff" strokeWidth="1" />
       </svg>
     );
   }
@@ -1022,6 +1039,10 @@ function LegendEntryRow({
     }
     if (symbol.kind === 'pin') {
       updateSymbol({ ...symbol, pinColor: hex });
+      return;
+    }
+    if (symbol.kind === 'circle') {
+      updateSymbol({ ...symbol, color: hex });
       return;
     }
     updateSymbol({ ...symbol, strokeColor: hex });

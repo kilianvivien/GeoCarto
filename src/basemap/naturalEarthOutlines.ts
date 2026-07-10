@@ -14,11 +14,16 @@ interface LandTopology extends Topology {
   objects: { land: GeometryCollection };
 }
 
-let cached: Promise<FeatureCollection<Geometry>> | null = null;
+interface CountriesTopology extends Topology {
+  objects: { countries: GeometryCollection };
+}
+
+let cachedLand: Promise<FeatureCollection<Geometry>> | null = null;
+let cachedCountries: Promise<FeatureCollection<Geometry>> | null = null;
 
 export function loadNaturalEarthLand(): Promise<FeatureCollection<Geometry>> {
-  if (!cached) {
-    cached = (async () => {
+  if (!cachedLand) {
+    cachedLand = (async () => {
       const [{ default: landUrl }, topojson] = await Promise.all([
         import('world-atlas/land-110m.json?url'),
         import('topojson-client'),
@@ -27,5 +32,20 @@ export function loadNaturalEarthLand(): Promise<FeatureCollection<Geometry>> {
       return topojson.feature(topology, topology.objects.land);
     })();
   }
-  return cached;
+  return cachedLand;
+}
+
+/** Country boundaries from the matching Natural Earth/world-atlas 110m asset. */
+export function loadNaturalEarthCountries(): Promise<FeatureCollection<Geometry>> {
+  if (!cachedCountries) {
+    cachedCountries = (async () => {
+      const [{ default: countriesUrl }, topojson] = await Promise.all([
+        import('world-atlas/countries-110m.json?url'),
+        import('topojson-client'),
+      ]);
+      const topology = (await fetch(countriesUrl).then((res) => res.json())) as CountriesTopology;
+      return topojson.feature(topology, topology.objects.countries);
+    })();
+  }
+  return cachedCountries;
 }

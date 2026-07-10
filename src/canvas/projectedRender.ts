@@ -5,6 +5,7 @@ import { computeProportionalDomain, resolveCircleRadius, resolveFillColor } from
 
 const LAND_FILL = '#e8e6e1';
 const LAND_STROKE = '#b8b4ac';
+const COUNTRY_STROKE = 'rgba(104, 101, 94, 0.55)';
 
 /**
  * Draws one GeoJSON layer's features onto a Canvas2D context via a `d3.geoPath`,
@@ -71,8 +72,16 @@ export function drawProjectedScene(
   land: FeatureCollection<Geometry> | null,
   layers: GeoJsonLayer[],
   landStrokeWidth = 0.75,
+  countries: FeatureCollection<Geometry> | null = null,
 ): void {
   if (land) drawProjectedLand(ctx, path, land, landStrokeWidth);
+  if (countries) {
+    ctx.beginPath();
+    path(countries as GeoPermissibleObjects);
+    ctx.strokeStyle = COUNTRY_STROKE;
+    ctx.lineWidth = Math.max(0.45, landStrokeWidth * 0.75);
+    ctx.stroke();
+  }
   for (const layer of layers) {
     if (!layer.visible || layer.renderStrategy === 'heatmap') continue;
     drawProjectedLayer(ctx, path, layer);

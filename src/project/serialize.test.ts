@@ -407,6 +407,27 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.projection).toBeNull();
   });
 
+  it('repairs a missing or malformed projected-engine configuration', () => {
+    const project = createEmptyProject('Damaged projection') as unknown as {
+      engine: string;
+      projection: unknown;
+    };
+    project.engine = 'projected';
+    project.projection = {
+      id: 'not-a-projection',
+      rotateLambda: Number.NaN,
+      scale: -5,
+      center: ['bad', 250],
+    };
+
+    const restored = deserializeProject(JSON.stringify(project));
+    expect(restored.projection).toEqual({
+      ...DEFAULT_PROJECTION_CONFIG['equal-earth'],
+      scale: 1,
+      center: [400, 250],
+    });
+  });
+
   it('rejects invalid export frame dimensions', () => {
     const project = createEmptyProject();
     project.exportFrame.width = 0;

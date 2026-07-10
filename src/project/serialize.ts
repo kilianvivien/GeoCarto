@@ -3,7 +3,9 @@ import {
   DEFAULT_BASEMAP,
   DEFAULT_BASEMAP_SUBLAYERS,
   DEFAULT_GEOJSON_STYLE,
+  DEFAULT_PROJECTION_CONFIG,
   type CartoProject,
+  type ProjectionId,
 } from './cartoproj';
 import { translate } from '@/i18n/useLocale';
 
@@ -24,6 +26,30 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function expect(condition: unknown, message: string): asserts condition {
   if (!condition) throw new ProjectLoadError(message);
+}
+
+const PROJECTION_IDS: ProjectionId[] = ['equal-earth', 'robinson', 'winkel3', 'bonne', 'natural-earth-1'];
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeProjection(value: unknown) {
+  const record = isObject(value) ? value : {};
+  const id = PROJECTION_IDS.includes(record.id as ProjectionId)
+    ? (record.id as ProjectionId)
+    : 'equal-earth';
+  const defaults = DEFAULT_PROJECTION_CONFIG[id];
+  const center = Array.isArray(record.center) && record.center.length === 2
+    ? [finiteNumber(record.center[0], defaults.center[0]), finiteNumber(record.center[1], defaults.center[1])] as [number, number]
+    : [...defaults.center] as [number, number];
+  return {
+    ...defaults,
+    rotateLambda: finiteNumber(record.rotateLambda, defaults.rotateLambda),
+    scale: Math.max(1, finiteNumber(record.scale, defaults.scale)),
+    center,
+    parallel: id === 'bonne' ? finiteNumber(record.parallel, defaults.parallel ?? 45) : undefined,
+  };
 }
 
 function validateProject(value: unknown): asserts value is CartoProject {
@@ -100,7 +126,7 @@ function validateProject(value: unknown): asserts value is CartoProject {
   // neither field — default to today's Mercator/MapLibre behavior.
   if (value.engine !== 'mercator' && value.engine !== 'projected') value.engine = 'mercator';
   if (value.engine === 'mercator') value.projection = null;
-  else if (!isObject(value.projection)) value.projection = null;
+  else value.projection = normalizeProjection(value.projection);
   if (!('annotations' in value)) value.annotations = [];
   if (!('annotationGroups' in value)) value.annotationGroups = [];
   expect(Array.isArray(value.layers), translate('errors.layersArray'));

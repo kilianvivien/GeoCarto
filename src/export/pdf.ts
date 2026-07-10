@@ -63,15 +63,19 @@ async function renderVectorPdf(project: CartoProject, doc: import('jspdf').jsPDF
     doc.rect(0, 0, pageW, pageH, 'F');
   }
 
-  const basemapCanvas = await renderBasemapCanvas(project, pageW, pageH);
-  doc.addImage(basemapCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+  // Mercator tiles/data have to remain a raster underlay. Projected documents
+  // have no tiles, so let the SVG exporter emit land + GeoJSON as real paths.
+  if (project.engine !== 'projected') {
+    const basemapCanvas = await renderBasemapCanvas(project, pageW, pageH);
+    doc.addImage(basemapCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+  }
 
   const { exportSvg } = await import('./svg');
   const overlayProject: CartoProject = {
     ...project,
     exportFrame: { ...project.exportFrame, background: 'transparent' },
   };
-  const svgResult = await exportSvg(overlayProject, { includeBasemap: false });
+  const svgResult = await exportSvg(overlayProject, { includeBasemap: project.engine === 'projected' });
   const svgString = await svgResult.blob.text();
   const parsed = new DOMParser().parseFromString(svgString, 'image/svg+xml');
   if (parsed.querySelector('parsererror')) {

@@ -190,6 +190,10 @@ export const en = {
   'export.fidelityRaster': 'PNG, JPEG, and raster PDF flatten the full composition into pixels.',
   'export.fidelitySvg':
     'SVG keeps annotations and furniture editable; basemap and data layers are embedded as raster imagery.',
+  'export.fidelityHtml': 'Self-contained interactive map with inline data, tooltips, and annotation overlays; tile basemaps still require a network connection.',
+  'export.htmlPanZoom': 'Allow pan and zoom',
+  'export.htmlTooltips': 'Tooltip properties',
+  'export.htmlSizeEstimate': 'Estimated file size: about {size} MB',
   'export.fidelityVectorPdf':
     'Vector PDF keeps annotations, furniture, and text selectable/editable, matching the SVG exporter; the basemap and data layers still rasterize (real vector paths on projected-engine documents).',
   'export.fidelityGeoJson': 'GeoJSON export keeps edited layer features and properties editable.',
@@ -207,6 +211,7 @@ export const en = {
   'export.failed': 'Export failed.',
   'layer.layers': 'Layers',
   'layer.annotations': 'Annotations',
+  'layer.denseCanvasHint': 'Alt-click cycles overlapping objects. Arrow keys nudge the selection; hold Shift for 10 px.',
   'layer.new': 'New layer',
   'layer.newTitle': 'New layer — draw your own features',
   'layer.import': 'Import data',
@@ -408,6 +413,7 @@ export const en = {
   'legendSymbol.arrow': 'Arrow',
   'legendSymbol.measurement': 'Measure',
   'legendSymbol.pin': 'Pin',
+  'legendSymbol.circle': 'Circle',
   'recents.title': 'Recent projects',
   'recents.empty': 'No recent projects yet.',
   'recents.history': 'history',
@@ -872,6 +878,10 @@ export const fr: Record<TranslationKey, string> = {
   'export.fidelityRaster': 'PNG, JPEG et PDF raster aplatissent toute la composition en pixels.',
   'export.fidelitySvg':
     'SVG conserve les annotations et habillages modifiables ; le fond de carte et les données sont intégrés en images raster.',
+  'export.fidelityHtml': 'Carte interactive autonome avec données, infobulles et annotations intégrées ; les fonds tuilés nécessitent toujours une connexion.',
+  'export.htmlPanZoom': 'Autoriser le déplacement et le zoom',
+  'export.htmlTooltips': 'Propriétés des infobulles',
+  'export.htmlSizeEstimate': 'Taille estimée du fichier : environ {size} Mo',
   'export.fidelityVectorPdf':
     'Le PDF vectoriel conserve les annotations, habillages et textes modifiables/sélectionnables, comme l’export SVG ; le fond de carte et les données restent rasterisés (vecteurs réels sur les documents en carte projetée).',
   'export.fidelityGeoJson': 'L’export GeoJSON conserve les entités et propriétés modifiées.',
@@ -889,6 +899,7 @@ export const fr: Record<TranslationKey, string> = {
   'export.failed': 'Échec de l’export.',
   'layer.layers': 'Couches',
   'layer.annotations': 'Annotations',
+  'layer.denseCanvasHint': 'Alt-clic parcourt les objets superposés. Les flèches déplacent la sélection ; maintenez Maj pour 10 px.',
   'layer.new': 'Nouvelle couche',
   'layer.newTitle': 'Nouvelle couche — dessiner vos propres entités',
   'layer.import': 'Importer des données',
@@ -1091,6 +1102,7 @@ export const fr: Record<TranslationKey, string> = {
   'legendSymbol.arrow': 'Flèche',
   'legendSymbol.measurement': 'Mesure',
   'legendSymbol.pin': 'Repère',
+  'legendSymbol.circle': 'Cercle',
   'recents.title': 'Projets récents',
   'recents.empty': 'Aucun projet récent.',
   'recents.history': 'historique',

@@ -8,7 +8,7 @@ import { useMapInstance } from '@/canvas/mapInstance';
 import { createMercatorProjection } from '@/canvas/canvasProjection';
 import { drawProjectedScene } from '@/canvas/projectedRender';
 import { buildD3Projection } from '@/projection/projections';
-import { loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
+import { loadNaturalEarthCountries, loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
 import type { CartoProject, PageBackground } from '@/project/cartoproj';
 import { renderAnnotationsToCanvas } from './renderAnnotations';
 
@@ -177,8 +177,8 @@ async function renderProjectedBasemapCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new ExportError(translate('errors.no2dContext'));
   const path = geoPath(d3proj, ctx);
-  const land = await loadNaturalEarthLand();
-  drawProjectedScene(ctx, path, land, project.layers, 0.75 * scaleFactor);
+  const [land, countries] = await Promise.all([loadNaturalEarthLand(), loadNaturalEarthCountries()]);
+  drawProjectedScene(ctx, path, land, project.layers, 0.75 * scaleFactor, countries);
   return canvas;
 }
 

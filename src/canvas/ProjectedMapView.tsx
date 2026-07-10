@@ -5,7 +5,8 @@ import type { GeoJsonLayer, ProjectionConfig } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
 import { buildD3Projection } from '@/projection/projections';
 import { createD3CanvasProjection } from '@/projection/canvasProjectionAdapter';
-import { loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
+import { loadNaturalEarthCountries, loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
+import { hintHistoryLabel } from '@/state/historyStore';
 import { drawProjectedScene } from './projectedRender';
 import { useMapInstance } from './mapInstance';
 
@@ -20,7 +21,9 @@ export function ProjectedMapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const landRef = useRef<FeatureCollection<Geometry> | null>(null);
+  const countriesRef = useRef<FeatureCollection<Geometry> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; rotateLambda: number } | null>(null);
 
   const projectionConfig = useDocumentStore((s) => s.project.projection);
   const layers = useDocumentStore((s) => s.project.layers);
@@ -69,7 +72,7 @@ export function ProjectedMapView() {
     const d3proj = buildD3Projection(scaledConfig);
     useMapInstance.getState().setProjection(createD3CanvasProjection(d3proj));
     const path = geoPath(d3proj, ctx);
-    drawProjectedScene(ctx, path, landRef.current, layersRef.current);
+    drawProjectedScene(ctx, path, landRef.current, layersRef.current, 0.75, countriesRef.current);
   }, []);
 
   const scheduleRedraw = useCallback(() => {
@@ -108,9 +111,10 @@ export function ProjectedMapView() {
 
   useEffect(() => {
     let cancelled = false;
-    void loadNaturalEarthLand().then((land) => {
+    void Promise.all([loadNaturalEarthLand(), loadNaturalEarthCountries()]).then(([land, countries]) => {
       if (cancelled) return;
       landRef.current = land;
+      countriesRef.current = countries;
       scheduleRedraw();
     });
     return () => {
@@ -139,7 +143,38 @@ export function ProjectedMapView() {
   );
 
   return (
-    <div ref={containerRef} data-testid="projected-map-view" className="relative h-full w-full bg-[var(--surface)]">
+    <div
+      ref={containerRef}
+      data-testid="projected-map-view"
+      className="relative h-full w-full touch-none bg-[var(--surface)]"
+      onPointerDown={(event) => {
+        const config = configRef.current;
+        if (!config || event.button !== 0) return;
+        dragRef.current = { pointerId: event.pointerId, startX: event.clientX, rotateLambda: config.rotateLambda };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const drag = dragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const next = ((drag.rotateLambda + (event.clientX - drag.startX) * 0.35 + 180) % 360) - 180;
+        hintHistoryLabel('Rotate projection');
+        useDocumentStore.getState().setProjectionConfig({ rotateLambda: next });
+      }}
+      onPointerUp={(event) => {
+        if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+      }}
+      onPointerCancel={() => {
+        dragRef.current = null;
+      }}
+      onWheel={(event) => {
+        const config = configRef.current;
+        if (!config) return;
+        event.preventDefault();
+        const scale = Math.max(40, Math.min(2000, config.scale * Math.exp(-event.deltaY * 0.0015)));
+        hintHistoryLabel('Scale projection');
+        useDocumentStore.getState().setProjectionConfig({ scale });
+      }}
+    >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
     </div>
   );

@@ -5,6 +5,7 @@ import { useEditStore } from '@/state/editStore';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { SHORTCUT_TO_TOOL } from '@/state/toolStore';
 import { type AppCommand, runAppCommand } from '@/app/appCommands';
+import { useMapInstance } from '@/canvas/mapInstance';
 
 declare global {
   interface Window {
@@ -101,6 +102,40 @@ export function KeyboardShortcuts() {
 
       if (event.altKey) return;
       if (useDocumentStore.getState().project.mode !== 'editing') return;
+
+      if (event.key.startsWith('Arrow')) {
+        const { project, selectedAnnotationIds, moveAnnotations } = useDocumentStore.getState();
+        if (selectedAnnotationIds.length === 0) return;
+        const step = event.shiftKey ? 10 : 1;
+        const delta = {
+          x: event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
+          y: event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0,
+        };
+        const projection = useMapInstance.getState().projection;
+        const moves = project.annotations
+          .filter((annotation) => selectedAnnotationIds.includes(annotation.id) && !annotation.locked)
+          .map((annotation) => {
+            const current =
+              annotation.anchorMode === 'map' && annotation.geoAnchor && projection
+                ? projection.project(annotation.geoAnchor) ?? annotation.position
+                : annotation.position;
+            const position = { x: current.x + delta.x, y: current.y + delta.y };
+            return {
+              id: annotation.id,
+              position,
+              geoAnchor:
+                annotation.anchorMode === 'map' && projection
+                  ? projection.unproject(position)
+                  : undefined,
+            };
+          });
+        if (moves.length > 0) {
+          event.preventDefault();
+          hintHistoryLabel('Nudge selection');
+          moveAnnotations(moves);
+        }
+        return;
+      }
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         const edit = useEditStore.getState();

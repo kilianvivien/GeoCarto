@@ -1,4 +1,4 @@
-import type { Annotation, AnnotationStyle, ChoroplethStyle, LegendEntry, LegendFillStyle, LegendSymbol } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, ChoroplethStyle, LegendEntry, LegendFillStyle, LegendSymbol, ProportionalStyle } from '@/project/cartoproj';
 import { localeNumber, translate } from '@/i18n/useLocale';
 import { sampleRamp } from './ramps';
 
@@ -136,4 +136,21 @@ export function choroplethLegendEntries(dataStyle: ChoroplethStyle, missingCount
     });
   }
   return entries;
+}
+
+/** Three representative proportional-symbol sizes, materialized into a linked legend. */
+export function proportionalLegendEntries(dataStyle: ProportionalStyle, min: number, max: number): LegendEntry[] {
+  const midpoint = dataStyle.scale === 'sqrt'
+    ? Math.pow((Math.sqrt(Math.max(0, min)) + Math.sqrt(Math.max(0, max))) / 2, 2)
+    : (min + max) / 2;
+  return [
+    { value: min, radius: dataStyle.minRadius },
+    { value: midpoint, radius: (dataStyle.minRadius + dataStyle.maxRadius) / 2 },
+    { value: max, radius: dataStyle.maxRadius },
+  ].map(({ value, radius }) => ({
+    label: formatNumber(value),
+    swatchColor: dataStyle.color,
+    symbol: { kind: 'circle', color: dataStyle.color, radius, maxRadius: dataStyle.maxRadius },
+    visible: true,
+  }));
 }

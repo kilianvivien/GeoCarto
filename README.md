@@ -58,8 +58,8 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - **Graticule** — a lat/lon grid, most useful on projected maps
 
 ### Editorial projections
-- Switch a document to a **projected engine** (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) for editorial world/continental maps — MapLibre tiles aren't available in this mode, so projected documents render bundled Natural Earth land outlines plus your own imported layers
-- Numeric center-longitude and scale controls in map setup
+- Switch a document to a **projected engine** (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) for editorial world/continental maps — MapLibre tiles aren't available in this mode, so projected documents render bundled Natural Earth land and country outlines plus your own imported layers
+- Drag to rotate, use the wheel to scale, or enter numeric center-longitude and scale values
 
 ### Canvas tools
 - Marquee multi-select with shift/cmd/alt modifiers
@@ -84,6 +84,7 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - **PNG and JPEG** — 1×, 2×, or custom scale; white or transparent background; JPEG quality slider
 - **SVG** — annotations and map furniture export as editable vector objects; on a projected-engine document, data layers export as real vector paths too (Mercator basemap/data still embed as a raster image)
 - **PDF** — vector PDF (default) with selectable text and vector annotations/furniture, or raster-in-PDF as a fallback, sized to the composition frame
+- **Interactive HTML** — one self-contained file with inline map runtime/data, optional pan and zoom, per-layer tooltip fields, and annotation overlays
 
 ### Desktop
 - Native macOS window via Tauri 2, with full feature parity with the web build
@@ -94,7 +95,7 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 
 GeoCarto is young and moving fast. A few things to expect at this stage:
 
-- Editorial projections are a distinct document mode with no tile basemap and numeric-only controls (no drag-to-rotate yet); vector editing and feature picking aren't available there in v1.
+- Editorial projections are a distinct document mode with no tile basemap; vector editing and feature picking aren't available there yet.
 - Imported data layers still export as raster inside SVG/PDF on Mercator documents (projected documents get real vector paths); annotations and map furniture stay fully editable vectors either way.
 - The macOS desktop app is not yet signed or notarized, so Gatekeeper will warn on first launch.
 - GIS analysis (attribute joins, buffers) and offline basemap packs are planned, not shipped.
@@ -109,6 +110,7 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 - Place search / geocoding and choropleth & proportional-symbol data styling ✓
 - Editorial projections (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) ✓
 - Vector PDF export with selectable text and vector annotations/furniture ✓
+- Interactive single-file HTML export with tooltips and pan/zoom ✓
 
 **Next — discoverability & desktop reach**
 - In-app help and keyboard shortcut reference
@@ -116,13 +118,12 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 - Signed & notarized macOS release; Windows and Linux desktop builds
 
 **Later — cartographic depth & print**
-- Drag-to-rotate/wheel-to-scale interaction on projected maps; vector editing there
+- Vector editing on projected maps
 - GIS analysis: attribute joins and buffering
 - Unified scene graph and a templates gallery
 
 **Future — collaboration & platform**
 - Cloud project sync, share links, and real-time collaboration
-- Interactive HTML export
 - Plugin / extension API
 
 ---

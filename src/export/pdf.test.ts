@@ -83,6 +83,21 @@ describe('exportPdf', () => {
     expect(await pdfHeader(result.blob)).toBe('%PDF');
   });
 
+  it('keeps projected land and data in the vector SVG path instead of rasterizing them', async () => {
+    const { exportPdf } = await import('./pdf');
+    const { renderBasemapCanvas } = await import('./raster');
+    const { exportSvg } = await import('./svg');
+    vi.mocked(renderBasemapCanvas).mockClear();
+    vi.mocked(exportSvg).mockClear();
+    const project = fixtureProject();
+    project.engine = 'projected';
+
+    await exportPdf(project, { scale: 1, mode: 'vector' });
+
+    expect(renderBasemapCanvas).not.toHaveBeenCalled();
+    expect(exportSvg).toHaveBeenCalledWith(expect.anything(), { includeBasemap: true });
+  });
+
   it('rejects invalid export frame dimensions before touching either pipeline', async () => {
     const { exportPdf } = await import('./pdf');
     const project = fixtureProject();

@@ -133,6 +133,26 @@ describe('App', () => {
     expect(screen.queryByTestId('map-view')).not.toBeInTheDocument();
   });
 
+  it('recenters a projected map from direct coordinate search', async () => {
+    useDocumentStore.setState((state) => ({
+      project: {
+        ...state.project,
+        engine: 'projected',
+        projection: { ...DEFAULT_PROJECTION_CONFIG['equal-earth'] },
+      },
+    }));
+    render(<App />);
+    await screen.findByTestId('projected-map-view');
+
+    fireEvent.click(screen.getByRole('button', { name: /go to place/i }));
+    const dialog = screen.getByRole('dialog', { name: /go to place/i });
+    const input = within(dialog).getByRole('textbox', { name: /go to place/i });
+    fireEvent.change(input, { target: { value: '41, 29' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(useDocumentStore.getState().project.projection?.rotateLambda).toBe(-29);
+  });
+
   it('renders the app shell chrome', () => {
     render(<App />);
     expect(screen.getByRole('application', { name: /geocarto/i })).toBeInTheDocument();
@@ -249,6 +269,17 @@ describe('App', () => {
     expect(screen.getByDisplayValue('Hello map')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Delete' });
     expect(useDocumentStore.getState().project.annotations).toEqual([]);
+  });
+
+  it('nudges selected annotations with the arrow keys', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    useDocumentStore.getState().addAnnotation(makeAnnotation());
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowDown', shiftKey: true });
+
+    expect(useDocumentStore.getState().project.annotations[0].position).toEqual({ x: 21, y: 40 });
   });
 
   it('opens the command palette from the keyboard and runs shared app commands', async () => {

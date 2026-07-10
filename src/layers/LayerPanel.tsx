@@ -481,6 +481,9 @@ export function LayerPanel() {
             <Shapes size={12} className="text-[var(--text-3)]" />
             {t('layer.annotations')}
           </span>
+          <p className="text-[10.5px] leading-snug text-[var(--text-3)]">
+            {t('layer.denseCanvasHint')}
+          </p>
           <div role="tree" className="flex flex-col gap-1 rounded-[10px] bg-[var(--glass-thin)] p-1.5">
             {[...annotations].reverse().map((annotation) => (
               <AnnotationRow key={annotation.id} annotationId={annotation.id} />

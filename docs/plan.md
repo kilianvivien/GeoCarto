@@ -317,6 +317,8 @@ stable, covered, and performant.
 
 ### M28 — Unified Annotation Scene Graph ⬜
 
+- 🟨 Typed render scene + SVG backend now drive SVG, vector PDF, and interactive
+  HTML annotation output; Canvas2D/Konva migration remains.
 - ⬜ Replace the current triple-renderer duplication across Konva, raster export,
   and SVG export with a shared render specification.
 - ⬜ Use that shared spec to reduce export drift for annotations, effects, and map
@@ -325,12 +327,9 @@ stable, covered, and performant.
 
 ### M29 — Print-Grade Export ⬜
 
-- ✅ Vector PDF shipped via a pragmatic route — reuses the existing SVG
-  exporter's output (all 14 annotation/furniture kinds) converted with
-  svg2pdf.js, rather than waiting on the unified scene graph. Raster PDF
-  remains the fallback option.
-- ⬜ Editable-vector PDF generated from the unified scene graph (M28) — not
-  needed for the above, but still the long-term dedup fix.
+- ✅ Vector PDF uses the typed export scene through the SVG backend (all
+  annotation/furniture kinds) converted with svg2pdf.js. Raster PDF remains
+  the fallback option; Canvas2D/Konva still need migration onto the same scene.
 - ⬜ Later print-house features: CMYK/ICC handling, bleed/margins, and presets.
 - ⬜ Templates gallery for editorial and classroom outputs.
 
@@ -341,11 +340,13 @@ stable, covered, and performant.
 - ⬜ Multi-feature operations.
 - ⬜ Topology-aware editing where useful.
 
-### M31 — Analysis and Thematic Mapping ⬜
+### M31 — Analysis and Thematic Mapping 🟨
 
 - ⬜ Attribute joins.
-- ⬜ Choropleth class wizard.
-- ⬜ Proportional symbols and dot density.
+- ✅ Choropleth class wizard with histograms, quantile/equal/Jenks/manual breaks,
+  curated ramps, missing values, and linked legends.
+- 🟨 Proportional symbols with sqrt/linear scaling and graduated-circle legends;
+  dot density remains.
 - ⬜ Simple buffering.
 - ⬜ GeoPackage import.
 
@@ -356,8 +357,7 @@ stable, covered, and performant.
   basemap; bundled Natural Earth land outlines + the user's own layers).
 - ✅ Parallel d3-geo / d3-geo-projection path (`ProjectedMapView`, `CanvasProjection`
   bridge) for projection-aware rendering, raster export, and vector SVG export.
-- ⬜ Interactive drag-to-rotate/wheel-to-scale composition (v1 shipped numeric
-  center-longitude/scale controls only).
+- ✅ Interactive drag-to-rotate/wheel-to-scale composition plus numeric controls.
 - ⬜ Vector editing (terra-draw) and feature-picking on projected documents.
 
 ---
@@ -380,9 +380,11 @@ stable.
 - ⬜ Share links.
 - ⬜ Real-time collaboration over the `.cartoproj` model.
 
-### M35 — Interactive and Extensible Platform ⬜
+### M35 — Interactive and Extensible Platform 🟨
 
-- ⬜ Interactive HTML export with pan/zoom/tooltips.
+- ✅ Single-file interactive HTML export with inline MapLibre/PMTiles runtimes,
+  inline GeoJSON, configurable pan/zoom, per-layer tooltip properties, and
+  annotation overlays.
 - ⬜ Plugin / extension API.
 - ⬜ Decompose large editor components and formalize public module boundaries
   before exposing extension points.
@@ -399,7 +401,7 @@ stable.
 | GeoJSON | ✅ Shipped | Editable data can be exported per layer or all at once. |
 | PDF (raster) | ✅ Shipped | Raster-in-PDF sized to the composition frame; kept as the safe fallback. |
 | PDF (vector) | ✅ Shipped | Default mode — SVG exporter output converted with svg2pdf.js; data layers still rasterize on Mercator documents. |
-| Interactive HTML | ⬜ Phase 5 | Planned with sharing/extensibility work. |
+| Interactive HTML | ✅ Shipped | Single-file export; hosted tile basemaps still require network access. |
 
 ## Architecture Invariants
 

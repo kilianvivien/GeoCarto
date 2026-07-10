@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ANNOTATION_STYLE } from '@/project/cartoproj';
 import { createAnnotation } from '@/tools/annotationFactory';
-import { legendSymbolFromAnnotation } from './legendSwatches';
+import { legendSymbolFromAnnotation, proportionalLegendEntries } from './legendSwatches';
 
 const seed = {
   anchorMode: 'canvas' as const,
@@ -60,5 +60,17 @@ describe('legendSymbolFromAnnotation', () => {
       pinIcon: 'star',
     });
     expect(legendSymbolFromAnnotation(text)).toBeNull();
+  });
+});
+
+describe('proportionalLegendEntries', () => {
+  it('materializes graduated circle symbols for min, midpoint, and max values', () => {
+    const entries = proportionalLegendEntries({
+      kind: 'proportional', attribute: 'population', minRadius: 4, maxRadius: 24, scale: 'sqrt', color: '#007aff',
+    }, 0, 100);
+    expect(entries).toHaveLength(3);
+    expect(entries.map((entry) => entry.symbol?.kind)).toEqual(['circle', 'circle', 'circle']);
+    expect(entries[0].symbol).toMatchObject({ radius: 4, maxRadius: 24 });
+    expect(entries[2].symbol).toMatchObject({ radius: 24, maxRadius: 24 });
   });
 });

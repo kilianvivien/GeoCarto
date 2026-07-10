@@ -14,8 +14,10 @@ import { hatchLines, strokeDash } from '@/style/annotationPatterns';
 import { legendEntrySymbol } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { buildGraticule } from '@/projection/graticule';
+import type { RenderNode } from '@/render/spec';
+import { renderNodeToSvg } from '@/render/svgBackend';
 import { buildD3Projection } from '@/projection/projections';
-import { loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
+import { loadNaturalEarthCountries, loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
 import { computeProportionalDomain, resolveCircleRadius, resolveFillColor } from '@/style/dataStyleEvaluate';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
@@ -115,7 +117,7 @@ function pinGlyphSvg(icon: PinIcon, color: string, size: number): string {
 }
 
 function legendSymbolDash(symbol: LegendSymbol): string {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return '';
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return '';
   switch (symbol.strokePattern) {
     case 'dotted':
       return ` stroke-dasharray="1 ${n(Math.max(3, symbol.strokeWidth * 1.8))}"`;
@@ -127,7 +129,7 @@ function legendSymbolDash(symbol: LegendSymbol): string {
 }
 
 function legendSymbolStrokeWidth(symbol: LegendSymbol): number {
-  if (symbol.kind === 'fill' || symbol.kind === 'pin') return 1;
+  if (symbol.kind === 'fill' || symbol.kind === 'pin' || symbol.kind === 'circle') return 1;
   switch (symbol.brushPreset) {
     case 'marker':
       return symbol.strokeWidth * 1.8;
@@ -184,6 +186,10 @@ function legendSymbolSvg(
   if (symbol.kind === 'pin') {
     return `<g transform="translate(${n(x + size / 2)},${n(y + size / 2)})">${pinGlyphSvg(symbol.pinIcon, symbol.pinColor, size * 0.82)}</g>`;
   }
+  if (symbol.kind === 'circle') {
+    const radius = Math.max(2, (size / 2) * (symbol.radius / Math.max(1, symbol.maxRadius)));
+    return `<circle cx="${n(x + size / 2)}" cy="${n(y + size / 2)}" r="${n(radius)}" fill="${esc(symbol.color)}" stroke="#ffffff" stroke-width="1"/>`;
+  }
 
   const cy = y + size / 2;
   const strokeWidth = n(legendSymbolStrokeWidth(symbol));
@@ -205,13 +211,13 @@ function legendSymbolSvg(
 }
 
 /** Emit one annotation as an SVG group positioned in frame coordinates. */
-function annotationToSvg(
+function annotationToRenderNode(
   annotation: Annotation,
   origin: { x: number; y: number },
   scale: number,
   projection: CanvasProjection | null,
-): string {
-  if (!annotation.visible) return '';
+): RenderNode | null {
+  if (!annotation.visible) return null;
   const { style } = annotation;
   const fill = ` fill="${esc(style.fillColor)}"`;
   const stroke = ` stroke="${esc(style.strokeColor)}" stroke-width="${n(style.strokeWidth)}"`;
@@ -352,7 +358,7 @@ function annotationToSvg(
     }
     case 'comment':
       // Local-only review pins are omitted from exported artwork.
-      return '';
+      return null;
     case 'graticule': {
       if (!projection) break;
       const multiline = buildGraticule(annotation.intervalDeg);
@@ -369,9 +375,15 @@ function annotationToSvg(
     }
   }
 
-  if (body === '') return '';
-  const transform = `translate(${n(origin.x)},${n(origin.y)}) rotate(${n(annotation.rotation)}) scale(${n(scale)})`;
-  return `<g transform="${transform}" opacity="${n(annotation.opacity)}">${body}</g>`;
+  if (body === '') return null;
+  return {
+    kind: 'group',
+    id: annotation.id,
+    transform: { translate: origin, rotate: annotation.rotation, scale },
+    opacity: annotation.opacity,
+    blendMode: annotation.style.blendMode,
+    children: [{ kind: 'fragment', markup: body }],
+  };
 }
 
 function projectedLayerToSvg(layer: GeoJsonLayer, path: (object: GeoPermissibleObjects) => string | null): string {
@@ -421,9 +433,11 @@ async function projectedSceneToSvg(project: CartoProject, frameW: number): Promi
   });
   const path = geoPath(d3proj);
   let out = '';
-  const land = await loadNaturalEarthLand();
+  const [land, countries] = await Promise.all([loadNaturalEarthLand(), loadNaturalEarthCountries()]);
   const landD = path(land as GeoPermissibleObjects);
   if (landD) out += `<path d="${landD}" fill="#e8e6e1" stroke="#b8b4ac" stroke-width="${n(0.75 * scaleFactor)}"/>`;
+  const countryD = path(countries as GeoPermissibleObjects);
+  if (countryD) out += `<path d="${countryD}" fill="none" stroke="#68655e" stroke-opacity="0.55" stroke-width="${n(0.55 * scaleFactor)}"/>`;
   for (const layer of project.layers) {
     if (!layer.visible || layer.renderStrategy === 'heatmap') continue;
     out += projectedLayerToSvg(layer, path);
@@ -486,7 +500,8 @@ export async function exportSvg(
   }
 
   for (const annotation of project.annotations) {
-    parts.push(annotationToSvg(annotation, originOf(annotation), scale, projection));
+    const node = annotationToRenderNode(annotation, originOf(annotation), scale, projection);
+    if (node) parts.push(renderNodeToSvg(node));
   }
 
   const svg =

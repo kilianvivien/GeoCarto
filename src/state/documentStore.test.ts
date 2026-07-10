@@ -178,6 +178,46 @@ describe('documentStore', () => {
     expect(useDocumentStore.getState().dirty).toBe(false);
   });
 
+  it('automatically refreshes a linked legend when choropleth styling changes', () => {
+    useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
+    const layer = makeLayer('Regions');
+    layer.geometry = 'polygon';
+    layer.data.features = [
+      { type: 'Feature', properties: { value: 1 }, geometry: { type: 'Polygon', coordinates: [] } },
+      { type: 'Feature', properties: { value: 10 }, geometry: { type: 'Polygon', coordinates: [] } },
+    ];
+    layer.style.dataStyle = {
+      kind: 'choropleth',
+      attribute: 'value',
+      method: 'equal',
+      classCount: 3,
+      breaks: [4, 7],
+      paletteId: 'blues',
+      reverse: false,
+      missingColor: '#cccccc',
+    };
+    useDocumentStore.getState().addLayer(layer);
+    const legend: Annotation = {
+      ...makeAnnotation('Legend'),
+      kind: 'legend',
+      title: 'Regions',
+      entries: [],
+      width: 200,
+      dataStyleLink: { layerId: layer.id },
+    };
+    useDocumentStore.getState().addAnnotation(legend);
+
+    useDocumentStore.getState().updateLayerStyle(layer.id, {
+      dataStyle: { ...layer.style.dataStyle, reverse: true },
+    });
+
+    const storedLegend = useDocumentStore.getState().project.annotations[0];
+    expect(storedLegend.kind).toBe('legend');
+    if (storedLegend.kind !== 'legend') return;
+    expect(storedLegend.entries).toHaveLength(3);
+    expect(storedLegend.entries[0].swatchColor).not.toBe(storedLegend.entries[2].swatchColor);
+  });
+
   it('removing a selected layer clears its selection', () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     const layer = makeLayer('Temp');
