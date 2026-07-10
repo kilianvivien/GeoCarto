@@ -11,6 +11,13 @@
 
 <p align="center">
   <a href="https://geo-carto.vercel.app"><strong>🌍 Try the live demo →</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest/download/GeoCarto_0.3.5_aarch64.dmg"><strong>Download for Apple silicon →</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/kilianvivien/GeoCarto" /></a>
+  <img alt="macOS Apple silicon" src="https://img.shields.io/badge/macOS-Apple%20silicon-111111?logo=apple" />
 </p>
 
 ---
@@ -30,6 +37,7 @@ The target users are journalists, teachers, designers, and anyone who today fall
 ## What you can do today
 
 ### Basemap and data
+
 - Open an interactive basemap (OSM-derived PMTiles via Protomaps) — no tile server or API key required
 - Switch between four built-in styles: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
 - Provide a custom MapLibre style URL, PMTiles URL, static image, or empty canvas as the basemap source
@@ -40,6 +48,7 @@ The target users are journalists, teachers, designers, and anyone who today fall
 - **Edit imported GeoJSON** — move, add, and delete vertices; draw new features; edit attributes directly in the layer
 
 ### Annotations
+
 - **Text** — labels with font choice, size, color, and halo
 - **Rectangle and ellipse** — filled or stroked shapes
 - **Line / arrow** — segments with dashed stroke and arrowheads
@@ -51,6 +60,7 @@ The target users are journalists, teachers, designers, and anyone who today fall
 All annotation types support fill, stroke, opacity, drop shadow, blend modes (normal / multiply / screen / overlay), and geo vs. canvas anchoring ("Pin to map" / "Pin to canvas").
 
 ### Map furniture
+
 - **Title block and source credit**
 - **Scale bar** — snaps to round distances and tracks map scale
 - **North arrow** — follows map bearing (Mercator maps only)
@@ -58,10 +68,12 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - **Graticule** — a lat/lon grid, most useful on projected maps
 
 ### Editorial projections
+
 - Switch a document to a **projected engine** (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) for editorial world/continental maps — MapLibre tiles aren't available in this mode, so projected documents render bundled Natural Earth land and country outlines plus your own imported layers
 - Drag to rotate, use the wheel to scale, or enter numeric center-longitude and scale values
 
 ### Canvas tools
+
 - Marquee multi-select with shift/cmd/alt modifiers
 - Group and ungroup objects (⌘G / ⌘⇧G)
 - Smart guides — edge and center alignment cues during drag
@@ -69,6 +81,7 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - Undo/redo with 100+ meaningful document steps (⌘Z / ⌘⇧Z)
 
 ### Project workflow
+
 - Multi-project tab bar — open several maps at once, each with its own autosave session
 - Save and reopen `.cartoproj` project files (plain JSON); recent projects menu
 - Browser autosave (configurable interval, default 10 s via IndexedDB), with per-tab draft recovery on reload
@@ -76,18 +89,22 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - **Error recovery** — a top-level error boundary catches render crashes, force-flushes the session to autosave, and shows a reload screen; a crash-loop guard offers "discard project" if the same document keeps crashing
 
 ### Settings and localization
+
 - **Preferences modal** (General / Appearance / Editor / Autosave / Basemap) — persisted to `localStorage` with versioned migrations and reset-to-defaults
 - Configurable autosave interval, units, default basemap, canvas defaults, and accent color
 - **French and English** UI — auto-detected from the browser locale with a manual override in Settings
 
 ### Export
+
 - **PNG and JPEG** — 1×, 2×, or custom scale; white or transparent background; JPEG quality slider
 - **SVG** — annotations and map furniture export as editable vector objects; on a projected-engine document, data layers export as real vector paths too (Mercator basemap/data still embed as a raster image)
 - **PDF** — vector PDF (default) with selectable text and vector annotations/furniture, or raster-in-PDF as a fallback, sized to the composition frame
 - **Interactive HTML** — one self-contained file with inline map runtime/data, optional pan and zoom, per-layer tooltip fields, and annotation overlays
 
 ### Desktop
+
 - Native macOS window via Tauri 2, with full feature parity with the web build
+- Download the latest Apple silicon build from [GitHub Releases](https://github.com/kilianvivien/GeoCarto/releases/latest) (`.dmg`, macOS 11+)
 
 ---
 
@@ -107,22 +124,26 @@ GeoCarto is young and moving fast. A few things to expect at this stage:
 GeoCarto is built in phases. The browser core loop and the editorial toolset are in place — here's what's next.
 
 **Recently shipped (0.3.x)**
+
 - Place search / geocoding and choropleth & proportional-symbol data styling ✓
 - Editorial projections (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) ✓
 - Vector PDF export with selectable text and vector annotations/furniture ✓
 - Interactive single-file HTML export with tooltips and pan/zoom ✓
 
 **Next — discoverability & desktop reach**
+
 - In-app help and keyboard shortcut reference
 - Local PMTiles files and offline regional basemap packs on desktop
 - Signed & notarized macOS release; Windows and Linux desktop builds
 
 **Later — cartographic depth & print**
+
 - Vector editing on projected maps
 - GIS analysis: attribute joins and buffering
 - Unified scene graph and a templates gallery
 
 **Future — collaboration & platform**
+
 - Cloud project sync, share links, and real-time collaboration
 - Plugin / extension API
 
@@ -130,17 +151,17 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 
 ## Tech stack
 
-| Concern | Choice |
-|---|---|
-| Framework | React 19 + TypeScript + Vite 7 |
-| Desktop | Tauri 2 (macOS) |
-| Basemap | MapLibre GL JS v5 + PMTiles |
-| Data layers | deck.gl |
-| Annotation canvas | Konva.js |
-| Drawing | terra-draw |
-| State | Zustand + Immer |
-| UI | shadcn/ui (new-york) + Tailwind v4 + Lucide |
-| Testing | Vitest + Playwright |
+| Concern           | Choice                                      |
+| ----------------- | ------------------------------------------- |
+| Framework         | React 19 + TypeScript + Vite 7              |
+| Desktop           | Tauri 2 (macOS)                             |
+| Basemap           | MapLibre GL JS v5 + PMTiles                 |
+| Data layers       | deck.gl                                     |
+| Annotation canvas | Konva.js                                    |
+| Drawing           | terra-draw                                  |
+| State             | Zustand + Immer                             |
+| UI                | shadcn/ui (new-york) + Tailwind v4 + Lucide |
+| Testing           | Vitest + Playwright                         |
 
 ---
 
@@ -162,6 +183,12 @@ npm run dev          # http://localhost:5173
 
 ### macOS desktop app
 
+Download the ready-to-install **Apple silicon (M1 or newer)** disk image from the
+[latest GitHub release](https://github.com/kilianvivien/GeoCarto/releases/latest).
+GeoCarto does not currently provide an Intel macOS build.
+
+To run the desktop app from source:
+
 ```bash
 npm run tauri dev    # development build with hot-reload
 npm run tauri build  # production .app bundle
@@ -181,15 +208,15 @@ npm run tauri build  # production .app bundle
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Dev server at `http://localhost:5173` |
-| `npm run build` | Typecheck + production build |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
-| `npm test` | Vitest unit tests |
-| `npm run test:e2e` | Playwright end-to-end tests |
+| Command             | Description                           |
+| ------------------- | ------------------------------------- |
+| `npm run dev`       | Dev server at `http://localhost:5173` |
+| `npm run build`     | Typecheck + production build          |
+| `npm run typecheck` | `tsc --noEmit`                        |
+| `npm run lint`      | ESLint                                |
+| `npm run format`    | Prettier                              |
+| `npm test`          | Vitest unit tests                     |
+| `npm run test:e2e`  | Playwright end-to-end tests           |
 
 ---
 
@@ -225,64 +252,64 @@ GeoCarto is built on the shoulders of these open-source projects:
 
 ### Core rendering
 
-| Library | License | Notes |
-|---|---|---|
-| [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) | BSD-3-Clause | WebGL vector tile renderer — the map viewport |
-| [Protomaps PMTiles](https://github.com/protomaps/PMTiles) | BSD-3-Clause | Single-file tile archive format, no tile server required |
-| [@protomaps/basemaps](https://github.com/protomaps/basemaps) | BSD-3-Clause | OSM-derived basemap styles, by The Protomaps Authors |
-| [deck.gl](https://github.com/visgl/deck.gl) | MIT | GPU-accelerated data layers (heatmaps), by vis.gl |
-| [Konva](https://github.com/konvajs/konva) / [react-konva](https://github.com/konvajs/react-konva) | MIT | 2D canvas stage for annotations, by Anton Lavrenov |
-| [terra-draw](https://github.com/JamesLMilner/terra-draw) | MIT | Map drawing and geometry editing, by James Milner |
+| Library                                                                                           | License      | Notes                                                    |
+| ------------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------- |
+| [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js)                                      | BSD-3-Clause | WebGL vector tile renderer — the map viewport            |
+| [Protomaps PMTiles](https://github.com/protomaps/PMTiles)                                         | BSD-3-Clause | Single-file tile archive format, no tile server required |
+| [@protomaps/basemaps](https://github.com/protomaps/basemaps)                                      | BSD-3-Clause | OSM-derived basemap styles, by The Protomaps Authors     |
+| [deck.gl](https://github.com/visgl/deck.gl)                                                       | MIT          | GPU-accelerated data layers (heatmaps), by vis.gl        |
+| [Konva](https://github.com/konvajs/konva) / [react-konva](https://github.com/konvajs/react-konva) | MIT          | 2D canvas stage for annotations, by Anton Lavrenov       |
+| [terra-draw](https://github.com/JamesLMilner/terra-draw)                                          | MIT          | Map drawing and geometry editing, by James Milner        |
 
 ### Data and import
 
-| Library | License | Notes |
-|---|---|---|
-| [@tmcw/togeojson](https://github.com/placemark/togeojson) | BSD-2-Clause | KML and GPX → GeoJSON parser |
-| [shpjs](https://github.com/calvinmetcalf/shapefile-js) | MIT | Shapefile → GeoJSON parser, by Calvin Metcalf |
-| [topojson-client](https://github.com/topojson/topojson-client) | ISC | TopoJSON → GeoJSON, by Mike Bostock |
+| Library                                                        | License      | Notes                                         |
+| -------------------------------------------------------------- | ------------ | --------------------------------------------- |
+| [@tmcw/togeojson](https://github.com/placemark/togeojson)      | BSD-2-Clause | KML and GPX → GeoJSON parser                  |
+| [shpjs](https://github.com/calvinmetcalf/shapefile-js)         | MIT          | Shapefile → GeoJSON parser, by Calvin Metcalf |
+| [topojson-client](https://github.com/topojson/topojson-client) | ISC          | TopoJSON → GeoJSON, by Mike Bostock           |
 
 ### Export
 
-| Library | License | Notes |
-|---|---|---|
-| [jsPDF](https://github.com/parallax/jsPDF) | MIT | Raster-in-PDF export |
+| Library                                    | License | Notes                |
+| ------------------------------------------ | ------- | -------------------- |
+| [jsPDF](https://github.com/parallax/jsPDF) | MIT     | Raster-in-PDF export |
 
 ### State and persistence
 
-| Library | License | Notes |
-|---|---|---|
-| [Zustand](https://github.com/pmndrs/zustand) | MIT | State management, by Paul Henschel / pmnd.rs |
-| [Immer](https://github.com/immerjs/immer) | MIT | Immutable state updates, by Michel Weststrate |
-| [idb-keyval](https://github.com/jakearchibald/idb-keyval) | Apache-2.0 | IndexedDB autosave, by Jake Archibald |
+| Library                                                   | License    | Notes                                         |
+| --------------------------------------------------------- | ---------- | --------------------------------------------- |
+| [Zustand](https://github.com/pmndrs/zustand)              | MIT        | State management, by Paul Henschel / pmnd.rs  |
+| [Immer](https://github.com/immerjs/immer)                 | MIT        | Immutable state updates, by Michel Weststrate |
+| [idb-keyval](https://github.com/jakearchibald/idb-keyval) | Apache-2.0 | IndexedDB autosave, by Jake Archibald         |
 
 ### UI and framework
 
-| Library | License | Notes |
-|---|---|---|
-| [React](https://github.com/facebook/react) | MIT | UI framework, by Meta |
-| [Vite](https://github.com/vitejs/vite) | MIT | Build tool, by Evan You / VoidZero |
-| [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Utility-first CSS framework |
-| [shadcn/ui](https://github.com/shadcn-ui/ui) | MIT | Accessible component primitives, by shadcn |
-| [Lucide](https://github.com/lucide-icons/lucide) | ISC | Icon set, by Eric Fennis and contributors |
-| [clsx](https://github.com/lukeed/clsx) | MIT | Class name utility |
-| [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT | Tailwind class merging, by Dany Castillo |
+| Library                                                     | License | Notes                                      |
+| ----------------------------------------------------------- | ------- | ------------------------------------------ |
+| [React](https://github.com/facebook/react)                  | MIT     | UI framework, by Meta                      |
+| [Vite](https://github.com/vitejs/vite)                      | MIT     | Build tool, by Evan You / VoidZero         |
+| [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT     | Utility-first CSS framework                |
+| [shadcn/ui](https://github.com/shadcn-ui/ui)                | MIT     | Accessible component primitives, by shadcn |
+| [Lucide](https://github.com/lucide-icons/lucide)            | ISC     | Icon set, by Eric Fennis and contributors  |
+| [clsx](https://github.com/lukeed/clsx)                      | MIT     | Class name utility                         |
+| [tailwind-merge](https://github.com/dcastil/tailwind-merge) | MIT     | Tailwind class merging, by Dany Castillo   |
 
 ### Desktop shell
 
-| Library | License | Notes |
-|---|---|---|
+| Library                                      | License          | Notes                  |
+| -------------------------------------------- | ---------------- | ---------------------- |
 | [Tauri](https://github.com/tauri-apps/tauri) | MIT / Apache-2.0 | Native macOS app shell |
 
 ### Tooling (dev)
 
-| Library | License | Notes |
-|---|---|---|
-| [TypeScript](https://github.com/microsoft/TypeScript) | Apache-2.0 | by Microsoft |
+| Library                                               | License    | Notes                          |
+| ----------------------------------------------------- | ---------- | ------------------------------ |
+| [TypeScript](https://github.com/microsoft/TypeScript) | Apache-2.0 | by Microsoft                   |
 | [Playwright](https://github.com/microsoft/playwright) | Apache-2.0 | End-to-end tests, by Microsoft |
-| [Vitest](https://github.com/vitest-dev/vitest) | MIT | Unit tests, by Anthony Fu |
-| [ESLint](https://github.com/eslint/eslint) | MIT | Linter |
-| [Prettier](https://github.com/prettier/prettier) | MIT | Code formatter, by James Long |
+| [Vitest](https://github.com/vitest-dev/vitest)        | MIT        | Unit tests, by Anthony Fu      |
+| [ESLint](https://github.com/eslint/eslint)            | MIT        | Linter                         |
+| [Prettier](https://github.com/prettier/prettier)      | MIT        | Code formatter, by James Long  |
 
 ---
 
