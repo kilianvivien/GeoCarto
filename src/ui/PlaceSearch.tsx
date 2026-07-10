@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, Search, X } from 'lucide-react';
+import { Loader2, MapPin, Search, X } from 'lucide-react';
 import { useGeocode } from '@/geocode/useGeocode';
 import { parseCoordinates } from '@/geocode/parseCoordinates';
 import type { GeocodeResult } from '@/geocode/provider';
@@ -13,6 +13,8 @@ import { useMapInstance } from '@/canvas/mapInstance';
 import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
 import { useModalFocusTrap } from './useModalFocusTrap';
+
+const TRANSITION_MS = 220;
 
 const KIND_LABEL_KEYS: Record<string, TranslationKey> = {
   country: 'place.kindCountry',
@@ -76,32 +78,58 @@ export function PlaceSearch({ open, onClose }: PlaceSearchProps) {
   const locale = useLocale((s) => s.locale);
   const mode = useDocumentStore((s) => s.project.mode);
   const onlineSearchEnabled = usePreferencesStore((s) => s.onlineSearchEnabled);
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   useModalFocusTrap(open, containerRef, onClose);
 
   const { results, loading, error } = useGeocode(query, locale, open && onlineSearchEnabled);
   const coordinateMatch = parseCoordinates(query);
 
   useEffect(() => {
-    if (open) setQuery('');
+    if (open) {
+      setMounted(true);
+      setQuery('');
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
+    }
+    setVisible(false);
+    const timeout = window.setTimeout(() => setMounted(false), TRANSITION_MS);
+    return () => window.clearTimeout(timeout);
   }, [open]);
 
   useEffect(() => {
     setActiveIndex(0);
   }, [results, coordinateMatch]);
 
-  if (!open) return null;
+  useEffect(() => {
+    listRef.current
+      ?.querySelector(`[data-row-index="${activeIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  if (!mounted) return null;
 
   const rowCount = (coordinateMatch ? 1 : 0) + results.length;
+  const trimmedQuery = query.trim();
+  const showBody =
+    !onlineSearchEnabled || rowCount > 0 || (onlineSearchEnabled && trimmedQuery.length > 0);
 
   const selectCoordinate = () => {
     if (!coordinateMatch) return;
     flyToResult({
       id: 'coordinates',
-      label: query.trim(),
+      label: trimmedQuery,
       kind: 'coordinates',
       center: coordinateMatch.center,
     });
@@ -137,16 +165,20 @@ export function PlaceSearch({ open, onClose }: PlaceSearchProps) {
       role="dialog"
       aria-modal="true"
       aria-label={t('place.goToPlace')}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-[var(--scrim)] px-4 pt-[12vh]"
+      className={`fixed inset-0 z-50 flex items-start justify-center bg-[var(--scrim)] px-4 pt-[12vh] transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+        visible ? 'opacity-100' : 'opacity-0'
+      }`}
       onClick={onClose}
     >
       <div
         ref={containerRef}
-        className="glass w-[min(480px,100%)] overflow-hidden rounded-[var(--radius-md)] bg-[var(--surface-modal)] text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+        className={`glass w-[min(480px,100%)] overflow-hidden rounded-[var(--radius-md)] bg-[var(--surface-modal)] text-[var(--text)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-[opacity,transform] duration-[220ms] ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+          visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-1'
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-[var(--divider)] px-4 py-2.5">
-          <Search size={15} className="text-[var(--text-3)]" />
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <Search size={15} className="shrink-0 text-[var(--text-3)]" />
           <input
             ref={inputRef}
             autoFocus
@@ -157,108 +189,151 @@ export function PlaceSearch({ open, onClose }: PlaceSearchProps) {
             aria-label={t('place.goToPlace')}
             className="h-8 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
           />
+          {loading && (
+            <Loader2 size={14} className="shrink-0 animate-spin text-[var(--text-3)]" />
+          )}
           <button
             type="button"
             aria-label={t('settings.close')}
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
           >
             <X size={14} />
           </button>
         </div>
 
-        <div className="max-h-[48vh] overflow-y-auto p-2">
-          {!onlineSearchEnabled && (
-            <div className="px-3 py-2 text-[11.5px] text-[var(--text-3)]">{t('place.onlineSearchDisabled')}</div>
-          )}
+        {showBody && (
+          <div
+            ref={listRef}
+            className="max-h-[48vh] overflow-y-auto border-t border-[var(--divider)] p-2"
+          >
+            {!onlineSearchEnabled && (
+              <div className="px-3 py-2 text-[11.5px] text-[var(--text-3)]">
+                {t('place.onlineSearchDisabled')}
+              </div>
+            )}
 
-          {coordinateMatch && (
-            <button
-              type="button"
-              onClick={selectCoordinate}
-              className={`flex w-full items-center gap-3 rounded-[8px] px-2.5 py-2 text-left text-[12.5px] transition-colors hover:bg-[var(--hover)] ${
-                activeIndex === 0 ? 'bg-[var(--hover)]' : ''
-              }`}
-            >
-              <MapPin size={14} className="shrink-0 text-[var(--text-3)]" />
-              <span className="flex-1 truncate">
-                {t('place.coordinateEntry', {
-                  lng: coordinateMatch.center[0].toFixed(4),
-                  lat: coordinateMatch.center[1].toFixed(4),
-                })}
-              </span>
-              {coordinateMatch.ambiguous && (
-                <span className="text-[10.5px] text-[var(--text-3)]">{t('place.assumedLatLon')}</span>
-              )}
-            </button>
-          )}
+            {coordinateMatch && (
+              <button
+                type="button"
+                data-row-index={0}
+                onClick={selectCoordinate}
+                onMouseMove={() => setActiveIndex(0)}
+                className={`flex w-full items-center gap-3 rounded-[8px] px-2.5 py-2 text-left text-[12.5px] transition-colors ${
+                  activeIndex === 0 ? 'bg-[var(--hover)]' : ''
+                }`}
+              >
+                <MapPin size={14} className="shrink-0 text-[var(--text-3)]" />
+                <span className="flex-1 truncate">
+                  {t('place.coordinateEntry', {
+                    lng: coordinateMatch.center[0].toFixed(4),
+                    lat: coordinateMatch.center[1].toFixed(4),
+                  })}
+                </span>
+                {coordinateMatch.ambiguous && (
+                  <span className="text-[10.5px] text-[var(--text-3)]">
+                    {t('place.assumedLatLon')}
+                  </span>
+                )}
+              </button>
+            )}
 
-          {onlineSearchEnabled &&
-            results.map((result, index) => {
-              const rowIndex = index + (coordinateMatch ? 1 : 0);
-              const kindKey = KIND_LABEL_KEYS[result.kind];
-              const kindLabel = kindKey ? t(kindKey) : result.kind;
-              return (
-                <div
-                  key={result.id}
-                  className={`flex items-center gap-2 rounded-[8px] px-2.5 py-2 text-[12.5px] transition-colors ${
-                    rowIndex === activeIndex ? 'bg-[var(--hover)]' : ''
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => selectResult(result)}
-                    className="flex flex-1 items-center gap-2 text-left"
+            {onlineSearchEnabled &&
+              results.map((result, index) => {
+                const rowIndex = index + (coordinateMatch ? 1 : 0);
+                const active = rowIndex === activeIndex;
+                const kindKey = KIND_LABEL_KEYS[result.kind];
+                const kindLabel = kindKey ? t(kindKey) : result.kind;
+                return (
+                  <div
+                    key={result.id}
+                    data-row-index={rowIndex}
+                    onMouseMove={() => setActiveIndex(rowIndex)}
+                    className={`group flex items-center gap-2 rounded-[8px] px-2.5 py-2 text-[12.5px] transition-colors ${
+                      active ? 'bg-[var(--hover)]' : ''
+                    }`}
                   >
-                    <span className="rounded-[5px] bg-[var(--glass-thin)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-3)]">
-                      {kindLabel}
-                    </span>
-                    <span className="flex-1 truncate">
-                      <span className="font-medium text-[var(--text)]">{result.label}</span>
-                      {result.context && (
-                        <span className="ml-1.5 text-[var(--text-3)]">{result.context}</span>
-                      )}
-                    </span>
-                  </button>
-                  {mode === 'editing' && (
                     <button
                       type="button"
-                      aria-label={t('place.addPin')}
-                      onClick={() => {
-                        addPinForResult(result);
-                        onClose();
-                      }}
-                      className="flex h-6 shrink-0 items-center gap-1 rounded-[6px] border border-[var(--divider)] px-1.5 text-[10.5px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+                      onClick={() => selectResult(result)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <MapPin size={11} />
-                      {t('place.addPin')}
+                      <span className="w-[52px] shrink-0 text-center rounded-[5px] bg-[var(--glass-thin)] px-1 py-0.5 text-[9.5px] font-medium uppercase tracking-wide text-[var(--text-3)]">
+                        {kindLabel}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-medium text-[var(--text)]">{result.label}</span>
+                        {result.context && (
+                          <span className="ml-1.5 text-[var(--text-3)]">{result.context}</span>
+                        )}
+                      </span>
                     </button>
-                  )}
-                </div>
-              );
-            })}
+                    {mode === 'editing' && (
+                      <button
+                        type="button"
+                        aria-label={t('place.addPin')}
+                        onClick={() => {
+                          addPinForResult(result);
+                          onClose();
+                        }}
+                        className={`flex h-6 shrink-0 items-center gap-1 rounded-[6px] border border-[var(--divider)] px-1.5 text-[10.5px] text-[var(--text-2)] transition-[color,background-color,opacity] hover:bg-[var(--hover)] hover:text-[var(--text)] focus-visible:opacity-100 group-hover:opacity-100 ${
+                          active ? 'opacity-100' : 'opacity-0'
+                        }`}
+                      >
+                        <MapPin size={11} />
+                        {t('place.addPin')}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
 
-          {onlineSearchEnabled && loading && (
-            <div className="px-3 py-6 text-center text-[12px] text-[var(--text-2)]">{t('place.searching')}</div>
-          )}
-          {onlineSearchEnabled && error && (
-            <div className="px-3 py-2 text-[11.5px] text-[var(--text-3)]">{t('place.searchUnavailable')}</div>
-          )}
-          {onlineSearchEnabled &&
-            !loading &&
-            !error &&
-            !coordinateMatch &&
-            results.length === 0 &&
-            query.trim().length > 0 && (
-              <div className="px-3 py-6 text-center text-[12px] text-[var(--text-2)]">{t('place.noResults')}</div>
+            {onlineSearchEnabled && loading && results.length === 0 && !coordinateMatch && (
+              <div className="px-3 py-6 text-center text-[12px] text-[var(--text-2)]">
+                {t('place.searching')}
+              </div>
             )}
-        </div>
-
-        {onlineSearchEnabled && (
-          <div className="border-t border-[var(--divider)] px-4 py-2 text-[10.5px] text-[var(--text-3)]">
-            {t('place.attribution')}
+            {onlineSearchEnabled && error && (
+              <div className="px-3 py-2 text-[11.5px] text-[var(--text-3)]">
+                {t('place.searchUnavailable')}
+              </div>
+            )}
+            {onlineSearchEnabled &&
+              !loading &&
+              !error &&
+              !coordinateMatch &&
+              results.length === 0 &&
+              trimmedQuery.length > 0 && (
+                <div className="px-3 py-6 text-center text-[12px] text-[var(--text-2)]">
+                  {t('place.noResults')}
+                </div>
+              )}
           </div>
         )}
+
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--divider)] px-4 py-2 text-[10.5px] text-[var(--text-3)]">
+          <div className="flex shrink-0 items-center gap-2.5">
+            <span className="flex items-center gap-1">
+              <kbd className="rounded-[4px] border border-[var(--divider)] bg-[var(--glass-thin)] px-1 py-px font-mono text-[9.5px] text-[var(--text-2)]">
+                ↑↓
+              </kbd>
+              {t('place.hintNavigate')}
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded-[4px] border border-[var(--divider)] bg-[var(--glass-thin)] px-1 py-px font-mono text-[9.5px] text-[var(--text-2)]">
+                ↵
+              </kbd>
+              {t('place.hintGo')}
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded-[4px] border border-[var(--divider)] bg-[var(--glass-thin)] px-1 py-px font-mono text-[9.5px] text-[var(--text-2)]">
+                esc
+              </kbd>
+              {t('place.hintClose')}
+            </span>
+          </div>
+          {onlineSearchEnabled && <span className="truncate">{t('place.attribution')}</span>}
+        </div>
       </div>
     </div>
   );

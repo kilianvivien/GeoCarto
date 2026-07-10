@@ -660,6 +660,9 @@ export const en = {
   'place.noResults': 'No places found.',
   'place.onlineSearchDisabled': 'Online search is disabled. Type coordinates to jump to a location.',
   'place.attribution': 'Search by Photon / OpenStreetMap contributors',
+  'place.hintNavigate': 'navigate',
+  'place.hintGo': 'go',
+  'place.hintClose': 'close',
   'settings.onlineSearch': 'Online place search',
   'settings.onlineSearchHelp': 'When off, only direct coordinate entry works in the place search box.',
   'style.dataStyleTitle': 'Style by data',
@@ -1352,6 +1355,9 @@ export const fr: Record<TranslationKey, string> = {
   'place.onlineSearchDisabled':
     'La recherche en ligne est désactivée. Saisissez des coordonnées pour vous déplacer.',
   'place.attribution': 'Recherche par Photon / contributeurs OpenStreetMap',
+  'place.hintNavigate': 'naviguer',
+  'place.hintGo': 'aller',
+  'place.hintClose': 'fermer',
   'settings.onlineSearch': 'Recherche de lieux en ligne',
   'settings.onlineSearchHelp':
     'Si désactivée, seule la saisie directe de coordonnées fonctionne dans la recherche de lieux.',
