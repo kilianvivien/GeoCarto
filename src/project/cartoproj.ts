@@ -421,6 +421,13 @@ export type LineAnnotation = AnnotationBase & {
   kind: 'line' | 'arrow';
   points: number[];
   lineRole?: 'line' | 'brush';
+  /**
+   * Normalized (0–1] pen pressure per point, recorded when a brush stroke is
+   * drawn with a pressure-capable stylus (Apple Pencil). One entry per (x,y)
+   * pair in `points`. Absent for mouse/touch strokes — those render with the
+   * classic uniform width. See `src/style/brushStroke.ts`.
+   */
+  pressures?: number[];
 };
 
 export type PolygonAnnotation = AnnotationBase & {

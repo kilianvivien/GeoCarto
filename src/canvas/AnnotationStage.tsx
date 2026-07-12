@@ -17,7 +17,6 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type maplibregl from 'maplibre-gl';
 import type {
   Annotation,
-  BrushPreset,
   AnnotationStyle,
   CommentAnnotation,
   GraticuleAnnotation,
@@ -38,6 +37,12 @@ import { useToolStore, toolToAnnotationKind } from '@/state/toolStore';
 import { useViewportStore } from '@/state/viewportStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import {
+  brushOutlinePoints,
+  brushStrokeProps,
+  hasPressureProfile,
+  normalizePressure,
+} from '@/style/brushStroke';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { buildGraticule } from '@/projection/graticule';
 import { legendEntrySymbol, legendFillFromStyle, legendSymbolFromAnnotation } from '@/style/legendSwatches';
@@ -171,6 +176,11 @@ interface FreehandDraft {
   position: { x: number; y: number };
   geoAnchor: [number, number] | null;
   points: number[];
+  /**
+   * Pen pressure per point, recorded only for strokes started by a stylus.
+   * Empty for mouse/touch strokes — those commit without a pressure profile.
+   */
+  pressures: number[];
 }
 
 /** Prompt the user for an image file, read it as a data URL, and return its natural pixel size. */
@@ -218,19 +228,6 @@ function shadowProps(style: AnnotationStyle) {
 function blendOperation(style: AnnotationStyle) {
   if (style.blendMode === 'normal') return undefined;
   return style.blendMode as GlobalCompositeOperation;
-}
-
-function brushStrokeProps(style: AnnotationStyle, preset: BrushPreset | undefined, opacity: number) {
-  switch (preset ?? 'round') {
-    case 'marker':
-      return { strokeWidth: style.strokeWidth * 1.8, opacity: opacity * 0.78, dash: undefined };
-    case 'pencil':
-      return { strokeWidth: Math.max(1, style.strokeWidth * 0.9), opacity: opacity * 0.68, dash: [1, 5] };
-    case 'highlighter':
-      return { strokeWidth: style.strokeWidth * 3.5, opacity: opacity * 0.42, dash: undefined };
-    case 'round':
-      return { strokeWidth: style.strokeWidth, opacity, dash: strokeDash(style) };
-  }
 }
 
 function FillShape({
@@ -315,6 +312,45 @@ function FillShape({
     case 'line':
       if (annotation.lineRole === 'brush') {
         const brush = brushStrokeProps(annotation.style, annotation.style.brushPreset, annotation.opacity);
+        // Pressure strokes (Apple Pencil) render as a filled variable-width
+        // outline instead of a uniform stroke; see src/style/brushStroke.ts.
+        if (hasPressureProfile(annotation.points, annotation.pressures)) {
+          const outline = brushOutlinePoints(
+            annotation.points,
+            annotation.pressures,
+            annotation.style.strokeWidth,
+            annotation.style.brushPreset,
+          );
+          return (
+            <>
+              <LineSelectionBounds points={annotation.points} strokeWidth={brush.strokeWidth} />
+              {haloWidth > 0 && (
+                <Line
+                  points={brushOutlinePoints(
+                    annotation.points,
+                    annotation.pressures,
+                    annotation.style.strokeWidth,
+                    annotation.style.brushPreset,
+                    haloWidth,
+                  )}
+                  closed
+                  fill={haloColor}
+                  opacity={annotation.opacity}
+                  lineJoin="round"
+                  listening={false}
+                />
+              )}
+              <Line
+                points={outline}
+                closed
+                fill={annotation.style.strokeColor}
+                opacity={brush.opacity}
+                lineJoin="round"
+                {...(shadow ?? {})}
+              />
+            </>
+          );
+        }
         return (
           <>
             <LineSelectionBounds points={annotation.points} strokeWidth={brush.strokeWidth} />
@@ -1983,27 +2019,38 @@ export function AnnotationStage() {
       ? [...draft.points, draft.previewPoint.x - draft.position.x, draft.previewPoint.y - draft.position.y]
       : draft.points;
 
-  const beginPaintDraft = (point: { x: number; y: number }) => {
+  const beginPaintDraft = (point: { x: number; y: number }, pressure: number | null) => {
     const draft: FreehandDraft = {
       position: point,
       geoAnchor: defaultAnchorMode === 'map' ? pointerGeo(projection, point) : null,
       points: [0, 0],
+      pressures: pressure === null ? [] : [pressure],
     };
     paintDraftRef.current = draft;
     setPaintDraft(draft);
   };
 
-  const appendPaintPoint = (point: { x: number; y: number }) => {
+  const appendPaintPoint = (point: { x: number; y: number }, pressure: number | null) => {
     const draft = paintDraftRef.current;
     if (!draft) return;
+    const recordsPressure = draft.pressures.length > 0;
     const last = draft.points.length - 2;
     const nextX = point.x - draft.position.x;
     const nextY = point.y - draft.position.y;
     const dx = nextX - draft.points[last];
     const dy = nextY - draft.points[last + 1];
-    // Skip nearly-stationary samples to keep the stored stroke light.
-    if (dx * dx + dy * dy < 16) return;
-    const next = { ...draft, points: [...draft.points, nextX, nextY] };
+    // Skip nearly-stationary samples to keep the stored stroke light. Pen
+    // strokes sample finer — the pressure profile needs the detail.
+    if (dx * dx + dy * dy < (recordsPressure ? 4 : 16)) return;
+    const next = {
+      ...draft,
+      points: [...draft.points, nextX, nextY],
+      // Keep one pressure per point; a missing sample (e.g. pointerup reports
+      // pressure 0) reuses the previous one.
+      pressures: recordsPressure
+        ? [...draft.pressures, pressure ?? draft.pressures[draft.pressures.length - 1]]
+        : draft.pressures,
+    };
     paintDraftRef.current = next;
     setPaintDraft(next);
   };
@@ -2062,7 +2109,10 @@ export function AnnotationStage() {
           const point = stagePointFromClient(event.clientX, event.clientY);
           paintPointerRef.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
-          beginPaintDraft(point);
+          beginPaintDraft(
+            point,
+            event.pointerType === 'pen' ? normalizePressure(event.pressure) : null,
+          );
           return;
         }
         if (activeTool !== 'marquee' || marqueePointerRef.current !== null) return;
@@ -2080,8 +2130,23 @@ export function AnnotationStage() {
           cancelLongPress();
         }
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
-          const point = stagePointFromClient(event.clientX, event.clientY);
-          appendPaintPoint(point);
+          if (event.pointerType === 'pen') {
+            // Pens report far faster than the frame rate; the coalesced events
+            // carry the in-between samples the pressure profile needs.
+            const native = event.nativeEvent;
+            const samples =
+              typeof native.getCoalescedEvents === 'function' && native.getCoalescedEvents().length > 0
+                ? native.getCoalescedEvents()
+                : [native];
+            for (const sample of samples) {
+              appendPaintPoint(
+                stagePointFromClient(sample.clientX, sample.clientY),
+                normalizePressure(sample.pressure),
+              );
+            }
+            return;
+          }
+          appendPaintPoint(stagePointFromClient(event.clientX, event.clientY), null);
           return;
         }
         if (activeTool !== 'marquee' || marqueePointerRef.current !== event.pointerId) return;
@@ -2100,7 +2165,9 @@ export function AnnotationStage() {
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
           paintPointerRef.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
-          appendPaintPoint(stagePointFromClient(event.clientX, event.clientY));
+          // pointerup reports pressure 0 — appendPaintPoint reuses the last
+          // real sample for the final point.
+          appendPaintPoint(stagePointFromClient(event.clientX, event.clientY), null);
           const draft = paintDraftRef.current;
           clearPaintDraft();
           if (draft && draft.points.length >= 4) {
@@ -2112,7 +2179,13 @@ export function AnnotationStage() {
               style: defaultStyle,
             });
             if (annotation.kind === 'line') {
-              addAnnotation({ ...annotation, name: t('annotation.brushStroke'), lineRole: 'brush', points: draft.points });
+              addAnnotation({
+                ...annotation,
+                name: t('annotation.brushStroke'),
+                lineRole: 'brush',
+                points: draft.points,
+                pressures: draft.pressures.length >= 2 ? draft.pressures : undefined,
+              });
             }
           }
           useToolStore.getState().setActiveTool('move');

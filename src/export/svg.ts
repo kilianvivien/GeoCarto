@@ -11,6 +11,7 @@ import type {
 import { useMapInstance } from '@/canvas/mapInstance';
 import type { CanvasProjection } from '@/canvas/canvasProjection';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import { brushOutlinePoints, brushStrokeProps, hasPressureProfile, outlineToSvgPath } from '@/style/brushStroke';
 import { legendEntrySymbol } from '@/style/legendSwatches';
 import { measurementLabel, metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { buildGraticule } from '@/projection/graticule';
@@ -252,9 +253,28 @@ function annotationToRenderNode(
           },
         );
       break;
-    case 'line':
+    case 'line': {
+      if (annotation.lineRole === 'brush') {
+        // Base opacity 1: the group node already carries annotation.opacity,
+        // so only the preset's opacity factor belongs on the element.
+        const brush = brushStrokeProps(style, style.brushPreset, 1);
+        const brushOpacity = brush.opacity !== 1 ? ` opacity="${n(brush.opacity)}"` : '';
+        if (hasPressureProfile(annotation.points, annotation.pressures)) {
+          // Pressure strokes (Apple Pencil) export as the same filled
+          // variable-width outline the editor renders (src/style/brushStroke.ts).
+          const d = outlineToSvgPath(
+            brushOutlinePoints(annotation.points, annotation.pressures, style.strokeWidth, style.brushPreset),
+          );
+          body = `<path d="${d}" fill="${esc(style.strokeColor)}"${brushOpacity}/>`;
+          break;
+        }
+        const brushDash = brush.dash ? ` stroke-dasharray="${brush.dash.map(n).join(' ')}"` : '';
+        body = `<polyline points="${pointsAttr(annotation.points)}" fill="none" stroke="${esc(style.strokeColor)}" stroke-width="${n(brush.strokeWidth)}"${brushDash}${brushOpacity} stroke-linecap="round" stroke-linejoin="round"/>`;
+        break;
+      }
       body = `<polyline points="${pointsAttr(annotation.points)}" fill="none"${stroke}${dashAttr(style)} stroke-linecap="round" stroke-linejoin="round"/>`;
       break;
+    }
     case 'arrow': {
       const pts = annotation.points;
       const x2 = pts.at(-2) ?? 0;

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://geo-carto.vercel.app"><strong>🌍 Try the live demo →</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest/download/GeoCarto_0.3.5_aarch64.dmg"><strong>Download for Apple silicon →</strong></a>
+  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest/download/GeoCarto_0.3.6_aarch64.dmg"><strong>Download for Apple silicon →</strong></a>
 </p>
 
 <p align="center">
@@ -111,6 +111,7 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - **Installable PWA** — open the web app in Safari on iPad and use _Share → Add to Home Screen_ to get a full-screen, offline-capable app with the complete desktop UI
 - Every tool works with touch or the Apple Pencil: tap to select and place, drag to draw, **two fingers to pan and pinch-zoom** the workspace with any tool active
 - **Palm rejection** — while the Pencil is on the glass, resting fingers neither draw nor navigate
+- **Pressure-sensitive brush** — Pencil strokes vary their width with pen pressure, in the editor and in every export (PNG, SVG, PDF, HTML)
 - **Long-press** an annotation or a map feature for the same context menus a right-click gives
 - Larger touch targets for the tool rail, transform handles, toolbars, and menus on coarse-pointer devices
 - The macOS desktop app also works over **Sidecar** — the Pencil behaves as a precise pointer on the mirrored/extended display

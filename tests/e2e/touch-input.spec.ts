@@ -50,7 +50,11 @@ test('a two-finger pinch zooms the workspace without firing the active tool', as
 
   const center = await stagePoint(page, 300, 220);
   const client = await page.context().newCDPSession(page);
-  const finger = (offset: number) => ({ x: center.x + offset, y: center.y, id: offset < 0 ? 0 : 1 });
+  const finger = (offset: number) => ({
+    x: center.x + offset,
+    y: center.y,
+    id: offset < 0 ? 0 : 1,
+  });
   await client.send('Input.dispatchTouchEvent', {
     type: 'touchStart',
     touchPoints: [finger(-40), finger(40)],
@@ -67,6 +71,50 @@ test('a two-finger pinch zooms the workspace without firing the active tool', as
   // The armed rectangle tool must not have placed an annotation.
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect(page.getByTestId('annotation-row')).toHaveCount(0);
+});
+
+test('an Apple Pencil stroke paints a pressure-sensitive brush line', async ({ page }) => {
+  await page.goto('/');
+  await lockMap(page);
+
+  await chooseTool(page, 'Brush');
+  const start = await stagePoint(page, 200, 200);
+  const client = await page.context().newCDPSession(page);
+  const pen = (
+    x: number,
+    y: number,
+    type: 'mousePressed' | 'mouseMoved' | 'mouseReleased',
+    force: number,
+  ) =>
+    client.send('Input.dispatchMouseEvent', {
+      type,
+      x,
+      y,
+      button: 'left',
+      buttons: type === 'mouseReleased' ? 0 : 1,
+      clickCount: type === 'mousePressed' ? 1 : 0,
+      pointerType: 'pen',
+      force,
+    });
+
+  // Draw with rising-then-falling pressure so a profile gets recorded.
+  await pen(start.x, start.y, 'mousePressed', 0.2);
+  for (let step = 1; step <= 10; step += 1) {
+    const t = step / 10;
+    await pen(
+      start.x + step * 18,
+      start.y + Math.sin(t * Math.PI) * 40,
+      'mouseMoved',
+      0.2 + 0.7 * Math.sin(t * Math.PI),
+    );
+  }
+  await pen(start.x + 180, start.y, 'mouseReleased', 0);
+
+  // The stroke committed as a brush annotation and is selected in the inspector.
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect(page.getByTestId('annotation-row').filter({ hasText: 'Brush stroke' })).toHaveCount(
+    1,
+  );
 });
 
 test('a long-press on an annotation opens its context menu', async ({ page }) => {
