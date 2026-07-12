@@ -3,8 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/app-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- maximum-scale=1 keeps iPadOS Safari from auto-zooming focused inputs and
+         page-pinching the canvas — pinch gestures belong to the map/workspace. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>GeoCarto</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="GeoCarto" />
+    <!-- Translucent status bar: the app runs edge-to-edge as an installed PWA and
+         pads itself with safe-area insets (see index.css). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#eef2f8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0d12" />
     <script>
       (function () {
         // Tauri injects __TAURI_INTERNALS__ before the bundle loads. Mark the

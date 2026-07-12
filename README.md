@@ -106,6 +106,15 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 - Native macOS window via Tauri 2, with full feature parity with the web build
 - Download the latest Apple silicon build from [GitHub Releases](https://github.com/kilianvivien/GeoCarto/releases/latest) (`.dmg`, macOS 11+)
 
+### iPad, touch, and Apple Pencil
+
+- **Installable PWA** — open the web app in Safari on iPad and use _Share → Add to Home Screen_ to get a full-screen, offline-capable app with the complete desktop UI
+- Every tool works with touch or the Apple Pencil: tap to select and place, drag to draw, **two fingers to pan and pinch-zoom** the workspace with any tool active
+- **Palm rejection** — while the Pencil is on the glass, resting fingers neither draw nor navigate
+- **Long-press** an annotation or a map feature for the same context menus a right-click gives
+- Larger touch targets for the tool rail, transform handles, toolbars, and menus on coarse-pointer devices
+- The macOS desktop app also works over **Sidecar** — the Pencil behaves as a precise pointer on the mirrored/extended display
+
 ---
 
 ## Known gaps

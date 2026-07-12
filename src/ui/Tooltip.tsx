@@ -89,7 +89,12 @@ export function Tooltip({
   return (
     <span
       className="relative inline-flex"
-      onPointerEnter={() => show()}
+      // Hover is a mouse-only concept: on touch/pencil, pointerenter fires on
+      // every tap and would flash the tooltip over the control being used.
+      // (Unknown/empty pointerType is treated as a mouse.)
+      onPointerEnter={(event) => {
+        if (event.pointerType !== 'touch' && event.pointerType !== 'pen') show();
+      }}
       onPointerLeave={hide}
       onFocus={() => show(true)}
       onBlur={hide}

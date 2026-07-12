@@ -19,6 +19,7 @@ import { useViewTransformStore } from '@/state/viewTransformStore';
 import { useLocale } from '@/i18n/useLocale';
 import { isTauri } from '@/app/platform';
 import { canvasAnchorFromClientPoint } from './canvasCoordinates';
+import { dispatchCanvasGestureStart, TouchGestureTracker } from './touchGestures';
 import { Tooltip } from '@/ui/Tooltip';
 import { useNotices } from '@/ui/notices';
 
@@ -45,7 +46,7 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
           type="button"
           aria-label={t('canvas.zoomOut')}
           onClick={() => setZoomAt(zoom / 1.2, anchor())}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] pointer-coarse:h-11 pointer-coarse:w-11"
         >
           <Minus size={15} />
         </button>
@@ -58,7 +59,7 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
           type="button"
           aria-label={t('canvas.zoomIn')}
           onClick={() => setZoomAt(zoom * 1.2, anchor())}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] pointer-coarse:h-11 pointer-coarse:w-11"
         >
           <Plus size={15} />
         </button>
@@ -68,7 +69,7 @@ function ViewZoomControls({ anchor }: { anchor: () => Point }) {
           type="button"
           aria-label={t('canvas.fit')}
           onClick={reset}
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] pointer-coarse:h-11 pointer-coarse:w-11"
         >
           <Maximize2 size={14} />
         </button>
@@ -221,18 +222,14 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
     const node = canvasRef.current;
     if (!node) return;
 
-    const anchorFromEvent = (event: Pick<WheelEvent, 'clientX' | 'clientY'>) =>
-      canvasAnchorFromClientPoint(
-        { x: event.clientX, y: event.clientY },
-        node.getBoundingClientRect(),
-        surfaceRef.current,
-      );
+    const anchorFromEvent = (clientPoint: Point) =>
+      canvasAnchorFromClientPoint(clientPoint, node.getBoundingClientRect(), surfaceRef.current);
 
     const onWheel = (event: WheelEvent) => {
       if (!canInspectRef.current) return;
       event.preventDefault();
       const factor = event.ctrlKey ? Math.exp(-event.deltaY * 0.01) : event.deltaY < 0 ? 1.1 : 1 / 1.1;
-      useViewTransformStore.getState().zoomBy(factor, anchorFromEvent(event));
+      useViewTransformStore.getState().zoomBy(factor, anchorFromEvent({ x: event.clientX, y: event.clientY }));
     };
 
     type WebKitGestureEvent = Event & {
@@ -241,14 +238,89 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
       scale?: number;
     };
 
+    // Two-finger touch navigation (iPad): pan and pinch-zoom the workspace no
+    // matter which tool is active, so one finger/pencil keeps drawing while
+    // two fingers navigate — the split every tablet drawing app uses. Runs in
+    // the capture phase so gesture touches are swallowed before Konva or the
+    // annotation tools can misread them as taps, drags, or strokes.
+    const touchTracker = new TouchGestureTracker();
+    // Palm rejection: while an Apple Pencil is on the glass, finger/palm
+    // touches are swallowed outright — they must neither navigate nor reach
+    // the tools. (Pen pointers themselves always pass through untouched.)
+    const activePenPointers = new Set<number>();
+    // Touches swallowed for palm rejection, so their move/up events are
+    // swallowed consistently even after the pen lifts mid-contact.
+    const rejectedTouches = new Set<number>();
+
+    const onTouchPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'pen') {
+        activePenPointers.add(event.pointerId);
+        return;
+      }
+      if (event.pointerType !== 'touch' || !canInspectRef.current) return;
+      if (activePenPointers.size > 0) {
+        rejectedTouches.add(event.pointerId);
+        event.stopPropagation();
+        return;
+      }
+      const verdict = touchTracker.down(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (verdict === 'passthrough') return;
+      if (verdict === 'gesture-start') dispatchCanvasGestureStart();
+      event.stopPropagation();
+    };
+    const onTouchPointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') return;
+      if (rejectedTouches.has(event.pointerId)) {
+        event.stopPropagation();
+        return;
+      }
+      const result = touchTracker.move(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (result === 'passthrough') return;
+      event.stopPropagation();
+      if (result === 'swallow') return;
+      const { panBy: panView, zoomBy } = useViewTransformStore.getState();
+      panView(result.panDelta);
+      if (result.zoomFactor !== 1) zoomBy(result.zoomFactor, anchorFromEvent(result.centroid));
+    };
+    const onTouchPointerUp = (event: PointerEvent) => {
+      if (event.pointerType === 'pen') {
+        activePenPointers.delete(event.pointerId);
+        return;
+      }
+      if (event.pointerType !== 'touch') return;
+      if (rejectedTouches.delete(event.pointerId)) {
+        event.stopPropagation();
+        return;
+      }
+      if (touchTracker.up(event.pointerId) === 'swallow') event.stopPropagation();
+    };
+    // Konva also listens to the parallel touch* compatibility events, so while
+    // a gesture (or palm rejection) owns the fingers those must be swallowed too.
+    const onNativeTouch = (event: TouchEvent) => {
+      if (touchTracker.active || rejectedTouches.size > 0) event.stopPropagation();
+    };
+    // Bubble-phase safety net: pointers that lift outside the canvas (their up
+    // never passes through the node's capture handlers) must not leave stale
+    // pen/gesture state behind. Swallowed events never get here — they were
+    // already cleaned up where they were swallowed.
+    const onWindowPointerEnd = (event: PointerEvent) => {
+      if (event.pointerType === 'pen') activePenPointers.delete(event.pointerId);
+      if (event.pointerType === 'touch') {
+        rejectedTouches.delete(event.pointerId);
+        touchTracker.up(event.pointerId);
+      }
+    };
+
     let lastGestureScale = 1;
     const onGestureStart = (event: WebKitGestureEvent) => {
-      if (!canInspectRef.current) return;
+      if (!canInspectRef.current || touchTracker.active) return;
       event.preventDefault();
       lastGestureScale = event.scale ?? 1;
     };
     const onGestureChange = (event: WebKitGestureEvent) => {
-      if (!canInspectRef.current) return;
+      // Touch pinches are handled by the pointer-based tracker above — these
+      // WebKit gesture events only serve macOS trackpads.
+      if (!canInspectRef.current || touchTracker.active) return;
       event.preventDefault();
       const nextScale = event.scale ?? lastGestureScale;
       const factor = nextScale / lastGestureScale;
@@ -270,10 +342,28 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
     node.addEventListener('wheel', onWheel, { passive: false });
     node.addEventListener('gesturestart', onGestureStart, { passive: false });
     node.addEventListener('gesturechange', onGestureChange, { passive: false });
+    node.addEventListener('pointerdown', onTouchPointerDown, { capture: true });
+    node.addEventListener('pointermove', onTouchPointerMove, { capture: true });
+    node.addEventListener('pointerup', onTouchPointerUp, { capture: true });
+    node.addEventListener('pointercancel', onTouchPointerUp, { capture: true });
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const) {
+      node.addEventListener(type, onNativeTouch, { capture: true });
+    }
+    window.addEventListener('pointerup', onWindowPointerEnd);
+    window.addEventListener('pointercancel', onWindowPointerEnd);
     return () => {
+      window.removeEventListener('pointerup', onWindowPointerEnd);
+      window.removeEventListener('pointercancel', onWindowPointerEnd);
       node.removeEventListener('wheel', onWheel);
       node.removeEventListener('gesturestart', onGestureStart);
       node.removeEventListener('gesturechange', onGestureChange);
+      node.removeEventListener('pointerdown', onTouchPointerDown, { capture: true });
+      node.removeEventListener('pointermove', onTouchPointerMove, { capture: true });
+      node.removeEventListener('pointerup', onTouchPointerUp, { capture: true });
+      node.removeEventListener('pointercancel', onTouchPointerUp, { capture: true });
+      for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const) {
+        node.removeEventListener(type, onNativeTouch, { capture: true });
+      }
     };
   }, []);
 
@@ -322,7 +412,10 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
     >
       <div
         data-testid="map-surface"
-        className={`absolute overflow-hidden rounded-[var(--radius-md)] transition-[filter] duration-200 ${
+        // touch-none: the surface owns every touch itself (tools, two-finger
+        // navigation, MapLibre) — without it Safari cancels pointer streams to
+        // run its own pan/zoom and drawing breaks mid-stroke on iPad.
+        className={`touch-none absolute overflow-hidden rounded-[var(--radius-md)] transition-[filter] duration-200 ${
           chromeSettling ? 'blur-[0.35px]' : 'blur-0'
         } ${canPanView ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{

@@ -84,3 +84,15 @@ rules + the title bar adapt from there:
   `https://data.source.coop/protomaps/openstreetmap/*` (the default basemap
   archive only). Custom user PMTiles URLs still go through the browser fetch path
   and work whenever that host serves CORS — same as web.
+
+## iPad Sidecar / touch input
+
+The desktop app is regularly used on an iPad screen via **Sidecar** (mirrored or
+extended display, with or without an Apple Pencil). Nothing here needs special
+configuration: macOS presents Sidecar's Pencil input to WKWebView as an ordinary
+mouse pointer (`pointerType: "mouse"`, no pressure/tilt), so every canvas
+interaction follows the plain mouse code paths. The touch/pen-specific behaviour
+(tap-to-act, two-finger workspace navigation, palm rejection, long-press context
+menus — see `src/canvas/AnnotationStage.tsx` and `src/canvas/touchGestures.ts`)
+only activates for real `touch`/`pen` pointer events, i.e. the browser/PWA build
+running natively on the iPad.

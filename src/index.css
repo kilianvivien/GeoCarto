@@ -8,3 +8,47 @@ body,
   height: 100%;
   margin: 0;
 }
+
+/* Touch / stylus foundations (iPad PWA + Sidecar). The app is a canvas tool,
+   not a document: page-level scroll, rubber-banding, double-tap zoom, and
+   long-press callouts all fight the editor's own gestures. */
+html {
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  overscroll-behavior: none;
+  /* `manipulation` keeps scrolling inside panels working while removing the
+     double-tap-to-zoom delay on every button and canvas. Surfaces that own
+     their gestures entirely (Konva stage, projected map) opt into
+     `touch-action: none` locally. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* App chrome reads as native UI: no text-selection loupe or share callout on
+     long-press. Text entry re-enables selection below. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+[contenteditable=''] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Installed (standalone) PWA on iPad runs edge-to-edge under a translucent
+   status bar — inset the shell by the safe areas so the title bar and status
+   bar rows stay reachable. The body wallpaper shows through the insets. */
+@media (display-mode: standalone) {
+  #root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+}

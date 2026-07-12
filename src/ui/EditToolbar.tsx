@@ -122,7 +122,7 @@ export function EditToolbar() {
                 aria-label={`${label}. ${hint}`}
                 aria-pressed={isActive}
                 onClick={() => useEditStore.getState().setTool(tool)}
-                className={`flex h-8 w-8 items-center justify-center rounded-[8px] transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-[8px] transition-all pointer-coarse:h-11 pointer-coarse:w-11 ${
                   isActive
                     ? 'bg-[var(--accent)] text-[var(--text-on-accent)] shadow-[0_4px_14px_rgba(0,122,255,0.35)]'
                     : 'text-[var(--text-2)] hover:bg-[var(--hover)] active:scale-95'
@@ -141,7 +141,7 @@ export function EditToolbar() {
             aria-label={`${t('edit.delete')}. ${t('edit.deleteHint')}`}
             disabled={selectedFeatureId == null}
             onClick={deleteSelected}
-            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--danger,#ff5f57)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--danger,#ff5f57)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent pointer-coarse:h-11 pointer-coarse:w-11"
           >
             <Trash2 size={15} />
           </button>
@@ -152,7 +152,7 @@ export function EditToolbar() {
             type="button"
             data-edit-tool="done"
             onClick={() => useEditStore.getState().exitEdit()}
-            className="flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)]"
+            className="flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-medium text-[var(--text-2)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--text)] pointer-coarse:h-11 pointer-coarse:px-3.5"
           >
             <Check size={15} />
             {t('edit.done')}

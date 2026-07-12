@@ -49,6 +49,24 @@ import { useMapInstance } from './mapInstance';
 import type { CanvasProjection } from './canvasProjection';
 import { openFeatureMenuAtPoint } from './openFeatureMenu';
 import { layerIdFromRenderId, layerRenderIds } from './syncLayers';
+import { CANVAS_GESTURE_START_EVENT } from './touchGestures';
+
+/**
+ * True for touch and pen contacts. The annotation tools act on *tap* for these
+ * (a finger that lands may still become a two-finger navigation gesture, and
+ * Apple Pencil should behave the same way), while a mouse keeps acting on
+ * press exactly as before. `undefined` covers browsers/tests without
+ * PointerEvent.pointerType.
+ */
+function isDirectPointer(evt: MouseEvent | PointerEvent): boolean {
+  const pointerType = (evt as PointerEvent).pointerType;
+  return pointerType === 'touch' || pointerType === 'pen';
+}
+
+/** Delay before a touch/pen press opens the context menu (iPadOS long-press). */
+const LONG_PRESS_MS = 500;
+/** Finger travel that cancels a pending long-press. */
+const LONG_PRESS_SLOP_PX = 8;
 
 function useStageSize(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -1336,6 +1354,22 @@ export function AnnotationStage() {
   const dragStartRef = useRef<Record<string, { x: number; y: number; geoAnchor: [number, number] | null }>>({});
   const lastMultiSelectionRef = useRef<string[]>([]);
   const textEditorRef = useRef<HTMLTextAreaElement>(null);
+  // Touch/pen support: pending long-press (context menu), active pen contacts
+  // (palm rejection for the brush), and a one-shot guard that keeps the tap
+  // fired by lifting the finger after a long-press from re-running tool logic.
+  const longPressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+  const activePenPointersRef = useRef(new Set<number>());
+  const suppressNextClickRef = useRef(false);
+  // Coarse-pointer environments (iPad, tablets) get larger transform handles.
+  const [coarsePointer] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia('(any-pointer: coarse)').matches,
+  );
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressRef.current === null) return;
+    window.clearTimeout(longPressRef.current.timer);
+    longPressRef.current = null;
+  }, []);
 
   // While the vector editor owns the map, the annotation overlay must let pointer
   // events fall through to terra-draw beneath it — otherwise no shape can be
@@ -1779,9 +1813,7 @@ export function AnnotationStage() {
     useToolStore.getState().setActiveTool('move');
   };
 
-  const openContextMenu = (event: KonvaEventObject<MouseEvent>, ids?: string[]) => {
-    event.evt.preventDefault();
-    event.cancelBubble = true;
+  const openContextMenuAt = (client: { x: number; y: number }, ids?: string[]) => {
     const currentSelection = useDocumentStore.getState().selectedAnnotationIds;
     const lastMultiSelection = lastMultiSelectionRef.current;
     const menuIds =
@@ -1796,10 +1828,48 @@ export function AnnotationStage() {
     if (menuIds.length) setSelectedAnnotations(menuIds);
     const rect = containerRef.current?.getBoundingClientRect();
     setContextMenu({
-      x: event.evt.clientX - (rect?.left ?? 0),
-      y: event.evt.clientY - (rect?.top ?? 0),
+      x: client.x - (rect?.left ?? 0),
+      y: client.y - (rect?.top ?? 0),
       ids: menuIds,
     });
+  };
+
+  const openContextMenu = (event: KonvaEventObject<MouseEvent>, ids?: string[]) => {
+    event.evt.preventDefault();
+    event.cancelBubble = true;
+    openContextMenuAt({ x: event.evt.clientX, y: event.evt.clientY }, ids);
+  };
+
+  /**
+   * iPadOS Safari never fires `contextmenu` for a touch or pencil long-press,
+   * so the canvas implements its own: hold still for half a second to get the
+   * same menus a right-click gives — the selection menu on an annotation, the
+   * data-feature menu on the map beneath.
+   */
+  const beginLongPress = (evt: MouseEvent | PointerEvent, ids?: string[]) => {
+    if (!isDirectPointer(evt)) return;
+    cancelLongPress();
+    const { clientX: x, clientY: y } = evt;
+    const timer = window.setTimeout(() => {
+      longPressRef.current = null;
+      // The lift that follows would otherwise fire a tap into the tools.
+      suppressNextClickRef.current = true;
+      if (ids && ids.length > 0) {
+        openContextMenuAt({ x, y }, ids);
+        return;
+      }
+      const stagePoint = stagePointFromClient(x, y);
+      if (map && openFeatureMenuAtPoint(map, stagePoint, { x, y })) return;
+      if (useDocumentStore.getState().selectedAnnotationIds.length > 0) openContextMenuAt({ x, y });
+    }, LONG_PRESS_MS);
+    longPressRef.current = { timer, x, y };
+  };
+
+  /** One-shot: true exactly once for the tap that ended a long-press. */
+  const consumeSuppressedClick = () => {
+    if (!suppressNextClickRef.current) return false;
+    suppressNextClickRef.current = false;
+    return true;
   };
 
   const handleStagePointerMove = (event: KonvaEventObject<MouseEvent>) => {
@@ -1943,6 +2013,29 @@ export function AnnotationStage() {
     setPaintDraft(null);
   };
 
+  // A two-finger navigation gesture claims the fingers: whatever a single
+  // finger had started (brush stroke, marquee, drag, pending long-press) is
+  // cancelled because its remaining pointer events are swallowed by MapCanvas.
+  useEffect(() => {
+    const onGestureStart = () => {
+      cancelLongPress();
+      if (paintPointerRef.current !== null) {
+        paintPointerRef.current = null;
+        paintDraftRef.current = null;
+        setPaintDraft(null);
+      }
+      if (marqueePointerRef.current !== null) {
+        marqueePointerRef.current = null;
+        setMarquee(null);
+      }
+      for (const node of nodeRefs.current.values()) {
+        if (node.isDragging()) node.stopDrag();
+      }
+    };
+    window.addEventListener(CANVAS_GESTURE_START_EVENT, onGestureStart);
+    return () => window.removeEventListener(CANVAS_GESTURE_START_EVENT, onGestureStart);
+  }, [cancelLongPress]);
+
   return (
     <div
       ref={containerRef}
@@ -1953,21 +2046,39 @@ export function AnnotationStage() {
         cursor: pendingLegendFillSample || pendingAnnotationFillSample ? 'crosshair' : undefined,
       }}
       onPointerDown={(event) => {
+        if (event.pointerType === 'pen') activePenPointersRef.current.add(event.pointerId);
         if (event.button !== 0) return;
         if (activeTool === 'paint') {
+          // Palm rejection: while the pencil is on the glass, resting fingers
+          // and palms must not paint.
+          if (event.pointerType === 'touch' && activePenPointersRef.current.size > 0) return;
+          if (paintPointerRef.current !== null) {
+            // A stroke is in progress. A pen landing takes the stroke over from
+            // what was almost certainly a palm touch; any other extra pointer
+            // is ignored.
+            if (event.pointerType !== 'pen') return;
+            clearPaintDraft();
+          }
           const point = stagePointFromClient(event.clientX, event.clientY);
           paintPointerRef.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
           beginPaintDraft(point);
           return;
         }
-        if (activeTool !== 'marquee') return;
+        if (activeTool !== 'marquee' || marqueePointerRef.current !== null) return;
         const point = stagePointFromClient(event.clientX, event.clientY);
         marqueePointerRef.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
         setMarquee({ start: point, end: point });
       }}
       onPointerMove={(event) => {
+        const pending = longPressRef.current;
+        if (
+          pending &&
+          Math.hypot(event.clientX - pending.x, event.clientY - pending.y) > LONG_PRESS_SLOP_PX
+        ) {
+          cancelLongPress();
+        }
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
           const point = stagePointFromClient(event.clientX, event.clientY);
           appendPaintPoint(point);
@@ -1978,6 +2089,14 @@ export function AnnotationStage() {
         setMarquee((draft) => (draft ? { ...draft, end: point } : draft));
       }}
       onPointerUp={(event) => {
+        activePenPointersRef.current.delete(event.pointerId);
+        cancelLongPress();
+        // Konva's click handlers (which consume the long-press suppression
+        // flag) run on the content canvas before the event bubbles up here —
+        // anything still set is stale and must not eat a future tap.
+        window.setTimeout(() => {
+          suppressNextClickRef.current = false;
+        }, 0);
         if (activeTool === 'paint' && paintPointerRef.current === event.pointerId) {
           paintPointerRef.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
@@ -2004,7 +2123,10 @@ export function AnnotationStage() {
         event.currentTarget.releasePointerCapture(event.pointerId);
         finishMarquee(event.nativeEvent);
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(event) => {
+        activePenPointersRef.current.delete(event.pointerId);
+        cancelLongPress();
+        suppressNextClickRef.current = false;
         marqueePointerRef.current = null;
         paintPointerRef.current = null;
         setMarquee(null);
@@ -2015,10 +2137,25 @@ export function AnnotationStage() {
         width={size.width}
         height={size.height}
         listening={capturesPointer}
-        onMouseDown={handleStagePointer}
-        onMouseMove={handleStagePointerMove}
-        onMouseUp={handleStagePointerUp}
-        onDblClick={finishPolygon}
+        // One pipeline for mouse, touch, and pen. A mouse acts on press, as
+        // before; touch and pencil act on tap (pointerclick) so a landing
+        // finger that turns into a two-finger navigation gesture never places
+        // an annotation — the gesture swallows its pointerup, and no tap fires.
+        onPointerDown={(event) => {
+          if (isDirectPointer(event.evt)) {
+            if (isStageTarget(event)) beginLongPress(event.evt);
+            return;
+          }
+          handleStagePointer(event);
+        }}
+        onPointerClick={(event) => {
+          if (!isDirectPointer(event.evt)) return;
+          if (consumeSuppressedClick()) return;
+          handleStagePointer(event);
+        }}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={handleStagePointerUp}
+        onPointerDblClick={finishPolygon}
         onContextMenu={(event) => {
           if (mode !== 'editing') return;
           // Right-click on empty canvas space (annotations stop propagation in
@@ -2078,11 +2215,13 @@ export function AnnotationStage() {
                 rotation={annotation.rotation}
                 globalCompositeOperation={blendOperation(annotation.style)}
                 draggable={mode === 'editing' && !annotation.locked && activeTool === 'move'}
-                onMouseDown={(event) => {
+                onPointerDown={(event) => {
                   if (event.evt.button === 2) {
                     event.cancelBubble = true;
                     return;
                   }
+                  // Touch/pencil: holding an annotation opens its context menu.
+                  if (isDirectPointer(event.evt)) beginLongPress(event.evt, idsForAnnotation(annotation));
                   blurFocusedControl();
                   if (
                     event.evt.detail >= 2 &&
@@ -2093,7 +2232,11 @@ export function AnnotationStage() {
                   }
                 }}
                 onContextMenu={(event) => openContextMenu(event, idsForAnnotation(annotation))}
-                onClick={(event) => {
+                onPointerClick={(event) => {
+                  if (consumeSuppressedClick()) {
+                    event.cancelBubble = true;
+                    return;
+                  }
                   event.cancelBubble = true;
                   const pendingSample = useUiStore.getState().pendingLegendFillSample;
                   if (pendingSample) {
@@ -2146,19 +2289,10 @@ export function AnnotationStage() {
                     setSelectedAnnotations(idsForAnnotation(annotation));
                   }
                 }}
-                onDblClick={(event) => {
+                onPointerDblClick={(event) => {
                   event.cancelBubble = true;
                   if (annotation.kind === 'text' || annotation.kind === 'pin') startTextEditing(annotation);
                   else if (annotation.kind === 'comment') setCommentEditor({ id: annotation.id });
-                }}
-                onDblTap={(event) => {
-                  event.cancelBubble = true;
-                  if (annotation.kind === 'text' || annotation.kind === 'pin') startTextEditing(annotation);
-                  else if (annotation.kind === 'comment') setCommentEditor({ id: annotation.id });
-                }}
-                onTap={(event) => {
-                  event.cancelBubble = true;
-                  setSelectedAnnotations(idsForAnnotation(annotation));
                 }}
                 onDragStart={() => {
                   const ids = selectedAnnotationIds.includes(annotation.id)
@@ -2372,6 +2506,9 @@ export function AnnotationStage() {
           <Transformer
             ref={transformerRef}
             rotateEnabled
+            // Fingers need bigger targets than a mouse cursor (Apple HIG ~44pt;
+            // the anchor hit region is the drawn square, so 2x the mouse size).
+            anchorSize={coarsePointer ? 18 : 10}
             enabledAnchors={
               isLineLike(selectedAnnotation)
                 ? ['middle-left', 'middle-right']
@@ -2450,7 +2587,7 @@ export function AnnotationStage() {
               useDocumentStore.getState().groupSelectedAnnotations();
               setContextMenu(null);
             }}
-            className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)]"
+            className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)] pointer-coarse:py-3"
           >
             {t('canvas.group')}
           </button>
@@ -2463,7 +2600,7 @@ export function AnnotationStage() {
               useDocumentStore.getState().ungroupSelectedAnnotations();
               setContextMenu(null);
             }}
-            className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)]"
+            className="flex w-full items-center rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)] pointer-coarse:py-3"
           >
             {t('canvas.ungroup')}
           </button>
