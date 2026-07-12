@@ -126,6 +126,24 @@ describe('serializeProject / deserializeProject', () => {
     expect(restored.layers[0].data.features).toHaveLength(1);
   });
 
+  it('round-trips a pressure brush stroke', () => {
+    const original = createEmptyProject('Sketch');
+    const base = rectAnnotation();
+    original.annotations.push({
+      ...base,
+      id: 'stroke1',
+      kind: 'line',
+      lineRole: 'brush',
+      points: [0, 0, 12, 4, 30, 8],
+      pressures: [0.25, 0.8, 0.4],
+    } as (typeof original.annotations)[number]);
+    original.mode = 'editing';
+    const restored = deserializeProject(serializeProject(original));
+    expect(restored).toEqual(original);
+    const stroke = restored.annotations[0];
+    expect(stroke.kind === 'line' && stroke.pressures).toEqual([0.25, 0.8, 0.4]);
+  });
+
   it('round-trips a layer with a materialized choropleth dataStyle', () => {
     const original = createEmptyProject('Population');
     const choropleth: ChoroplethStyle = {

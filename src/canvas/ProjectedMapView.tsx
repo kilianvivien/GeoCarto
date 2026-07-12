@@ -24,6 +24,16 @@ export function ProjectedMapView() {
   const countriesRef = useRef<FeatureCollection<Geometry> | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<{ pointerId: number; startX: number; rotateLambda: number } | null>(null);
+  // Touch pinch-to-scale: the projection scale otherwise only changes via the
+  // wheel, which doesn't exist on an iPad.
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistanceRef = useRef<number | null>(null);
+
+  const activePinchDistance = () => {
+    if (pointersRef.current.size < 2) return null;
+    const [a, b] = pointersRef.current.values();
+    return Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  };
 
   const projectionConfig = useDocumentStore((s) => s.project.projection);
   const layers = useDocumentStore((s) => s.project.layers);
@@ -150,10 +160,31 @@ export function ProjectedMapView() {
       onPointerDown={(event) => {
         const config = configRef.current;
         if (!config || event.button !== 0) return;
-        dragRef.current = { pointerId: event.pointerId, startX: event.clientX, rotateLambda: config.rotateLambda };
+        pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (pointersRef.current.size >= 2) {
+          // Second finger: switch from rotating to pinch-scaling.
+          dragRef.current = null;
+          pinchDistanceRef.current = activePinchDistance();
+          return;
+        }
+        dragRef.current = { pointerId: event.pointerId, startX: event.clientX, rotateLambda: config.rotateLambda };
       }}
       onPointerMove={(event) => {
+        if (pointersRef.current.has(event.pointerId)) {
+          pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        }
+        const config = configRef.current;
+        const lastDistance = pinchDistanceRef.current;
+        if (config && lastDistance !== null) {
+          const distance = activePinchDistance();
+          if (distance === null) return;
+          pinchDistanceRef.current = distance;
+          const scale = Math.max(40, Math.min(2000, config.scale * (distance / lastDistance)));
+          hintHistoryLabel('Scale projection');
+          useDocumentStore.getState().setProjectionConfig({ scale });
+          return;
+        }
         const drag = dragRef.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
         const next = ((drag.rotateLambda + (event.clientX - drag.startX) * 0.35 + 180) % 360) - 180;
@@ -161,9 +192,13 @@ export function ProjectedMapView() {
         useDocumentStore.getState().setProjectionConfig({ rotateLambda: next });
       }}
       onPointerUp={(event) => {
+        pointersRef.current.delete(event.pointerId);
+        if (pointersRef.current.size < 2) pinchDistanceRef.current = null;
         if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(event) => {
+        pointersRef.current.delete(event.pointerId);
+        if (pointersRef.current.size < 2) pinchDistanceRef.current = null;
         dragRef.current = null;
       }}
       onWheel={(event) => {

@@ -117,4 +117,35 @@ describe('exportSvg', () => {
     // Comment renders nothing → only the background rect, no annotation group.
     expect(svg).not.toContain('<g ');
   });
+
+  it('exports brush strokes with the preset width and pressure strokes as filled outlines', async () => {
+    useMapInstance.setState({ map: stubMap() });
+    const uniform: Annotation = {
+      ...make('line'),
+      lineRole: 'brush',
+      points: [0, 0, 60, 0, 120, 10],
+      style: { ...DEFAULT_ANNOTATION_STYLE, strokeWidth: 10, brushPreset: 'marker' },
+    } as Annotation;
+    const pressured: Annotation = {
+      ...make('line'),
+      id: 'pressure-stroke',
+      lineRole: 'brush',
+      points: [0, 0, 60, 0, 120, 10],
+      pressures: [0.2, 0.9, 0.4],
+    } as Annotation;
+
+    const result = await exportSvg(projectWith([uniform, pressured]), { includeBasemap: false });
+    const svg = await result.blob.text();
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+
+    // Uniform brush: a stroked polyline at the marker preset width (10 × 1.8).
+    const polyline = doc.querySelector('polyline[stroke-width="18"]');
+    expect(polyline).not.toBeNull();
+    expect(polyline?.getAttribute('opacity')).toBe('0.78');
+
+    // Pressure stroke: a filled closed path, no stroke width at all.
+    const path = [...doc.querySelectorAll('path')].find((el) => el.getAttribute('d')?.endsWith('Z'));
+    expect(path).not.toBeNull();
+    expect(path?.getAttribute('fill')).toBe(DEFAULT_ANNOTATION_STYLE.strokeColor);
+  });
 });

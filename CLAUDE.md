@@ -37,3 +37,12 @@ The `@/` alias maps to `src/`.
   web build must keep full feature parity — every desktop-specific path is additive
   and guarded by `isTauri()` (`src/app/platform.ts`). See `src-tauri/README.md` for
   the platform differences (file dialogs, basemap fetch via the HTTP plugin).
+- The web build is an installable PWA used on iPads with touch + Apple Pencil.
+  Canvas input goes through the unified pointer-event pipeline in
+  `src/canvas/AnnotationStage.tsx` (mouse acts on press; touch/pen act on tap,
+  with long-press context menus and palm rejection); two-finger workspace
+  navigation lives in `src/canvas/touchGestures.ts` + `MapCanvas.tsx`; brush
+  geometry (presets + Pencil pressure outlines) is shared by the editor and all
+  exporters via `src/style/brushStroke.ts`. New canvas interactions must handle
+  `pointerType` touch/pen, not just mouse, and new interactive chrome should
+  size hit targets with Tailwind `pointer-coarse:` variants.

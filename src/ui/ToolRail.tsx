@@ -183,7 +183,7 @@ export function ToolRail() {
                   disabled={disabled}
                   aria-disabled={disabled}
                   onClick={() => activate(tool)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all pointer-coarse:h-11 pointer-coarse:w-11 ${
                     disabled
                       ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
                       : isActive
@@ -231,7 +231,7 @@ export function ToolRail() {
               }
               setInsertOpen((prev) => !prev);
             }}
-            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all ${
+            className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-all pointer-coarse:h-11 pointer-coarse:w-11 ${
               setupDisabled
                 ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
                 : insertOpen
@@ -270,7 +270,7 @@ export function ToolRail() {
                     setInsertOpen(false);
                     push(t('tools.furnitureInserted', { name: label }));
                   }}
-                  className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors ${
+                  className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors pointer-coarse:py-2.5 ${
                     engineDisabled
                       ? 'cursor-not-allowed text-[var(--text-3)] opacity-45'
                       : 'hover:bg-[var(--hover)]'

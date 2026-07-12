@@ -69,7 +69,7 @@ export function FeatureContextMenu() {
           useEditStore.getState().enterEdit(menu.layerId);
           useFeatureMenuStore.getState().close();
         }}
-        className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)]"
+        className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left disabled:cursor-not-allowed disabled:text-[var(--text-3)] enabled:hover:bg-[var(--hover)] pointer-coarse:py-3"
       >
         <PenLine size={14} className="text-[var(--text-2)]" />
         {menu.locked ? t('feature.layerLocked') : t('layer.editFeatures')}
@@ -78,7 +78,7 @@ export function FeatureContextMenu() {
         type="button"
         role="menuitem"
         onClick={exportLayer}
-        className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left hover:bg-[var(--hover)]"
+        className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-1.5 text-left hover:bg-[var(--hover)] pointer-coarse:py-3"
       >
         <Download size={14} className="text-[var(--text-2)]" />
         {t('layer.export')}

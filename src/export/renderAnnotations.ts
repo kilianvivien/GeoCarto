@@ -1,8 +1,9 @@
 import Konva from 'konva';
 import type maplibregl from 'maplibre-gl';
-import type { Annotation, AnnotationStyle, BrushPreset, LegendFillStyle, LegendSymbol, PinIcon } from '@/project/cartoproj';
+import type { Annotation, AnnotationStyle, LegendFillStyle, LegendSymbol, PinIcon } from '@/project/cartoproj';
 import type { CanvasProjection } from '@/canvas/canvasProjection';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';
+import { brushOutlinePoints, brushStrokeProps, hasPressureProfile } from '@/style/brushStroke';
 import { legendEntrySymbol } from '@/style/legendSwatches';
 import { metersPerPixel, niceScaleBar } from '@/style/furniture';
 import { buildGraticule } from '@/projection/graticule';
@@ -23,19 +24,6 @@ function shadowProps(style: AnnotationStyle) {
 function blendOperation(style: AnnotationStyle): GlobalCompositeOperation | undefined {
   if (style.blendMode === 'normal') return undefined;
   return style.blendMode as GlobalCompositeOperation;
-}
-
-function brushStrokeProps(style: AnnotationStyle, preset: BrushPreset | undefined, opacity: number) {
-  switch (preset ?? 'round') {
-    case 'marker':
-      return { strokeWidth: style.strokeWidth * 1.8, opacity: opacity * 0.78, dash: undefined };
-    case 'pencil':
-      return { strokeWidth: Math.max(1, style.strokeWidth * 0.9), opacity: opacity * 0.68, dash: [1, 5] };
-    case 'highlighter':
-      return { strokeWidth: style.strokeWidth * 3.5, opacity: opacity * 0.42, dash: undefined };
-    case 'round':
-      return { strokeWidth: style.strokeWidth, opacity, dash: strokeDash(style) };
-  }
 }
 
 interface RenderOptions {
@@ -421,7 +409,34 @@ function addAnnotation(
       break;
     case 'line':
       if (annotation.lineRole === 'brush') {
-        const brush = brushStrokeProps(style, style.brushPreset, annotation.opacity);
+        // Base opacity 1: the wrapping group already applies annotation.opacity,
+        // so only the preset's opacity factor belongs on the shape itself.
+        const brush = brushStrokeProps(style, style.brushPreset, 1);
+        // Pressure strokes (Apple Pencil) render as a filled variable-width
+        // outline — the same geometry the editor draws (src/style/brushStroke.ts).
+        if (hasPressureProfile(annotation.points, annotation.pressures)) {
+          if (haloWidth > 0) {
+            group.add(
+              new Konva.Line({
+                points: brushOutlinePoints(annotation.points, annotation.pressures, style.strokeWidth, style.brushPreset, haloWidth),
+                closed: true,
+                fill: haloColor,
+                lineJoin: 'round',
+              }),
+            );
+          }
+          group.add(
+            new Konva.Line({
+              points: brushOutlinePoints(annotation.points, annotation.pressures, style.strokeWidth, style.brushPreset),
+              closed: true,
+              fill: style.strokeColor,
+              opacity: brush.opacity,
+              lineJoin: 'round',
+              ...shadow,
+            }),
+          );
+          break;
+        }
         if (haloWidth > 0) {
           group.add(
             new Konva.Line({
