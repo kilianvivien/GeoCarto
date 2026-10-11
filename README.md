@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://geo-carto.vercel.app"><strong>🌍 Try the live demo →</strong></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest/download/GeoCarto_0.3.6_aarch64.dmg"><strong>Download for Apple silicon →</strong></a>
+  <a href="https://github.com/kilianvivien/GeoCarto/releases/latest/download/GeoCarto_0.4.0_aarch64.dmg"><strong>Download for Apple silicon →</strong></a>
 </p>
 
 <p align="center">
@@ -42,10 +42,20 @@ The target users are journalists, teachers, designers, and anyone who today fall
 - Switch between four built-in styles: Editorial Light, Editorial Dark, Minimal Grey, Print B&W
 - Provide a custom MapLibre style URL, PMTiles URL, static image, or empty canvas as the basemap source
 - Toggle individual basemap sub-layers: land, roads, places, POIs, water, land cover, landuse, buildings, boundaries
-- Import **GeoJSON, TopoJSON, KML, GPX, and Shapefile** — drag-drop or file picker
+- Import **GeoJSON, TopoJSON, KML, GPX, Shapefile, and CSV** — drag-drop or file picker; large files decode in the background with a cancellable progress indicator
+- Import a **CSV as points** from latitude/longitude columns, or let address and place-name columns be geocoded (up to 200 rows)
+- **Join a CSV** to a layer through a shared code or name, with a suggested key pairing and a live match count
 - Inspect feature attributes; reorder, show/hide, lock, rename, and delete layers
 - Place GeoJSON layers as standard vector or switch them to a **GPU-accelerated heatmap** (deck.gl)
 - **Edit imported GeoJSON** — move, add, and delete vertices; draw new features; edit attributes directly in the layer
+
+### Styling by data
+
+- **Color by value** (choropleth) with quantile, equal-interval, Jenks, or manual breaks and curated color ramps
+- **Size by value** (proportional symbols) with square-root or linear scaling
+- **Color by category** for polygons, lines, and points — one editable color per value, with an "Other" bucket
+- **Labels** from any attribute, with an optional second line for a value and its unit; overlapping labels are hidden on the map
+- **Linked legends** generated from any of the above
 
 ### Annotations
 
@@ -97,8 +107,8 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 ### Export
 
 - **PNG and JPEG** — 1×, 2×, or custom scale; white or transparent background; JPEG quality slider
-- **SVG** — annotations and map furniture export as editable vector objects; on a projected-engine document, data layers export as real vector paths too (Mercator basemap/data still embed as a raster image)
-- **PDF** — vector PDF (default) with selectable text and vector annotations/furniture, or raster-in-PDF as a fallback, sized to the composition frame
+- **SVG** — annotations, map furniture, and data layers export as editable vector objects, one named group per layer; every data label is exported as editable text. The tile basemap and heatmaps embed as a raster image
+- **PDF** — vector PDF (default) with selectable text and vector annotations, furniture, and data layers, or raster-in-PDF as a fallback, sized to the composition frame
 - **Interactive HTML** — one self-contained file with inline map runtime/data, optional pan and zoom, per-layer tooltip fields, and annotation overlays
 
 ### Desktop
@@ -123,9 +133,10 @@ All annotation types support fill, stroke, opacity, drop shadow, blend modes (no
 GeoCarto is young and moving fast. A few things to expect at this stage:
 
 - Editorial projections are a distinct document mode with no tile basemap; vector editing and feature picking aren't available there yet.
-- Imported data layers still export as raster inside SVG/PDF on Mercator documents (projected documents get real vector paths); annotations and map furniture stay fully editable vectors either way.
+- In SVG/PDF export the tile basemap and heatmaps are still raster, and hatch fills on data layers export as plain fills.
+- Data labels use the basemap's font on screen and Helvetica/Arial in SVG/PDF, so line widths differ slightly.
 - The macOS desktop app is not yet signed or notarized, so Gatekeeper will warn on first launch.
-- GIS analysis (attribute joins, buffers) and offline basemap packs are planned, not shipped.
+- Buffers, dot-density maps, and offline basemap packs are planned, not shipped.
 
 ---
 
@@ -133,7 +144,15 @@ GeoCarto is young and moving fast. A few things to expect at this stage:
 
 GeoCarto is built in phases. The browser core loop and the editorial toolset are in place — here's what's next.
 
-**Recently shipped (0.3.x)**
+**Recently shipped (0.4.0)**
+
+- Labels, color-by-category styling, CSV point import, and CSV attribute joins ✓
+- Data layers as real vector paths in SVG and vector PDF ✓
+- Background import with progress and cancel ✓
+- An [agent skill](#agent-skill) so AI assistants can prepare data and ready-made projects ✓
+- MapLibre GL JS 6 ✓
+
+**Shipped in 0.3.x**
 
 - Place search / geocoding and choropleth & proportional-symbol data styling ✓
 - Editorial projections (Equal Earth, Robinson, Winkel Tripel, Bonne, Natural Earth I) ✓
@@ -149,7 +168,8 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 **Later — cartographic depth & print**
 
 - Vector editing on projected maps
-- GIS analysis: attribute joins and buffering
+- GIS analysis: buffering, computed fields, dot density
+- Time: stepping a map through dates or periods
 - Unified scene graph and a templates gallery
 
 **Future — collaboration & platform**
