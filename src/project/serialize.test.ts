@@ -188,10 +188,18 @@ describe('serializeProject / deserializeProject', () => {
     expect(() => deserializeProject(JSON.stringify(project))).toThrow(/version/i);
   });
 
-  it('rejects a missing meta block', () => {
+  it('fills in a missing meta block, so compact authored files open', () => {
     const project = createEmptyProject() as unknown as { meta?: unknown };
     delete project.meta;
-    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/meta/i);
+    const opened = deserializeProject(JSON.stringify(project));
+    expect(opened.meta.name).toBe('Untitled');
+    expect(Date.parse(opened.meta.createdAt)).not.toBeNaN();
+  });
+
+  it('rejects a malformed meta block', () => {
+    const project = createEmptyProject() as unknown as { meta: unknown };
+    project.meta = { name: 42 };
+    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/meta\.name/);
   });
 
   it('rejects a non-numeric viewport center', () => {
@@ -449,10 +457,10 @@ describe('serializeProject / deserializeProject', () => {
   it('rejects invalid export frame dimensions', () => {
     const project = createEmptyProject();
     project.exportFrame.width = 0;
-    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/export frame/i);
+    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/exportFrame/);
 
     project.exportFrame.width = 1600;
     project.exportFrame.height = Number.NaN;
-    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/export frame/i);
+    expect(() => deserializeProject(JSON.stringify(project))).toThrow(/exportFrame/);
   });
 });

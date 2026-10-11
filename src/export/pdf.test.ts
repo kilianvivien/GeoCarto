@@ -34,6 +34,7 @@ vi.mock('./raster', async (importOriginal) => {
 });
 
 vi.mock('./svg', () => ({
+  splitDataLayers: vi.fn((project: { layers: unknown[] }) => ({ vector: [], raster: project.layers })),
   exportSvg: vi.fn(async () => ({
     blob: new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"/>'], {
       type: 'image/svg+xml',
@@ -95,7 +96,23 @@ describe('exportPdf', () => {
     await exportPdf(project, { scale: 1, mode: 'vector' });
 
     expect(renderBasemapCanvas).not.toHaveBeenCalled();
-    expect(exportSvg).toHaveBeenCalledWith(expect.anything(), { includeBasemap: true });
+    expect(exportSvg).toHaveBeenCalledWith(expect.anything(), { includeBasemap: true, vectorData: true });
+  });
+
+  it('bakes only the non-vector data layers into the Mercator basemap raster', async () => {
+    const { exportPdf } = await import('./pdf');
+    const { renderBasemapCanvas } = await import('./raster');
+    const { exportSvg, splitDataLayers } = await import('./svg');
+    vi.mocked(renderBasemapCanvas).mockClear();
+    vi.mocked(exportSvg).mockClear();
+    vi.mocked(splitDataLayers).mockReturnValueOnce({ vector: [], raster: [] });
+    const project = fixtureProject();
+
+    await exportPdf(project, { scale: 1, mode: 'vector' });
+
+    expect(splitDataLayers).toHaveBeenLastCalledWith(project, true, null);
+    expect(renderBasemapCanvas).toHaveBeenCalledWith(project, 100, 100, []);
+    expect(exportSvg).toHaveBeenCalledWith(expect.anything(), { includeBasemap: false, vectorData: true });
   });
 
   it('rejects invalid export frame dimensions before touching either pipeline', async () => {

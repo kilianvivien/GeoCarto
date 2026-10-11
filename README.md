@@ -165,7 +165,7 @@ GeoCarto is built in phases. The browser core loop and the editorial toolset are
 | ----------------- | ------------------------------------------- |
 | Framework         | React 19 + TypeScript + Vite 7              |
 | Desktop           | Tauri 2 (macOS)                             |
-| Basemap           | MapLibre GL JS v5 + PMTiles                 |
+| Basemap           | MapLibre GL JS v6 + PMTiles                 |
 | Data layers       | deck.gl                                     |
 | Annotation canvas | Konva.js                                    |
 | Drawing           | terra-draw                                  |
@@ -229,6 +229,15 @@ npm run tauri build  # production .app bundle
 | `npm run test:e2e`  | Playwright end-to-end tests           |
 
 ---
+
+## Agent skill
+
+`skills/geocarto-maps/` is a skill for AI assistants: instructions, a format reference, examples, and a
+validator for producing GeoCarto-ready data (`.geojson`, `.csv`) and finished projects (`.cartoproj`).
+It is also downloadable from **Settings → General** in the app.
+
+The validator (`scripts/validate.mjs`) is bundled from the app's own loader by `npm run skill:build`,
+which also runs as part of `npm run dev` and `npm run build`; do not edit it by hand.
 
 ## Project structure
 

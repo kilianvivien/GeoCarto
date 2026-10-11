@@ -52,7 +52,10 @@ test('records Phase 1 performance smoke measurements', async ({ page }) => {
   const importMediumMs = Date.now() - importMediumStart;
 
   const importLargeStart = Date.now();
+  // A file this size decodes in the import worker, not on the main thread.
+  const importWorker = page.waitForEvent('worker', (worker) => worker.url().includes('importWorker'));
   await importGeoJsonFixture(page, 'large.geojson');
+  await importWorker;
   // Large fixture has ~36k features — wait until at least one large-count badge appears.
   await expect(page.getByTestId('feature-count').last()).not.toHaveText('20 features', {
     timeout: PRD_PHASE1_THRESHOLDS.importLargeMs + 5_000,

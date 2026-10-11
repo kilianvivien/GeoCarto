@@ -3,6 +3,7 @@ import type { GeoJsonLayer } from '@/project/cartoproj';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
 import { coerceNumber, scanAttribute } from './classify';
 import { sampleRamp } from './ramps';
+import { categoryColor } from './categories';
 
 /**
  * Scalar (per-feature) equivalents of `syncLayers.ts`'s MapLibre expression
@@ -34,6 +35,7 @@ export function resolveFillColor(feature: Feature, layer: GeoJsonLayer): string 
     }
     return colors[classIndex];
   }
+  if (dataStyle?.kind === 'categorical') return categoryColor(feature, dataStyle);
   const key = featureKey(feature);
   if (key) {
     const overrideStyle = style.featureFillStyles[key]?.fillColor;
@@ -42,6 +44,24 @@ export function resolveFillColor(feature: Feature, layer: GeoJsonLayer): string 
     if (overrideColor) return overrideColor;
   }
   return style.fillColor;
+}
+
+/** Resolve a point feature's circle color: categorical and proportional styles override the flat point color. */
+export function resolvePointColor(feature: Feature, layer: GeoJsonLayer): string {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind === 'categorical') return categoryColor(feature, dataStyle);
+  if (dataStyle?.kind === 'proportional') return dataStyle.color;
+  return layer.style.pointColor;
+}
+
+/** Resolve a line feature's stroke color. Polygon outlines always keep the layer stroke. */
+export function resolveLineColor(feature: Feature, layer: GeoJsonLayer): string {
+  const dataStyle = layer.style.dataStyle;
+  const type = feature.geometry?.type;
+  if (dataStyle?.kind === 'categorical' && (type === 'LineString' || type === 'MultiLineString')) {
+    return categoryColor(feature, dataStyle);
+  }
+  return layer.style.strokeColor;
 }
 
 export interface ProportionalDomain {

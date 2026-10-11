@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import { useDocumentStore } from '@/state/documentStore';
 import { useEditStore } from '@/state/editStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
@@ -28,13 +28,21 @@ export function GeoJsonLayers() {
 
   useEffect(() => {
     if (!map) return;
-    const apply = () =>
+    const apply = () => {
+      // The sync is skipped while the style loads, and no further `styledata`
+      // is guaranteed once it settles — so retry on the next idle frame.
+      if (!map.isStyleLoaded()) {
+        map.once('idle', apply);
+        return;
+      }
       syncLayersToMap(map, layersRef.current, selectedFeatureRef.current, editingLayerIdRef.current);
+    };
     apply();
     // A theme-driven setStyle() wipes custom sources — re-add once it reloads.
     map.on('styledata', apply);
     return () => {
       map.off('styledata', apply);
+      map.off('idle', apply);
     };
   }, [map, layers, selectedFeature, editingLayerId]);
 

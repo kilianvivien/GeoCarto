@@ -1,5 +1,6 @@
+import { pathToFileURL } from 'node:url';
 import { test, expect } from '@playwright/test';
-import { disableFileSystemAccess, openProjectFixture } from './helpers';
+import { disableFileSystemAccess, importGeoJsonFixture, lockMap, openProjectFixture } from './helpers';
 
 function pngDimensions(buffer: Buffer) {
   expect(buffer.subarray(1, 4).toString('ascii')).toBe('PNG');
@@ -116,7 +117,7 @@ test('export a vector PDF with real (non-flattened) content', async ({ page }) =
   expect(buffer.length).toBeGreaterThan(100);
 });
 
-test('export a self-contained interactive HTML map', async ({ page }) => {
+test('export a self-contained interactive HTML map', async ({ page }, testInfo) => {
   await disableFileSystemAccess(page);
   await page.goto('/');
   await openProjectFixture(page);
@@ -138,4 +139,48 @@ test('export a self-contained interactive HTML map', async ({ page }) => {
   expect(html).toContain('maplibregl.Map');
   expect(html).toContain('pmtiles.Protocol');
   expect(html).not.toContain('<script src=');
+
+  // The file must boot from disk: the inlined MapLibre module and its worker
+  // are loaded through Blob URLs, with no dev server or CDN behind them.
+  const filePath = testInfo.outputPath('exported.html');
+  await download.saveAs(filePath);
+  const exported = await page.context().newPage();
+  const pageErrors: string[] = [];
+  exported.on('pageerror', (error) => pageErrors.push(error.message));
+  // A worker that fails to start is reported on the console, not as a page error.
+  exported.on('console', (message) => {
+    if (message.type() === 'error') pageErrors.push(message.text());
+  });
+  await exported.goto(pathToFileURL(filePath).href);
+  await expect(exported.locator('canvas.maplibregl-canvas')).toBeVisible();
+  // The fixture's GeoJSON layer is tiled by the worker, so the map only goes
+  // idle with features on screen once the worker is really running.
+  await exported.waitForTimeout(1500);
+  expect(pageErrors).toEqual([]);
+});
+
+test('SVG export draws data layers as vector paths above the basemap raster', async ({ page }) => {
+  await disableFileSystemAccess(page);
+  await page.goto('/');
+  await lockMap(page);
+  await importGeoJsonFixture(page);
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect(page.getByTestId('layer-row')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Export (⌘E)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export image' });
+  await dialog.getByRole('button', { name: 'SVG' }).click();
+  await expect(dialog.getByLabel('Export as editable vector paths')).toBeChecked();
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    dialog.getByRole('button', { name: 'Export', exact: true }).click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const svg = Buffer.concat(chunks).toString('utf8');
+  // Tile basemap stays a raster underlay; the imported layer is real geometry.
+  expect(svg).toContain('<image');
+  expect(svg).toMatch(/<g id="data-layers" clip-path="url\(#gc-data-clip\)"><g id="data-1-[^"]*"><path d="M/);
 });

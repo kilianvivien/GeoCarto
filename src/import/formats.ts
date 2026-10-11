@@ -6,15 +6,20 @@ import {
   featureCollectionToLayer,
   importGeoJsonFile,
   toFeatureCollection,
+  toImportError,
 } from './geojson';
+import { parseInBackground } from './importJob';
+import { ImportParseError, readTable, type ParsedCollection } from './parse';
+import { GEOCODE_ROW_LIMIT, geocodeTable, locationColumns } from './geocodeTable';
 import { translate } from '@/i18n/useLocale';
 
 /**
  * Supported import formats (Milestone 14). GeoJSON ships in Phase 1; the rest
  * are decoded by parsers that are lazy-loaded only when a matching file lands,
- * so their (sizeable) dependencies stay out of the initial bundle.
+ * so their (sizeable) dependencies stay out of the initial bundle. GeoJSON,
+ * TopoJSON, and Shapefile decode in a worker (see `importJob.ts`).
  */
-export type ImportFormat = 'geojson' | 'topojson' | 'kml' | 'gpx' | 'shapefile';
+export type ImportFormat = 'geojson' | 'topojson' | 'kml' | 'gpx' | 'shapefile' | 'csv';
 
 const EXTENSION_FORMAT: Record<string, ImportFormat> = {
   geojson: 'geojson',
@@ -24,11 +29,13 @@ const EXTENSION_FORMAT: Record<string, ImportFormat> = {
   gpx: 'gpx',
   zip: 'shapefile',
   shp: 'shapefile',
+  csv: 'csv',
+  tsv: 'csv',
 };
 
 /** File-picker `accept` string covering every supported import format. */
 export const IMPORT_ACCEPT =
-  '.geojson,.json,.topojson,.kml,.gpx,.zip,.shp,application/geo+json,application/json,application/vnd.google-earth.kml+xml,application/gpx+xml';
+  '.geojson,.json,.topojson,.kml,.gpx,.zip,.shp,.csv,.tsv,application/geo+json,application/json,application/vnd.google-earth.kml+xml,application/gpx+xml,text/csv,text/tab-separated-values';
 
 export function formatForFile(file: File): ImportFormat | null {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
@@ -55,31 +62,6 @@ function ensureNonEmpty(fc: FeatureCollection, file: File): FeatureCollection {
   return fc;
 }
 
-async function parseTopoJson(file: File): Promise<GeoJsonLayer[]> {
-  const { feature } = await import('topojson-client');
-  let topology: unknown;
-  try {
-    topology = JSON.parse(await file.text());
-  } catch {
-    throw new GeoJsonImportError(translate('errors.notValidJson', { file: file.name }));
-  }
-  const objects = (topology as { objects?: Record<string, unknown> }).objects;
-  if (!objects || typeof objects !== 'object') {
-    throw new GeoJsonImportError(translate('errors.noTopoJson', { file: file.name }));
-  }
-  // Merge every object into one collection so a file maps to a single layer,
-  // matching how the other formats behave.
-  const features = Object.values(objects).flatMap((object) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = feature(topology as any, object as any) as unknown as
-      | import('geojson').Feature
-      | FeatureCollection;
-    return result.type === 'FeatureCollection' ? result.features : [result];
-  });
-  const fc = ensureNonEmpty({ type: 'FeatureCollection', features }, file);
-  return [featureCollectionToLayer(baseName(file, 'topojson', 'json'), fc)];
-}
-
 async function parseKmlGpx(file: File, format: 'kml' | 'gpx'): Promise<GeoJsonLayer[]> {
   const togeojson = await import('@tmcw/togeojson');
   const doc = parseXml(await file.text(), file);
@@ -90,46 +72,75 @@ async function parseKmlGpx(file: File, format: 'kml' | 'gpx'): Promise<GeoJsonLa
   return [featureCollectionToLayer(baseName(file, format), fc)];
 }
 
-async function parseShapefile(file: File): Promise<GeoJsonLayer[]> {
-  const shp = (await import('shpjs')).default;
-  const buffer = await file.arrayBuffer();
-  let result: FeatureCollection | FeatureCollection[];
+export interface ImportOptions {
+  /** Aborting cancels the import; the promise rejects with `ImportCancelledError`. */
+  signal?: AbortSignal;
+  /** Called with a user-facing remark about a successful import (rows left out, etc.). */
+  onNote?: (message: string) => void;
+  /** Called while a table's rows are being geocoded one by one. */
+  onGeocodeProgress?: (done: number, total: number) => void;
+}
+
+/**
+ * A CSV/TSV as a point layer. Latitude/longitude columns are used when the
+ * table has them; otherwise its address or place-name columns are geocoded,
+ * within `GEOCODE_ROW_LIMIT` rows.
+ */
+async function importTable(file: File, options: ImportOptions): Promise<GeoJsonLayer[]> {
+  let collection: ParsedCollection;
   try {
-    // shpjs reprojects from the bundled .prj to WGS84 and returns one
-    // FeatureCollection per .shp found in the zip.
-    result = (await shp(buffer)) as FeatureCollection | FeatureCollection[];
+    [collection] = await parseInBackground('csv', file, options.signal);
   } catch (error) {
-    throw new GeoJsonImportError(
-      translate('errors.shapefileRead', { file: file.name, error: (error as Error).message }),
-    );
+    if (!(error instanceof ImportParseError) || error.code !== 'noCoordinateColumns') throw error;
+    const table = await readTable(file);
+    const columns = locationColumns(table);
+    if (columns.length === 0) {
+      throw new GeoJsonImportError(translate('errors.noCoordinateColumns', { file: file.name }));
+    }
+    if (table.rows.length > GEOCODE_ROW_LIMIT) {
+      throw new GeoJsonImportError(
+        translate('errors.geocodeLimit', { file: file.name, rows: table.rows.length, limit: GEOCODE_ROW_LIMIT }),
+      );
+    }
+    collection = await geocodeTable(table, columns, { signal: options.signal, onProgress: options.onGeocodeProgress });
+    if (collection.data.features.length === 0) {
+      throw new GeoJsonImportError(translate('errors.geocodeNoMatch', { file: file.name }));
+    }
   }
-  const collections = Array.isArray(result) ? result : [result];
-  const layers = collections
-    .filter((fc) => fc.features.length > 0)
-    .map((fc) => {
-      const name = (fc as { fileName?: string }).fileName ?? baseName(file, 'zip', 'shp');
-      return featureCollectionToLayer(name, fc);
-    });
-  if (layers.length === 0) {
-    throw new GeoJsonImportError(translate('errors.noShapefileFeatures', { file: file.name }));
+  if (collection.skippedRows) {
+    options.onNote?.(translate('import.rowsSkipped', { file: file.name, count: collection.skippedRows }));
   }
-  return layers;
+  return [featureCollectionToLayer(baseName(file, 'csv', 'tsv'), collection.data)];
 }
 
 /** Parse any supported file into one or more ready-to-add GeoJSON layers. */
-export async function importFileToLayers(file: File): Promise<GeoJsonLayer[]> {
+export async function importFileToLayers(file: File, options: ImportOptions = {}): Promise<GeoJsonLayer[]> {
+  const { signal } = options;
   const format = formatForFile(file);
   switch (format) {
     case 'geojson':
-      return [await importGeoJsonFile(file)];
+      return [await importGeoJsonFile(file, signal)];
     case 'topojson':
-      return parseTopoJson(file);
+    case 'shapefile':
+      try {
+        const collections = await parseInBackground(format, file, signal);
+        const fallbackName =
+          format === 'topojson' ? baseName(file, 'topojson', 'json') : baseName(file, 'zip', 'shp');
+        return collections.map(({ name, data }) => featureCollectionToLayer(name ?? fallbackName, data));
+      } catch (error) {
+        throw toImportError(error, file.name);
+      }
+    case 'csv':
+      try {
+        return await importTable(file, options);
+      } catch (error) {
+        throw toImportError(error, file.name);
+      }
+    // KML/GPX decode through DOMParser, which only exists on the main thread.
     case 'kml':
       return parseKmlGpx(file, 'kml');
     case 'gpx':
       return parseKmlGpx(file, 'gpx');
-    case 'shapefile':
-      return parseShapefile(file);
     default:
       throw new GeoJsonImportError(translate('errors.unsupportedImportFormat', { file: file.name }));
   }

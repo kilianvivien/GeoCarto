@@ -1,4 +1,5 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import '@/basemap/maplibreWorker';
 import { geoPath } from 'd3-geo';
 import { basename, isTauri } from '@/app/platform';
 import { translate } from '@/i18n/useLocale';
@@ -9,7 +10,7 @@ import { createMercatorProjection } from '@/canvas/canvasProjection';
 import { drawProjectedScene } from '@/canvas/projectedRender';
 import { buildD3Projection } from '@/projection/projections';
 import { loadNaturalEarthCountries, loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
-import type { CartoProject, PageBackground } from '@/project/cartoproj';
+import type { CartoProject, GeoJsonLayer, PageBackground } from '@/project/cartoproj';
 import { renderAnnotationsToCanvas } from './renderAnnotations';
 
 export type ExportFormat = 'png' | 'jpeg';
@@ -41,6 +42,7 @@ async function renderMapCanvas(
   project: CartoProject,
   outW: number,
   outH: number,
+  layers: GeoJsonLayer[] = project.layers,
 ): Promise<{ basemapCanvas: HTMLCanvasElement; mapAnchoredAnnotations: HTMLCanvasElement }> {
   const liveMap = useMapInstance.getState().map;
   if (!liveMap) throw new ExportError(translate('errors.mapNotReady'));
@@ -73,7 +75,7 @@ async function renderMapCanvas(
     });
 
     await new Promise<void>((resolve, reject) => {
-      const onError = (e: { error?: Error }) =>
+      const onError = (e: maplibregl.ErrorEvent) =>
         reject(new ExportError(e.error?.message ?? translate('errors.basemapFailed')));
       map.once('error', onError);
       map.once('load', () => {
@@ -82,12 +84,12 @@ async function renderMapCanvas(
       });
     });
 
-    syncLayersToMap(map, project.layers);
+    syncLayersToMap(map, layers);
 
     // deck.gl heatmap layers render into the same WebGL context, so they're
     // captured by getCanvas() below. Lazy-import keeps deck out of this chunk.
     const { attachHeatmapOverlay } = await import('@/layers/deckHeatmap');
-    const overlay = await attachHeatmapOverlay(map, project.layers);
+    const overlay = await attachHeatmapOverlay(map, layers);
     if (overlay) map.triggerRepaint();
 
     await new Promise<void>((resolve) => map.once('idle', () => resolve()));
@@ -178,7 +180,7 @@ async function renderProjectedBasemapCanvas(
   if (!ctx) throw new ExportError(translate('errors.no2dContext'));
   const path = geoPath(d3proj, ctx);
   const [land, countries] = await Promise.all([loadNaturalEarthLand(), loadNaturalEarthCountries()]);
-  drawProjectedScene(ctx, path, land, project.layers, 0.75 * scaleFactor, countries);
+  drawProjectedScene(ctx, path, land, project.layers, 0.75 * scaleFactor, countries, scaleFactor);
   return canvas;
 }
 
@@ -193,15 +195,18 @@ export interface ExportResult {
  * Render just the basemap (with imported GeoJSON baked in via the offscreen map,
  * or the fitted static image) to a canvas at the requested size. Shared by the
  * SVG exporter, which embeds this as a raster `<image>` beneath vector annotations.
+ * `layers` narrows which data layers get baked in — the vector exporters pass
+ * only the ones they cannot draw as paths (Mercator engine only).
  */
 export async function renderBasemapCanvas(
   project: CartoProject,
   outW: number,
   outH: number,
+  layers: GeoJsonLayer[] = project.layers,
 ): Promise<HTMLCanvasElement> {
   if (project.engine === 'projected') return renderProjectedBasemapCanvas(project, outW, outH);
   if (project.basemap.kind === 'static') return renderStaticBasemapCanvas(project, outW, outH);
-  const { basemapCanvas } = await renderMapCanvas(project, outW, outH);
+  const { basemapCanvas } = await renderMapCanvas(project, outW, outH, layers);
   return basemapCanvas;
 }
 

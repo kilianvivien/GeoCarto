@@ -1,4 +1,4 @@
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import { useDocumentStore } from '@/state/documentStore';
 import { featureFillKey } from '@/layers/geojsonFeatureStyle';
 import { useFeatureMenuStore } from './featureMenuStore';

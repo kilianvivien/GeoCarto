@@ -44,7 +44,33 @@ export interface ProportionalStyle {
   color: string;
 }
 
-export type DataStyle = ChoroplethStyle | ProportionalStyle;
+/** One-color-per-value styling for a qualitative attribute (land use, party, status…). */
+export interface CategoricalStyle {
+  kind: 'categorical';
+  attribute: string;
+  /** Materialized value → color pairs in legend order — like choropleth breaks,
+   *  stored rather than derived so a saved project always renders the same. */
+  categories: { value: string; color: string }[];
+  /** Color for values outside `categories` and for features with no value. */
+  otherColor: string;
+}
+
+export type DataStyle = ChoroplethStyle | ProportionalStyle | CategoricalStyle;
+
+/** Attribute-driven text labels drawn on a layer's features. */
+export interface LabelStyle {
+  /** Attribute shown as the label's first line. */
+  attribute: string;
+  /** Optional second line — typically the mapped value under a name. */
+  valueAttribute?: string;
+  /** Appended to the second line (" %", " hab."). */
+  valueSuffix?: string;
+  /** Font size in editor pixels. */
+  size: number;
+  color: string;
+  /** White outline that keeps text legible over the basemap. */
+  halo: boolean;
+}
 
 /** Render style for an imported GeoJSON layer (Milestone 4 makes this editable). */
 export interface GeoJsonStyle {
@@ -64,8 +90,10 @@ export interface GeoJsonStyle {
   pointRadius: number;
   /** Whether point features in this layer should be rendered as circles. */
   showPoints: boolean;
-  /** Data-driven styling (choropleth / proportional symbols). Absent = single style (default). */
+  /** Data-driven styling (choropleth / proportional symbols / categories). Absent = single style (default). */
   dataStyle?: DataStyle;
+  /** Attribute labels. Absent = no labels (default). */
+  labels?: LabelStyle;
 }
 
 export const DEFAULT_GEOJSON_STYLE: GeoJsonStyle = {

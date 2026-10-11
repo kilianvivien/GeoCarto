@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Check, CircleDot, Palette, Square } from 'lucide-react';
+import { Check, CircleDot, Palette, Shapes, Square } from 'lucide-react';
 import type {
   Annotation,
   ChoroplethStyle,
@@ -11,7 +11,13 @@ import type {
 import { useDocumentStore } from '@/state/documentStore';
 import { hintHistoryLabel } from '@/state/historyStore';
 import { computeBreaks, dedupeAscending, listNumericAttributes, scanAttribute } from '@/style/classify';
-import { choroplethLegendEntries, proportionalLegendEntries } from '@/style/legendSwatches';
+import {
+  buildCategoricalStyle,
+  countOther,
+  defaultCategoricalAttribute,
+  listCategoricalAttributes,
+} from '@/style/categories';
+import { dataStyleLegendEntries } from '@/style/legendSwatches';
 import { COLOR_RAMPS, DEFAULT_RAMP_ID, sampleRamp } from '@/style/ramps';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { DEFAULT_ANNOTATION_STYLE } from '@/project/cartoproj';
@@ -19,7 +25,7 @@ import { useLocale } from '@/i18n/useLocale';
 import type { TranslationKey } from '@/i18n/locales';
 import { Swatches } from '@/ui/Swatches';
 
-type DataStyleMode = 'single' | 'choropleth' | 'proportional';
+type DataStyleMode = 'single' | 'choropleth' | 'proportional' | 'categorical';
 
 const METHOD_LABEL_KEYS: Record<ClassificationMethod, TranslationKey> = {
   quantile: 'style.methodQuantile',
@@ -31,6 +37,7 @@ const METHOD_LABEL_KEYS: Record<ClassificationMethod, TranslationKey> = {
 function modeOf(dataStyle: DataStyle | undefined): DataStyleMode {
   if (dataStyle?.kind === 'choropleth') return 'choropleth';
   if (dataStyle?.kind === 'proportional') return 'proportional';
+  if (dataStyle?.kind === 'categorical') return 'categorical';
   return 'single';
 }
 
@@ -118,6 +125,7 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
   const canProportional = layer.geometry === 'point' || layer.geometry === 'mixed';
 
   const numericAttributes = useMemo(() => listNumericAttributes(layer.data.features), [layer.data.features]);
+  const categoricalAttributes = useMemo(() => listCategoricalAttributes(layer.data.features), [layer.data.features]);
 
   const setDataStyle = (dataStyle: DataStyle | undefined) => {
     hintHistoryLabel('Style by data');
@@ -131,11 +139,17 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
     }
     const attribute = numericAttributes[0] ?? '';
     if (next === 'choropleth') setDataStyle(buildChoropleth(layer, attribute));
+    else if (next === 'categorical') setDataStyle(buildCategoricalStyle(layer.data.features, defaultCategoricalAttribute(layer.data.features)));
     else setDataStyle(buildProportional(layer, attribute));
   };
 
   const choropleth = layer.style.dataStyle?.kind === 'choropleth' ? layer.style.dataStyle : null;
   const proportional = layer.style.dataStyle?.kind === 'proportional' ? layer.style.dataStyle : null;
+  const categorical = layer.style.dataStyle?.kind === 'categorical' ? layer.style.dataStyle : null;
+  const otherCount = useMemo(
+    () => (categorical ? countOther(layer.data.features, categorical) : 0),
+    [categorical, layer.data.features],
+  );
 
   const missingCount = choropleth ? scanAttribute(layer.data.features, choropleth.attribute).missingCount : 0;
   const activeAttribute = choropleth?.attribute ?? proportional?.attribute;
@@ -150,12 +164,8 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
   );
 
   const createOrRefreshLegend = () => {
-    if ((!choropleth && !proportional) || documentMode !== 'editing') return;
-    const entries = choropleth
-      ? choroplethLegendEntries(choropleth, missingCount)
-      : proportional && activeStats?.values.length
-        ? proportionalLegendEntries(proportional, activeStats.values[0], activeStats.values[activeStats.values.length - 1])
-        : [];
+    if (!layer.style.dataStyle || documentMode !== 'editing') return;
+    const entries = dataStyleLegendEntries(layer);
     if (linkedLegend) {
       hintHistoryLabel('Refresh legend');
       updateAnnotation(linkedLegend.id, { entries } as Partial<Annotation>);
@@ -189,6 +199,7 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
             { value: 'single', labelKey: 'style.dataStyleSingle', icon: Square, enabled: true },
             { value: 'choropleth', labelKey: 'style.dataStyleChoropleth', icon: Palette, enabled: canChoropleth && numericAttributes.length > 0 },
             { value: 'proportional', labelKey: 'style.dataStyleProportional', icon: CircleDot, enabled: canProportional && numericAttributes.length > 0 },
+            { value: 'categorical', labelKey: 'style.dataStyleCategorical', icon: Shapes, enabled: categoricalAttributes.length > 0 },
           ] as const
         ).map((option) => {
           const active = option.value === mode;
@@ -428,6 +439,84 @@ export function DataStyleSection({ layer }: { layer: GeoJsonLayer }) {
               </button>
             </>
           )}
+        </div>
+      )}
+      {mode === 'categorical' && categorical && (
+        <div className="flex flex-col gap-2">
+          <Field label={t('style.dataStyleAttribute')}>
+            <select
+              disabled={disabled}
+              value={categorical.attribute}
+              onChange={(event) =>
+                setDataStyle(buildCategoricalStyle(layer.data.features, event.target.value, categorical))
+              }
+              className={selectClass}
+            >
+              {/* Keep a saved attribute selectable even if it no longer qualifies. */}
+              {[...new Set([categorical.attribute, ...categoricalAttributes])].map((attribute) => (
+                <option key={attribute} value={attribute}>
+                  {attribute}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <fieldset className="flex max-h-56 flex-col gap-0.5 overflow-y-auto rounded-[7px] border border-[var(--divider)] p-1.5">
+            <legend className="px-1 text-[10.5px] text-[var(--text-3)]">{t('style.dataStyleCategories')}</legend>
+            {categorical.categories.map((category, index) => (
+              <label
+                key={category.value}
+                className="flex items-center gap-2 py-0.5 text-[11.5px] text-[var(--text-2)] pointer-coarse:py-1.5"
+              >
+                <input
+                  type="color"
+                  aria-label={t('style.dataStyleCategoryColor', { value: category.value })}
+                  disabled={disabled}
+                  value={category.color}
+                  onChange={(event) =>
+                    setDataStyle({
+                      ...categorical,
+                      categories: categorical.categories.map((c, i) =>
+                        i === index ? { ...c, color: event.target.value } : c,
+                      ),
+                    })
+                  }
+                  className="h-5 w-6 shrink-0 cursor-pointer rounded-[4px] border border-[var(--divider)] bg-transparent p-0 pointer-coarse:h-8 pointer-coarse:w-9"
+                />
+                <span className="truncate">{category.value}</span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">
+            {t('style.dataStyleOtherColor')}
+            <Swatches
+              value={categorical.otherColor}
+              disabled={disabled}
+              onChange={(otherColor) => setDataStyle({ ...categorical, otherColor })}
+            />
+          </div>
+          {otherCount > 0 && (
+            <div className="text-[11px] text-[var(--text-3)]">{t('style.dataStyleOtherCount', { count: otherCount })}</div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() =>
+                setDataStyle(buildCategoricalStyle(layer.data.features, categorical.attribute, categorical))
+              }
+              className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t('style.dataStyleRefreshCategories')}
+            </button>
+            <button
+              type="button"
+              disabled={disabled || documentMode !== 'editing'}
+              onClick={createOrRefreshLegend}
+              className="rounded-[7px] border border-[var(--divider)] bg-[var(--glass-thin)] px-2 py-1 text-[11.5px] text-[var(--text-2)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {linkedLegend ? t('style.dataStyleRefreshLegend') : t('style.dataStyleCreateLegend')}
+            </button>
+          </div>
         </div>
       )}
     </div>

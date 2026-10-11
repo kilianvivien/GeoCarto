@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import {
   Download,
   FilePlus2,
@@ -25,7 +25,6 @@ import { useViewportStore } from '@/state/viewportStore';
 import { openProjectFromDisk, saveProjectAs, saveProjectToDisk, UserCancelledError } from '@/project/fileSystem';
 import { createNewProject, openProjectInNewTab } from '@/project/documentFlow';
 import { rememberRecentProject } from '@/project/recents';
-import { ExportDialog } from './ExportDialog';
 import { PlaceSearch } from './PlaceSearch';
 import { RecentsMenu } from './RecentsMenu';
 import { useHistoryStore } from '@/state/historyStore';
@@ -33,6 +32,9 @@ import { useNotices } from './notices';
 import { useUiStore } from './uiStore';
 import { Tooltip } from './Tooltip';
 import { useLocale } from '@/i18n/useLocale';
+
+// Loaded on first open: the dialog (and what it pulls in) stays out of the startup bundle.
+const ExportDialog = lazy(() => import('./ExportDialog').then((m) => ({ default: m.ExportDialog })));
 
 function IconButton({
   label,
@@ -80,6 +82,11 @@ export function TitleBar() {
   const viewport = useViewportStore((s) => s.viewport);
   const push = useNotices((s) => s.push);
   const exportOpen = useUiStore((s) => s.exportDialogOpen);
+  // Stays mounted after the first open so the close animation can play.
+  const [exportLoaded, setExportLoaded] = useState(false);
+  useEffect(() => {
+    if (exportOpen) setExportLoaded(true);
+  }, [exportOpen]);
   const openExport = useUiStore((s) => s.openExportDialog);
   const closeExport = useUiStore((s) => s.closeExportDialog);
   const placeSearchOpen = useUiStore((s) => s.placeSearchOpen);
@@ -339,7 +346,11 @@ export function TitleBar() {
           </a>
         </Tooltip>
       </div>
-      <ExportDialog open={exportOpen} onClose={closeExport} />
+      {exportLoaded && (
+        <Suspense fallback={null}>
+          <ExportDialog open={exportOpen} onClose={closeExport} />
+        </Suspense>
+      )}
       <PlaceSearch open={placeSearchOpen} onClose={closePlaceSearch} />
     </div>
   );

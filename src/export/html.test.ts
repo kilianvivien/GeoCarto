@@ -34,4 +34,12 @@ describe('interactive HTML export', () => {
     expect(html).toContain('"panZoom":false');
     expect(html).not.toContain('<script src=');
   });
+
+  it('embeds the MapLibre worker as a classic script', async () => {
+    const { classicWorkerSource } = await import('./html');
+    const source = classicWorkerSource();
+    expect(source.length).toBeGreaterThan(100_000);
+    expect(source).not.toMatch(/export\s*\{[^}]*\};?\s*$/);
+    expect(source).not.toContain('import.meta');
+  });
 });

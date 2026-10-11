@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "meta": { "name": "Most-visited heritage sites" },
+  "viewport": { "bounds": [-3.5, 42.5, 7.0, 50.5] },
+  "exportFrame": { "width": 1600, "height": 1200 },
+  "basemap": { "kind": "builtin", "preset": "minimal-grey" },
+  "layers": [
+    {
+      "id": "sites",
+      "name": "Sites",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          { "type": "Feature", "properties": { "name": "Louvre", "type": "museum", "visitors": 8900000 }, "geometry": { "type": "Point", "coordinates": [2.3376, 48.8606] } },
+          { "type": "Feature", "properties": { "name": "Musée d'Orsay", "type": "museum", "visitors": 3200000 }, "geometry": { "type": "Point", "coordinates": [2.3266, 48.86] } },
+          { "type": "Feature", "properties": { "name": "Château de Versailles", "type": "palace", "visitors": 8100000 }, "geometry": { "type": "Point", "coordinates": [2.1204, 48.8049] } },
+          { "type": "Feature", "properties": { "name": "Château de Chambord", "type": "palace", "visitors": 1100000 }, "geometry": { "type": "Point", "coordinates": [1.517, 47.6161] } },
+          { "type": "Feature", "properties": { "name": "Pont du Gard", "type": "monument", "visitors": 1500000 }, "geometry": { "type": "Point", "coordinates": [4.535, 43.9475] } },
+          { "type": "Feature", "properties": { "name": "Mont-Saint-Michel", "type": "monument", "visitors": 3000000 }, "geometry": { "type": "Point", "coordinates": [-1.5115, 48.6361] } }
+        ]
+      },
+      "style": {
+        "pointRadius": 7,
+        "dataStyle": {
+          "kind": "categorical",
+          "attribute": "type",
+          "categories": [
+            { "value": "museum", "color": "#1f77b4" },
+            { "value": "palace", "color": "#e4572e" },
+            { "value": "monument", "color": "#2ca02c" }
+          ]
+        },
+        "labels": { "attribute": "name", "size": 12 }
+      }
+    }
+  ],
+  "annotations": [
+    { "kind": "titleblock", "place": "top-left", "title": "Most-visited heritage sites", "subtitle": "Six examples, by type" },
+    { "kind": "legend", "place": "top-right", "title": "Type of site", "dataStyleLink": { "layerId": "sites" } },
+    { "kind": "sourcecredit", "place": "bottom-left", "text": "Illustrative figures for the GeoCarto skill example." }
+  ]
+}

@@ -1,4 +1,5 @@
-import maplibreJs from 'maplibre-gl/dist/maplibre-gl.js?raw';
+import maplibreJs from 'maplibre-gl/dist/maplibre-gl.mjs?raw';
+import maplibreWorkerJs from 'maplibre-gl/dist/maplibre-gl-worker.mjs?raw';
 import maplibreCss from 'maplibre-gl/dist/maplibre-gl.css?raw';
 // pmtiles' package exports expose only the ESM API; the browser IIFE is still
 // shipped in dist and is intentionally embedded verbatim in exported HTML.
@@ -6,7 +7,17 @@ import pmtilesJs from '../../node_modules/pmtiles/dist/pmtiles.js?raw';
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import type { CartoProject, GeoJsonLayer } from '@/project/cartoproj';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
-import { fillColorExpression, proportionalRadiusExpression } from '@/canvas/syncLayers';
+import {
+  FALLBACK_GLYPHS,
+  fillColorExpression,
+  labelFontFor,
+  labelLayerStyle,
+  labelSourceData,
+  lineColorExpression,
+  pointColorExpression,
+  proportionalRadiusExpression,
+} from '@/canvas/syncLayers';
+import { layerLabels } from '@/style/labels';
 import { exportSvg } from './svg';
 import type { ExportResult } from './raster';
 
@@ -15,6 +26,15 @@ export interface HtmlExportOptions {
   minZoom: number;
   maxZoom: number;
   tooltipProperties: Record<string, string[]>;
+}
+
+/**
+ * MapLibre's worker bundle is self-contained and only a module because of its
+ * trailing `export`. Dropping that lets exported files run it as a classic
+ * worker, the one kind browsers allow from a Blob URL on a `file://` page.
+ */
+export function classicWorkerSource(): string {
+  return maplibreWorkerJs.replace(/export\s*\{[^}]*\};?\s*(?:\/\/# sourceMappingURL=\S+\s*)?$/, '');
 }
 
 function safeJson(value: unknown): string {
@@ -29,8 +49,9 @@ function interactiveLayerIds(layer: GeoJsonLayer): string[] {
   return [`${sourceId(layer)}:fill`, `${sourceId(layer)}:line`, `${sourceId(layer)}:circle`];
 }
 
-function appendGeoJsonLayers(style: StyleSpecification, layers: GeoJsonLayer[]): string[] {
+function appendGeoJsonLayers(style: StyleSpecification, layers: GeoJsonLayer[], font: string[]): string[] {
   const ids: string[] = [];
+  const labelSpecs: LayerSpecification[] = [];
   for (const layer of layers) {
     if (!layer.visible || layer.renderStrategy === 'heatmap') continue;
     const source = sourceId(layer);
@@ -49,7 +70,7 @@ function appendGeoJsonLayers(style: StyleSpecification, layers: GeoJsonLayer[]):
         type: 'line',
         source,
         filter: ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'LineString']],
-        paint: { 'line-color': layer.style.strokeColor, 'line-width': layer.style.strokeWidth },
+        paint: { 'line-color': lineColorExpression(layer) as string, 'line-width': layer.style.strokeWidth },
       },
       {
         id: renderIds[2],
@@ -58,7 +79,7 @@ function appendGeoJsonLayers(style: StyleSpecification, layers: GeoJsonLayer[]):
         filter: ['==', ['geometry-type'], 'Point'],
         layout: { visibility: layer.style.showPoints ? 'visible' : 'none' },
         paint: {
-          'circle-color': layer.style.dataStyle?.kind === 'proportional' ? layer.style.dataStyle.color : layer.style.pointColor,
+          'circle-color': pointColorExpression(layer) as string,
           'circle-radius': proportionalRadiusExpression(layer) as number,
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': 1.5,
@@ -67,7 +88,19 @@ function appendGeoJsonLayers(style: StyleSpecification, layers: GeoJsonLayer[]):
     ];
     style.layers.push(...specs);
     ids.push(...renderIds);
+    if (layer.style.labels) {
+      const labelSource = `${source}:labels`;
+      style.sources[labelSource] = { type: 'geojson', data: labelSourceData(layerLabels(layer)) };
+      labelSpecs.push({
+        id: `${labelSource}:text`,
+        type: 'symbol',
+        source: labelSource,
+        ...labelLayerStyle(layer, font),
+      } as LayerSpecification);
+    }
   }
+  // Labels above every data layer, as in the editor.
+  style.layers.push(...labelSpecs);
   return ids;
 }
 
@@ -90,7 +123,13 @@ async function projectedHtml(project: CartoProject): Promise<string> {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${project.meta.name}</title><style>html,body{margin:0;width:100%;height:100%;background:#111}body{display:grid;place-items:center}svg{display:block;max-width:100%;max-height:100%;width:auto;height:auto}</style></head><body>${svg}</body></html>`;
 }
 
-/** Build one portable HTML file with the exact MapLibre/PMTiles runtimes, data, and overlays inlined. */
+/**
+ * Build one portable HTML file with the exact MapLibre/PMTiles runtimes, data, and overlays inlined.
+ *
+ * MapLibre 6 is ESM-only with a separate worker file, so both are embedded as
+ * inert text and loaded through Blob URLs — the file still works from `file://`
+ * with no network access to a CDN.
+ */
 export async function exportHtml(project: CartoProject, options: HtmlExportOptions): Promise<ExportResult> {
   if (project.engine === 'projected') {
     const html = await projectedHtml(project);
@@ -104,7 +143,11 @@ export async function exportHtml(project: CartoProject, options: HtmlExportOptio
     ? built
     : structuredClone(built);
   const dataOverlayStyle: StyleSpecification = { version: 8, sources: {}, layers: [] };
-  const layerIds = appendGeoJsonLayers(typeof style === 'string' ? dataOverlayStyle : style, project.layers);
+  // Label symbols need glyphs: reuse the style's own font, or bring the fallback
+  // server for styles that declare none (a remote style URL is patched at load).
+  if (typeof style !== 'string' && !style.glyphs) style.glyphs = FALLBACK_GLYPHS;
+  const font = labelFontFor(typeof style === 'string' ? null : style);
+  const layerIds = appendGeoJsonLayers(typeof style === 'string' ? dataOverlayStyle : style, project.layers, font);
   const [mapOverlay, canvasOverlay] = await Promise.all([
     annotationOverlay(project, 'map'),
     annotationOverlay(project, 'canvas'),
@@ -124,6 +167,7 @@ export async function exportHtml(project: CartoProject, options: HtmlExportOptio
     layerByRenderId: Object.fromEntries(project.layers.flatMap((layer) => interactiveLayerIds(layer).map((id) => [id, layer.id]))),
     extraSources: typeof style === 'string' ? dataOverlayStyle.sources : {},
     extraLayers: typeof style === 'string' ? dataOverlayStyle.layers : [],
+    glyphs: FALLBACK_GLYPHS,
   };
   const html = `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -131,12 +175,21 @@ export async function exportHtml(project: CartoProject, options: HtmlExportOptio
 html,body,#map{margin:0;width:100%;height:100%;overflow:hidden}body{background:${project.exportFrame.background === 'transparent' ? 'transparent' : project.exportFrame.background ?? 'white'}}
 .gc-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden}.gc-overlay svg{width:100%;height:100%;display:block}.gc-tooltip{font:12px/1.4 system-ui,sans-serif}.gc-tooltip b{display:block;margin-bottom:2px}
 </style></head><body><div id="map"></div>${staticImage ? `<img src="${staticImage}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none">` : ''}<div id="map-overlay" class="gc-overlay">${mapOverlay}</div><div class="gc-overlay">${canvasOverlay}</div>
-<script>${maplibreJs}</script><script>${pmtilesJs}</script><script>
+<script type="text/plain" id="gc-maplibre">${maplibreJs}</script><script type="text/plain" id="gc-maplibre-worker">${classicWorkerSource()}</script><script>${pmtilesJs}</script><script type="module">
+const blobUrl=(id)=>URL.createObjectURL(new Blob([document.getElementById(id).textContent],{type:'text/javascript'}));
+const maplibregl=await import(blobUrl('gc-maplibre'));
+const workerUrl=blobUrl('gc-maplibre-worker');
+// Browsers refuse module workers from Blob URLs on file:// pages, and MapLibre would also wrap the URL in a re-importing module there. The embedded worker is a classic script (see classicWorkerSource) and the only worker this page creates, so start it directly.
+const NativeWorker=window.Worker;
+window.Worker=function(){return new NativeWorker(workerUrl);};
+maplibregl.setWorkerUrl(workerUrl);
 const cfg=${safeJson(runtimeData)};
 if(window.pmtiles){const protocol=new pmtiles.Protocol();maplibregl.addProtocol('pmtiles',protocol.tile);}
 const map=new maplibregl.Map({container:'map',style:cfg.style,center:cfg.viewport.center,zoom:cfg.viewport.zoom,bearing:cfg.viewport.bearing,pitch:cfg.viewport.pitch,minZoom:cfg.minZoom,maxZoom:cfg.maxZoom,attributionControl:true,dragPan:cfg.panZoom,scrollZoom:cfg.panZoom,boxZoom:cfg.panZoom,doubleClickZoom:cfg.panZoom,keyboard:cfg.panZoom,touchZoomRotate:cfg.panZoom,dragRotate:cfg.panZoom});
-map.on('load',()=>{for(const [id,source] of Object.entries(cfg.extraSources||{})){if(!map.getSource(id))map.addSource(id,source);}for(const layer of cfg.extraLayers||[]){if(!map.getLayer(layer.id))map.addLayer(layer);}});
-const escapeHtml=(value)=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// A remote style names its own fonts: label layers added on top must use one its glyph server has.
+const styleFont=()=>{const l=map.getStyle().layers.find(l=>l.layout&&Array.isArray(l.layout['text-font']));return l&&l.layout['text-font'];};
+map.on('load',()=>{const font=map.getGlyphs()?styleFont():null;if(!map.getGlyphs())map.setGlyphs(cfg.glyphs);for(const [id,source] of Object.entries(cfg.extraSources||{})){if(!map.getSource(id))map.addSource(id,source);}for(const layer of cfg.extraLayers||[]){if(font&&layer.type==='symbol')layer.layout['text-font']=font;if(!map.getLayer(layer.id))map.addLayer(layer);}});
+const escapeHtml=(value)=>(typeof value==='object'?JSON.stringify(value):String(value)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const popup=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
 for(const id of cfg.layerIds){map.on('mousemove',id,(event)=>{const feature=event.features&&event.features[0];if(!feature)return;const layerId=cfg.layerByRenderId[id];const wanted=cfg.tooltipProperties[layerId]||[];const keys=wanted.length?wanted:Object.keys(feature.properties||{}).filter(k=>!k.startsWith('@')).slice(0,6);const rows=keys.filter(k=>feature.properties&&feature.properties[k]!=null).map(k=>'<b>'+escapeHtml(k)+'</b>'+escapeHtml(feature.properties[k])).join('');if(!rows)return;popup.setLngLat(event.lngLat).setHTML('<div class="gc-tooltip">'+rows+'</div>').addTo(map);});map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',id,()=>{map.getCanvas().style.cursor='';popup.remove();});}
 const overlay=document.getElementById('map-overlay');const initialCenter=cfg.viewport.center;const initialZoom=cfg.viewport.zoom;const initialBearing=cfg.viewport.bearing;
@@ -157,5 +210,5 @@ function htmlResult(project: CartoProject, html: string): ExportResult {
 
 export function estimateHtmlSize(project: CartoProject): number {
   const dataBytes = project.layers.reduce((sum, layer) => sum + JSON.stringify(layer.data).length, 0);
-  return maplibreJs.length + maplibreCss.length + pmtilesJs.length + dataBytes + 20_000;
+  return maplibreJs.length + maplibreWorkerJs.length + maplibreCss.length + pmtilesJs.length + dataBytes + 20_000;
 }

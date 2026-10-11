@@ -1,4 +1,4 @@
-import { geoPath, type GeoPermissibleObjects } from 'd3-geo';
+import { geoPath, geoTransform, type GeoPermissibleObjects } from 'd3-geo';
 import type {
   Annotation,
   AnnotationStyle,
@@ -19,13 +19,26 @@ import type { RenderNode } from '@/render/spec';
 import { renderNodeToSvg } from '@/render/svgBackend';
 import { buildD3Projection } from '@/projection/projections';
 import { loadNaturalEarthCountries, loadNaturalEarthLand } from '@/basemap/naturalEarthOutlines';
-import { computeProportionalDomain, resolveCircleRadius, resolveFillColor } from '@/style/dataStyleEvaluate';
+import {
+  computeProportionalDomain,
+  resolveCircleRadius,
+  resolveFillColor,
+  resolveLineColor,
+  resolvePointColor,
+} from '@/style/dataStyleEvaluate';
+import { LABEL_FONT_FAMILY, LABEL_HALO_COLOR, LABEL_HALO_RATIO, LABEL_LINE_HEIGHT, layerLabels } from '@/style/labels';
 import { ExportError, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
 
 export interface SvgExportOptions {
   /** Embed the basemap (and imported data) as a raster `<image>` beneath the vectors. */
   includeBasemap: boolean;
+  /**
+   * Mercator engine: draw data layers as vector paths above the basemap raster
+   * instead of baking them into it. Heatmaps always stay in the raster.
+   * (Projected-engine documents emit vector data regardless.)
+   */
+  vectorData?: boolean;
 }
 
 /** XML-escape text content / attribute values. */
@@ -406,8 +419,14 @@ function annotationToRenderNode(
   };
 }
 
-function projectedLayerToSvg(layer: GeoJsonLayer, path: (object: GeoPermissibleObjects) => string | null): string {
+/** `sizeScale` converts editor CSS pixels (stroke widths, point radii) to output units. */
+function projectedLayerToSvg(
+  layer: GeoJsonLayer,
+  path: (object: GeoPermissibleObjects) => string | null,
+  sizeScale = 1,
+): string {
   const domain = computeProportionalDomain(layer);
+  const strokeWidth = n(layer.style.strokeWidth * sizeScale);
   let body = '';
   for (const feature of layer.data.features) {
     const type = feature.geometry?.type;
@@ -415,25 +434,144 @@ function projectedLayerToSvg(layer: GeoJsonLayer, path: (object: GeoPermissibleO
 
     if (type === 'Point' || type === 'MultiPoint') {
       if (!layer.style.showPoints) continue;
-      const radius = resolveCircleRadius(feature, layer, domain);
+      const radius = resolveCircleRadius(feature, layer, domain) * sizeScale;
       if (radius <= 0) continue;
       (path as unknown as { pointRadius: (r: number) => void }).pointRadius(radius);
       const d = path(feature as GeoPermissibleObjects);
       if (!d) continue;
-      const color = layer.style.dataStyle?.kind === 'proportional' ? layer.style.dataStyle.color : layer.style.pointColor;
-      body += `<path d="${d}" fill="${esc(color)}" stroke="#ffffff" stroke-width="1.5"/>`;
+      body += `<path d="${d}" fill="${esc(resolvePointColor(feature, layer))}" stroke="#ffffff" stroke-width="${n(1.5 * sizeScale)}"/>`;
       continue;
     }
 
     const d = path(feature as GeoPermissibleObjects);
     if (!d) continue;
     if (type === 'Polygon' || type === 'MultiPolygon') {
-      body += `<path d="${d}" fill="${esc(resolveFillColor(feature, layer))}" fill-opacity="${n(layer.style.fillOpacity)}" stroke="${esc(layer.style.strokeColor)}" stroke-width="${n(layer.style.strokeWidth)}"/>`;
+      body += `<path d="${d}" fill="${esc(resolveFillColor(feature, layer))}" fill-opacity="${n(layer.style.fillOpacity)}" stroke="${esc(layer.style.strokeColor)}" stroke-width="${strokeWidth}"/>`;
     } else {
-      body += `<path d="${d}" fill="none" stroke="${esc(layer.style.strokeColor)}" stroke-width="${n(layer.style.strokeWidth)}"/>`;
+      body += `<path d="${d}" fill="none" stroke="${esc(resolveLineColor(feature, layer))}" stroke-width="${strokeWidth}"/>`;
     }
   }
   return body;
+}
+
+/**
+ * A layer's attribute labels as editable `<text>` elements. Every label is
+ * written, including ones the map hides to avoid overlaps: tidying them by
+ * hand in a vector editor is the point of the export. Halos use `paint-order`
+ * so the text stays a single live text object.
+ */
+function layerLabelsToSvg(
+  layer: GeoJsonLayer,
+  project: (lngLat: [number, number]) => { x: number; y: number } | null,
+  sizeScale: number,
+): string {
+  const style = layer.style.labels;
+  if (!style) return '';
+  const size = style.size * sizeScale;
+  const lineHeight = size * LABEL_LINE_HEIGHT;
+  const halo = style.halo
+    ? ` stroke="${LABEL_HALO_COLOR}" stroke-width="${n(size * LABEL_HALO_RATIO * 2)}" stroke-linejoin="round" paint-order="stroke"`
+    : '';
+  let body = '';
+  for (const label of layerLabels(layer)) {
+    const point = project(label.position);
+    if (!point) continue;
+    const top = label.offset > 0 ? point.y + label.offset * sizeScale : point.y - (label.lines.length * lineHeight) / 2;
+    // First baseline: half a line down to the line's middle, then ~0.35em to the baseline.
+    const firstBaseline = top + lineHeight / 2 + size * 0.35;
+    const spans = label.lines
+      .map((line, index) => `<tspan x="${n(point.x)}" y="${n(firstBaseline + index * lineHeight)}">${esc(line)}</tspan>`)
+      .join('');
+    body += `<text text-anchor="middle">${spans}</text>`;
+  }
+  if (!body) return '';
+  return `<g font-family="${esc(LABEL_FONT_FAMILY)}" font-size="${n(size)}" fill="${esc(style.color)}"${halo}>${body}</g>`;
+}
+
+const layerSlug = (layer: GeoJsonLayer) => layer.name.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+
+/** Label groups for a set of layers, named after their layer and stacked above all geometry. */
+function labelGroupsToSvg(
+  layers: GeoJsonLayer[],
+  project: (lngLat: [number, number]) => { x: number; y: number } | null,
+  sizeScale: number,
+): string {
+  const groups = layers
+    .map((layer, index) => {
+      const body = layerLabelsToSvg(layer, project, sizeScale);
+      const slug = layerSlug(layer);
+      return body ? `<g id="labels-${index + 1}${slug ? `-${slug}` : ''}">${body}</g>` : '';
+    })
+    .join('');
+  return groups ? `<g id="data-labels">${groups}</g>` : '';
+}
+
+/**
+ * Split a document's data layers into those the vector exporters draw as paths
+ * and those that stay baked into the basemap raster. Only the Mercator engine
+ * needs the split; it requires the live map's projection to place vertices.
+ * Static-image basemaps hide the map (and its data layers) entirely, in the
+ * editor as in raster export, so nothing is vectorized there.
+ */
+export function splitDataLayers(
+  project: CartoProject,
+  vectorData: boolean,
+  projection: CanvasProjection | null,
+): { vector: GeoJsonLayer[]; raster: GeoJsonLayer[] } {
+  const canVectorize =
+    vectorData &&
+    project.engine !== 'projected' &&
+    project.basemap.kind !== 'static' &&
+    projection?.kind === 'mercator';
+  const vector = canVectorize
+    ? project.layers.filter((layer) => layer.visible && layer.renderStrategy !== 'heatmap')
+    : [];
+  return { vector, raster: project.layers.filter((layer) => !vector.includes(layer)) };
+}
+
+/**
+ * Emit Mercator data layers as vector `<path>` elements, one named group per
+ * layer so they arrive as separate objects in Illustrator/Inkscape. Vertices
+ * go through the live map's projection (so bearing and pitch are honored) and
+ * the same editor→frame scale the annotations use; the group is clipped to the
+ * frame because features routinely extend past it.
+ */
+function mercatorLayersToSvg(
+  layers: GeoJsonLayer[],
+  projection: CanvasProjection,
+  scale: number,
+  frameW: number,
+  frameH: number,
+): string {
+  const path = geoPath(
+    geoTransform({
+      point(lng, lat) {
+        const projected = projection.project([lng, lat]);
+        if (projected) this.stream.point(projected.x * scale, projected.y * scale);
+      },
+    }),
+  );
+  const groups = layers
+    .map((layer, index) => {
+      const body = projectedLayerToSvg(layer, path, scale);
+      const slug = layerSlug(layer);
+      return body ? `<g id="data-${index + 1}${slug ? `-${slug}` : ''}">${body}</g>` : '';
+    })
+    .join('');
+  const labels = labelGroupsToSvg(
+    layers,
+    (lngLat) => {
+      const projected = projection.project(lngLat);
+      return projected && { x: projected.x * scale, y: projected.y * scale };
+    },
+    scale,
+  );
+  if (!groups && !labels) return '';
+  // Labels share the frame clip: an off-frame feature's label is of no use on the page.
+  return (
+    `<clipPath id="gc-data-clip"><rect x="0" y="0" width="${n(frameW)}" height="${n(frameH)}"/></clipPath>` +
+    `<g id="data-layers" clip-path="url(#gc-data-clip)">${groups}${labels}</g>`
+  );
 }
 
 /**
@@ -458,17 +596,24 @@ async function projectedSceneToSvg(project: CartoProject, frameW: number): Promi
   if (landD) out += `<path d="${landD}" fill="#e8e6e1" stroke="#b8b4ac" stroke-width="${n(0.75 * scaleFactor)}"/>`;
   const countryD = path(countries as GeoPermissibleObjects);
   if (countryD) out += `<path d="${countryD}" fill="none" stroke="#68655e" stroke-opacity="0.55" stroke-width="${n(0.55 * scaleFactor)}"/>`;
-  for (const layer of project.layers) {
-    if (!layer.visible || layer.renderStrategy === 'heatmap') continue;
-    out += projectedLayerToSvg(layer, path);
-  }
+  const visible = project.layers.filter((layer) => layer.visible && layer.renderStrategy !== 'heatmap');
+  for (const layer of visible) out += projectedLayerToSvg(layer, path);
+  out += labelGroupsToSvg(
+    visible,
+    (lngLat) => {
+      const point = d3proj(lngLat);
+      return point && { x: point[0], y: point[1] };
+    },
+    scaleFactor,
+  );
   return out;
 }
 
 /**
- * Serialize the project to an SVG string. The basemap (and imported data) is
- * embedded as a raster `<image>`; annotations, text, and map furniture are
- * emitted as editable vector objects. Hatch fills are emitted as clipped SVG
+ * Serialize the project to an SVG string. The basemap is embedded as a raster
+ * `<image>`; data layers are baked into it or, with `vectorData`, drawn above
+ * it as vector paths. Annotations, text, and map furniture are emitted as
+ * editable vector objects. Hatch fills are emitted as clipped SVG
  * strokes; halos, blend modes, and most pin glyphs are flattened — surfaced to
  * the user in the export dialog.
  */
@@ -500,6 +645,7 @@ export async function exportSvg(
     return { x: editor.x * scale, y: editor.y * scale };
   };
 
+  const dataLayers = splitDataLayers(project, options.vectorData ?? false, projection);
   const parts: string[] = [];
   const background = project.exportFrame.background ?? 'white';
   if (background !== 'transparent') {
@@ -512,11 +658,14 @@ export async function exportSvg(
     if (project.engine === 'projected') {
       parts.push(await projectedSceneToSvg(project, frameW));
     } else {
-      const canvas = await renderBasemapCanvas(project, frameW, frameH);
+      const canvas = await renderBasemapCanvas(project, frameW, frameH, dataLayers.raster);
       parts.push(
         `<image x="0" y="0" width="${n(frameW)}" height="${n(frameH)}" href="${canvas.toDataURL('image/png')}" preserveAspectRatio="none"/>`,
       );
     }
+  }
+  if (projection && dataLayers.vector.length > 0) {
+    parts.push(mercatorLayersToSvg(dataLayers.vector, projection, scale, frameW, frameH));
   }
 
   for (const annotation of project.annotations) {
