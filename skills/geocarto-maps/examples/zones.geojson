@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "code": "A", "name": "Zone A", "kind": "urban", "population": 120000, "density": 2400.5 },
+      "geometry": { "type": "Polygon", "coordinates": [[[2.0, 48.0], [3.0, 48.0], [3.0, 48.8], [2.0, 48.8], [2.0, 48.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "B", "name": "Zone B", "kind": "rural", "population": 18000, "density": 36.2 },
+      "geometry": { "type": "Polygon", "coordinates": [[[3.0, 48.0], [4.2, 48.0], [4.2, 48.8], [3.0, 48.8], [3.0, 48.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "C", "name": "Zone C", "kind": "rural", "population": 26000, "density": null },
+      "geometry": { "type": "Polygon", "coordinates": [[[2.0, 47.2], [4.2, 47.2], [4.2, 48.0], [2.0, 48.0], [2.0, 47.2]]] }
+    }
+  ]
+}

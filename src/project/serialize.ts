@@ -8,6 +8,8 @@ import {
   type ProjectionId,
 } from './cartoproj';
 import { translate } from '@/i18n/useLocale';
+import { normalizeProject } from './normalize';
+import { checkProject, formatIssues } from './schema';
 
 export class ProjectLoadError extends Error {
   constructor(message: string) {
@@ -226,6 +228,18 @@ export function deserializeProject(json: string): CartoProject {
   } catch (error) {
     throw new ProjectLoadError(translate('errors.invalidJson', { message: (error as Error).message }));
   }
+  // Reject malformed documents with messages that name the offending field,
+  // then complete compact (hand- or agent-authored) ones before the migrations.
+  const errors = checkProject(parsed).filter((issue) => issue.severity === 'error');
+  if (errors.length > 0) {
+    throw new ProjectLoadError(
+      translate('errors.invalidProject', {
+        count: errors.length,
+        details: formatIssues(errors.slice(0, 3)).replace(/^error\s+/gm, ''),
+      }),
+    );
+  }
+  normalizeProject(parsed as Record<string, unknown>);
   validateProject(parsed);
   return parsed;
 }

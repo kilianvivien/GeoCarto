@@ -1,5 +1,5 @@
 import type { Position } from 'geojson';
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import type { GeoJsonLayer } from '@/project/cartoproj';
 
 /** Layers the user has flipped to the heatmap render strategy. */
@@ -61,6 +61,23 @@ export async function buildHeatmapDeckLayers(layers: GeoJsonLayer[]): Promise<an
 }
 
 /**
+ * `@deck.gl/mapbox` 9.4 reads the private `map.transform` for the viewport
+ * height and near/far planes. MapLibre 6 moved the transform onto the map's
+ * camera, so re-expose it until deck.gl ships MapLibre 6 support.
+ */
+function exposeTransformForDeck(map: maplibregl.Map): void {
+  if ('transform' in map) return;
+  Object.defineProperty(map, 'transform', {
+    configurable: true,
+    get: () =>
+      (map as unknown as { _camera?: { transform?: unknown } })._camera?.transform ?? {
+        height: map.getCanvas().clientHeight,
+        elevation: 0,
+      },
+  });
+}
+
+/**
  * Attach (or refresh) a deck.gl MapboxOverlay carrying the heatmap layers onto a
  * map, interleaved with the basemap so z-order and the WebGL context are shared.
  * Returns the overlay so callers can remove it, or null if nothing to draw.
@@ -82,6 +99,7 @@ export async function attachHeatmapOverlay(
     return existing;
   }
   const { MapboxOverlay } = await import('@deck.gl/mapbox');
+  exposeTransformForDeck(map);
   const overlay = new MapboxOverlay({ interleaved: true, layers: deckLayers });
   // maplibre's IControl shape matches MapboxOverlay; the cast bridges the types.
   map.addControl(overlay as unknown as maplibregl.IControl);

@@ -20,7 +20,7 @@ import {
   type ProjectionConfig,
 } from '@/project/cartoproj';
 import { computeBreaks, scanAttribute } from '@/style/classify';
-import { choroplethLegendEntries, proportionalLegendEntries } from '@/style/legendSwatches';
+import { dataStyleLegendEntries } from '@/style/legendSwatches';
 import type { Viewport } from './viewportStore';
 
 /**
@@ -35,16 +35,10 @@ function recomputeChoroplethBreaks(layer: GeoJsonLayer): void {
   dataStyle.breaks = computeBreaks(stats.values, dataStyle.method, dataStyle.classCount);
 }
 
-/** Keep legends that are explicitly linked to a choropleth in sync with its materialized style. */
+/** Keep legends that are explicitly linked to a layer's data style in sync with it. */
 function refreshLinkedChoroplethLegends(layer: GeoJsonLayer, annotations: Annotation[]): void {
-  const dataStyle = layer.style.dataStyle;
-  if (!dataStyle) return;
-  const stats = scanAttribute(layer.data.features, dataStyle.attribute);
-  const entries = dataStyle.kind === 'choropleth'
-    ? choroplethLegendEntries(dataStyle, stats.missingCount)
-    : stats.values.length
-      ? proportionalLegendEntries(dataStyle, stats.values[0], stats.values[stats.values.length - 1])
-      : [];
+  if (!layer.style.dataStyle) return;
+  const entries = dataStyleLegendEntries(layer);
   for (const annotation of annotations) {
     if (annotation.kind === 'legend' && annotation.dataStyleLink?.layerId === layer.id) {
       annotation.entries = entries;

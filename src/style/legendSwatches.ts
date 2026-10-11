@@ -1,4 +1,16 @@
-import type { Annotation, AnnotationStyle, ChoroplethStyle, LegendEntry, LegendFillStyle, LegendSymbol, ProportionalStyle } from '@/project/cartoproj';
+import type {
+  Annotation,
+  AnnotationStyle,
+  CategoricalStyle,
+  ChoroplethStyle,
+  GeoJsonLayer,
+  LegendEntry,
+  LegendFillStyle,
+  LegendSymbol,
+  ProportionalStyle,
+} from '@/project/cartoproj';
+import { scanAttribute } from './classify';
+import { countOther } from './categories';
 import { localeNumber, translate } from '@/i18n/useLocale';
 import { sampleRamp } from './ramps';
 
@@ -153,4 +165,48 @@ export function proportionalLegendEntries(dataStyle: ProportionalStyle, min: num
     symbol: { kind: 'circle', color: dataStyle.color, radius, maxRadius: dataStyle.maxRadius },
     visible: true,
   }));
+}
+
+/**
+ * One legend entry per category, drawn with the symbol the layer itself uses
+ * (fill swatch, line, or point), plus an "Other" row when some features fall
+ * outside the listed categories.
+ */
+export function categoricalLegendEntries(dataStyle: CategoricalStyle, layer: GeoJsonLayer): LegendEntry[] {
+  const symbolFor = (color: string): LegendSymbol => {
+    if (layer.geometry === 'point') {
+      return { kind: 'circle', color, radius: layer.style.pointRadius, maxRadius: layer.style.pointRadius };
+    }
+    if (layer.geometry === 'line') {
+      return { kind: 'line', strokeColor: color, strokeWidth: layer.style.strokeWidth, strokePattern: 'solid' };
+    }
+    return { kind: 'fill', fillColor: color, fillPattern: 'none', hatchColor: '#0f172a', hatchSpacing: 10 };
+  };
+  const entries: LegendEntry[] = dataStyle.categories.map(({ value, color }) => ({
+    label: value,
+    swatchColor: color,
+    symbol: symbolFor(color),
+    visible: true,
+  }));
+  if (countOther(layer.data.features, dataStyle) > 0) {
+    entries.push({
+      label: translate('style.otherLegend'),
+      swatchColor: dataStyle.otherColor,
+      symbol: symbolFor(dataStyle.otherColor),
+      visible: true,
+    });
+  }
+  return entries;
+}
+
+/** Legend entries for whichever data style a layer currently uses (empty when it has none). */
+export function dataStyleLegendEntries(layer: GeoJsonLayer): LegendEntry[] {
+  const dataStyle = layer.style.dataStyle;
+  if (!dataStyle) return [];
+  if (dataStyle.kind === 'categorical') return categoricalLegendEntries(dataStyle, layer);
+  const stats = scanAttribute(layer.data.features, dataStyle.attribute);
+  if (dataStyle.kind === 'choropleth') return choroplethLegendEntries(dataStyle, stats.missingCount);
+  return stats.values.length
+    ? proportionalLegendEntries(dataStyle, stats.values[0], stats.values[stats.values.length - 1])
+    : [];
 }

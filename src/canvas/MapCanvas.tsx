@@ -11,6 +11,7 @@ import { DeckOverlay } from './DeckOverlay';
 import { AnnotationStage } from './AnnotationStage';
 import { StaticBasemapOverlay } from './StaticBasemapOverlay';
 import { MapSetupPanel } from './MapSetupPanel';
+import { AuthoringHintsApplier } from './AuthoringHintsApplier';
 import { importDataFiles, importGeoJsonFiles, nativePathsToFiles } from '@/import/importLayers';
 import type { PageBackground } from '@/project/cartoproj';
 import { useDocumentStore } from '@/state/documentStore';
@@ -442,6 +443,7 @@ export function MapCanvas({ chromeSettling }: { chromeSettling: boolean }) {
           </>
         )}
         {mode === 'mapSetup' && <ExportFrame />}
+        <AuthoringHintsApplier />
         <AnnotationStage />
       </div>
       <MapSetupPanel />

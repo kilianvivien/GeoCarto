@@ -14,7 +14,7 @@ import {
   Transformer,
 } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import type {
   Annotation,
   AnnotationStyle,

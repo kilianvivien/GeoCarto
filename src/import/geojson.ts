@@ -1,7 +1,9 @@
-import type { Feature, FeatureCollection, Geometry } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 import { DEFAULT_GEOJSON_STYLE, type GeoJsonLayer, type GeometryKind } from '@/project/cartoproj';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
 import { translate } from '@/i18n/useLocale';
+import { parseInBackground } from './importJob';
+import { ImportParseError, normalizeToFeatureCollection } from './parse';
 
 /**
  * Give every feature a stable identity: a top-level `id` (so the vector editor can
@@ -30,33 +32,19 @@ export function ensureFeatureIdentity(fc: FeatureCollection): boolean {
 /** Raised when a file cannot be read as usable GeoJSON. Message is user-facing. */
 export class GeoJsonImportError extends Error {}
 
-const GEOMETRY_TYPES = new Set([
-  'Point',
-  'MultiPoint',
-  'LineString',
-  'MultiLineString',
-  'Polygon',
-  'MultiPolygon',
-  'GeometryCollection',
-]);
-
 /** Accept a FeatureCollection, a bare Feature, or a geometry; normalize to a FC. */
 export function toFeatureCollection(raw: unknown): FeatureCollection {
-  if (!raw || typeof raw !== 'object') {
-    throw new GeoJsonImportError(translate('errors.notGeoJsonObject'));
+  try {
+    return normalizeToFeatureCollection(raw);
+  } catch (error) {
+    throw toImportError(error, '');
   }
-  const type = (raw as { type?: unknown }).type;
-  if (type === 'FeatureCollection') return raw as FeatureCollection;
-  if (type === 'Feature') {
-    return { type: 'FeatureCollection', features: [raw as Feature] };
-  }
-  if (typeof type === 'string' && GEOMETRY_TYPES.has(type)) {
-    return {
-      type: 'FeatureCollection',
-      features: [{ type: 'Feature', geometry: raw as Geometry, properties: {} }],
-    };
-  }
-  throw new GeoJsonImportError(translate('errors.unrecognizedGeoJson'));
+}
+
+/** Turn a decoder failure into the user-facing error the import UI reports. */
+export function toImportError(error: unknown, fileName: string): unknown {
+  if (!(error instanceof ImportParseError)) return error;
+  return new GeoJsonImportError(translate(`errors.${error.code}`, { file: fileName, error: error.detail }));
 }
 
 function familyOf(geometryType: string): GeometryKind | null {
@@ -109,17 +97,11 @@ export function featureCollectionToLayer(name: string, data: FeatureCollection):
 }
 
 /** Parse a dropped/picked file into a ready-to-add GeoJSON layer. */
-export async function importGeoJsonFile(file: File): Promise<GeoJsonLayer> {
-  const text = await file.text();
-  let parsed: unknown;
+export async function importGeoJsonFile(file: File, signal?: AbortSignal): Promise<GeoJsonLayer> {
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new GeoJsonImportError(translate('errors.notValidJson', { file: file.name }));
+    const [{ data }] = await parseInBackground('geojson', file, signal);
+    return featureCollectionToLayer(file.name.replace(/\.(geo)?json$/i, ''), data);
+  } catch (error) {
+    throw toImportError(error, file.name);
   }
-  const data = toFeatureCollection(parsed);
-  if (data.features.length === 0) {
-    throw new GeoJsonImportError(translate('errors.noFeatures', { file: file.name }));
-  }
-  return featureCollectionToLayer(file.name.replace(/\.(geo)?json$/i, ''), data);
 }

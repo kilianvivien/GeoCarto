@@ -293,7 +293,8 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /^Run Open settings$/i }));
 
-    expect(screen.getByRole('dialog', { name: /settings/i })).toBeInTheDocument();
+    // The settings dialog is loaded on first open.
+    expect(await screen.findByRole('dialog', { name: /settings/i })).toBeInTheDocument();
     await waitFor(() => expect(useStorageHealth.getState().checkedAt).not.toBeNull());
   });
 
@@ -334,13 +335,14 @@ describe('App', () => {
     );
   });
 
-  it('explains export fidelity in the export dialog', () => {
+  it('explains export fidelity in the export dialog', async () => {
     useDocumentStore.getState().lockMapArea(DEFAULT_VIEWPORT);
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /export \(⌘e\)/i }));
 
-    expect(screen.getByText('Fidelity')).toBeInTheDocument();
+    // The export dialog is loaded on first open.
+    expect(await screen.findByText('Fidelity')).toBeInTheDocument();
     expect(screen.getByText(/PNG, JPEG, and raster PDF flatten/)).toBeInTheDocument();
     expect(screen.getByText(/Vector PDF keeps annotations/)).toBeInTheDocument();
     expect(screen.getByText(/SVG keeps annotations/)).toBeInTheDocument();

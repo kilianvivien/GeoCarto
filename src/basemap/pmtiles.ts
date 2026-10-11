@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { FetchSource, PMTiles, Protocol, type RangeResponse, type Source } from 'pmtiles';
 import { createStore, del, get, set } from 'idb-keyval';
 import { isTauri } from '@/app/platform';

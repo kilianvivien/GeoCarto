@@ -1,10 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type maplibregl from 'maplibre-gl';
-import { createEmptyProject, type Annotation, type CartoProject } from '@/project/cartoproj';
+import type * as maplibregl from 'maplibre-gl';
+import {
+  createEmptyProject,
+  DEFAULT_GEOJSON_STYLE,
+  type Annotation,
+  type CartoProject,
+  type GeoJsonLayer,
+} from '@/project/cartoproj';
 import { createAnnotation } from '@/tools/annotationFactory';
 import { DEFAULT_ANNOTATION_STYLE } from '@/project/cartoproj';
 import { useMapInstance } from '@/canvas/mapInstance';
-import { exportSvg } from './svg';
+import { exportSvg, splitDataLayers } from './svg';
 
 // Minimal stand-in for the live map: identity projection + a fixed container.
 function stubMap(clientWidth = 1600, clientHeight = 1200): maplibregl.Map {
@@ -33,7 +39,114 @@ function make(kind: Parameters<typeof createAnnotation>[0]['kind']): Annotation 
   });
 }
 
-afterEach(() => useMapInstance.setState({ map: null }));
+afterEach(() => useMapInstance.setState({ map: null, projection: null }));
+
+function dataLayer(overrides: Partial<GeoJsonLayer> = {}): GeoJsonLayer {
+  return {
+    id: 'regions',
+    kind: 'geojson',
+    name: 'Régions 2024',
+    visible: true,
+    locked: false,
+    geometry: 'polygon',
+    featureCount: 2,
+    renderStrategy: 'vector',
+    data: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Polygon', coordinates: [[[100, 100], [300, 100], [300, 200], [100, 100]]] },
+        },
+        { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [400, 300] } },
+      ],
+    },
+    style: { ...DEFAULT_GEOJSON_STYLE, fillColor: '#34c759', strokeWidth: 2 },
+    ...overrides,
+  };
+}
+
+describe('exportSvg vector data layers', () => {
+  // Identity projection on an 800px-wide editor exporting a 1600px frame → 2× scale.
+  const mercator = { kind: 'mercator' as const, project: ([x, y]: [number, number]) => ({ x, y }), unproject: () => null };
+
+  it('draws Mercator data layers as named, frame-clipped vector paths', async () => {
+    useMapInstance.setState({ map: stubMap(800, 600), projection: mercator });
+    const project = { ...projectWith([]), layers: [dataLayer()] };
+
+    const svg = await (await exportSvg(project, { includeBasemap: false, vectorData: true })).blob.text();
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+
+    expect(doc.querySelector('parsererror')).toBeNull();
+    const group = doc.querySelector('#data-layers > g');
+    expect(group?.getAttribute('id')).toBe('data-1-R-gions-2024');
+    expect(doc.querySelector('#data-layers')?.getAttribute('clip-path')).toBe('url(#gc-data-clip)');
+    const [polygon, point] = Array.from(group!.querySelectorAll('path'));
+    // Vertices and stroke widths are scaled from editor pixels to frame units.
+    expect(polygon.getAttribute('d')).toBe('M200,200L600,200L600,400Z');
+    expect(polygon.getAttribute('fill')).toBe('#34c759');
+    expect(polygon.getAttribute('stroke-width')).toBe('4');
+    expect(point.getAttribute('d')).toContain('M800,600');
+  });
+
+  it('writes every label as editable text above the geometry, scaled with the frame', async () => {
+    useMapInstance.setState({ map: stubMap(800, 600), projection: mercator });
+    const layer = dataLayer();
+    layer.data.features[0].properties = { nom: 'Zone & Co', taux: 12.5 };
+    layer.data.features[1].properties = { nom: 'Ville', taux: 3 };
+    layer.style.labels = { attribute: 'nom', valueAttribute: 'taux', valueSuffix: ' %', size: 10, color: '#112233', halo: true };
+    const project = { ...projectWith([]), layers: [layer] };
+
+    const svg = await (await exportSvg(project, { includeBasemap: false, vectorData: true })).blob.text();
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+
+    expect(doc.querySelector('parsererror')).toBeNull();
+    const group = doc.querySelector('#data-layers > #data-labels > g');
+    expect(group?.getAttribute('id')).toBe('labels-1-R-gions-2024');
+    // Geometry first, labels after: text is never hidden under a fill.
+    expect(doc.querySelector('#data-layers')?.lastElementChild?.getAttribute('id')).toBe('data-labels');
+    const style = group!.firstElementChild!;
+    expect(style.getAttribute('font-size')).toBe('20');
+    expect(style.getAttribute('fill')).toBe('#112233');
+    expect(style.getAttribute('paint-order')).toBe('stroke');
+    const texts = Array.from(group!.querySelectorAll('text'));
+    expect(texts.map((text) => Array.from(text.querySelectorAll('tspan')).map((span) => span.textContent))).toEqual([
+      ['Zone & Co', '12.5 %'],
+      ['Ville', '3 %'],
+    ]);
+    // The point's label hangs below its (scaled) symbol rather than covering it.
+    const pointSpan = texts[1].querySelector('tspan')!;
+    expect(pointSpan.getAttribute('x')).toBe('800');
+    expect(Number(pointSpan.getAttribute('y'))).toBeGreaterThan(600 + DEFAULT_GEOJSON_STYLE.pointRadius * 2);
+  });
+
+  it('leaves heatmap and hidden layers out of the vector output', async () => {
+    useMapInstance.setState({ map: stubMap(800, 600), projection: mercator });
+    const layers = [dataLayer({ id: 'heat', renderStrategy: 'heatmap' }), dataLayer({ id: 'hidden', visible: false })];
+    const project = { ...projectWith([]), layers };
+
+    expect(splitDataLayers(project, true, mercator)).toEqual({ vector: [], raster: layers });
+    const svg = await (await exportSvg(project, { includeBasemap: false, vectorData: true })).blob.text();
+    expect(svg).not.toContain('data-layers');
+  });
+
+  it('keeps every layer in the raster when vector data is off or no map projection exists', () => {
+    const project = { ...projectWith([]), layers: [dataLayer()] };
+    expect(splitDataLayers(project, false, mercator).vector).toEqual([]);
+    expect(splitDataLayers(project, true, null).vector).toEqual([]);
+    expect(splitDataLayers(project, true, mercator).vector).toHaveLength(1);
+  });
+
+  it('does not vectorize data over a static-image basemap, which hides the map', () => {
+    const project: CartoProject = {
+      ...projectWith([]),
+      layers: [dataLayer()],
+      basemap: { kind: 'static', name: 'Scan', mediaType: 'image', mimeType: 'image/png', dataUrl: 'data:,', attribution: '' },
+    };
+    expect(splitDataLayers(project, true, mercator).vector).toEqual([]);
+  });
+});
 
 describe('exportSvg', () => {
   it('produces a well-formed SVG with editable vector primitives', async () => {

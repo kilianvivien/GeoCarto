@@ -6,6 +6,8 @@ import { useDocumentStore } from '@/state/documentStore';
 import { useEditStore } from '@/state/editStore';
 import { EditAttributePanel } from '@/layers/EditAttributePanel';
 import { DataStyleSection } from '@/layers/DataStyleSection';
+import { AttributeJoinSection } from '@/layers/AttributeJoinSection';
+import { LabelSection } from '@/layers/LabelSection';
 import { Swatches } from '@/ui/Swatches';
 import { FILL_PATTERNS } from '@/ui/swatchPalette';
 import { useLocale } from '@/i18n/useLocale';
@@ -273,7 +275,9 @@ export function AttributeInspector() {
             </div>
           ))}
         </div>
+        <AttributeJoinSection layer={layer} />
         <DataStyleSection layer={layer} />
+        <LabelSection layer={layer} />
         <div className={`flex flex-col gap-2 ${disabled ? 'opacity-65' : ''}`}>
           <Eyebrow>{t('attributes.layerStyle')}</Eyebrow>
           <label className="grid grid-cols-[88px_1fr] items-center gap-2 text-[11.5px] text-[var(--text-3)]">

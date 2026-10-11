@@ -54,6 +54,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [format, setFormat] = useState<DialogFormat>('png');
   const [pdfMode, setPdfMode] = useState<'raster' | 'vector'>('vector');
   const [svgIncludeBasemap, setSvgIncludeBasemap] = useState(true);
+  const [vectorData, setVectorData] = useState(true);
   const [htmlPanZoom, setHtmlPanZoom] = useState(true);
   const [htmlTooltipProperties, setHtmlTooltipProperties] = useState<Record<string, string[]>>({});
   const projectScale = project.exportFrame.dpiScale ?? 1;
@@ -82,10 +83,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       let result;
       if (format === 'svg') {
         const { exportSvg } = await import('@/export/svg');
-        result = await exportSvg(project, { includeBasemap: svgIncludeBasemap });
+        result = await exportSvg(project, { includeBasemap: svgIncludeBasemap, vectorData });
       } else if (format === 'pdf') {
         const { exportPdf } = await import('@/export/pdf');
-        result = await exportPdf(project, { scale, mode: pdfMode });
+        result = await exportPdf(project, { scale, mode: pdfMode, vectorData });
       } else if (format === 'html') {
         const { exportHtml } = await import('@/export/html');
         result = await exportHtml(project, {
@@ -218,6 +219,21 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               {t('export.svgNote')}
             </div>
           </>
+        )}
+
+        {/* Projected documents always export data as vectors, so the choice only exists on Mercator. */}
+        {project.engine !== 'projected' && (format === 'svg' || (format === 'pdf' && pdfMode === 'vector')) && (
+          <Field label={t('export.dataLayers')}>
+            <label className="flex items-center gap-2 text-[12px] text-[var(--text-2)]">
+              <input
+                type="checkbox"
+                checked={vectorData}
+                onChange={(e) => setVectorData(e.target.checked)}
+                className="accent-[var(--accent)]"
+              />
+              {t('export.vectorData')}
+            </label>
+          </Field>
         )}
 
         {format === 'html' && (

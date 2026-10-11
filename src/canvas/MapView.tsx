@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import '@/basemap/maplibreWorker';
 import { buildBasemapStyle } from '@/basemap/basemapStyle';
 import { ensureLocalPmtilesSource } from '@/basemap/pmtiles';
 import { useDocumentStore } from '@/state/documentStore';

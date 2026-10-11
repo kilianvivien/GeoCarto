@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { isMacOS, isTauri } from '@/app/platform';
 import { useAutosave } from '@/project/autosave';
 import { installHistoryCapture } from '@/state/historyStore';
@@ -11,12 +11,14 @@ import { StatusBar } from './StatusBar';
 import { ToastHost } from './ToastHost';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { useDocumentTitle } from './useDocumentTitle';
-import { SettingsDialog } from './SettingsDialog';
 import { CommandPalette } from './CommandPalette';
 import { useUiStore } from './uiStore';
 import { useLocale } from '@/i18n/useLocale';
 import { usePreferencesStore } from '@/state/preferencesStore';
 import { applyAccent } from './accent';
+
+// Loaded on first open: the dialog (and what it pulls in) stays out of the startup bundle.
+const SettingsDialog = lazy(() => import('./SettingsDialog').then((m) => ({ default: m.SettingsDialog })));
 
 /**
  * Top-level layout: a full-bleed glass window with titlebar / workspace /
@@ -36,6 +38,11 @@ export function AppShell() {
   const t = useLocale((s) => s.t);
   const locale = useLocale((s) => s.locale);
   const settingsOpen = useUiStore((s) => s.settingsDialogOpen);
+  // Stays mounted after the first open so the close animation can play.
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  useEffect(() => {
+    if (settingsOpen) setSettingsLoaded(true);
+  }, [settingsOpen]);
   const closeSettings = useUiStore((s) => s.closeSettingsDialog);
   const commandPaletteOpen = useUiStore((s) => s.commandPaletteOpen);
   const closeCommandPalette = useUiStore((s) => s.closeCommandPalette);
@@ -129,7 +136,11 @@ export function AppShell() {
       <Workspace chromeSettling={chromeSettling} />
       <StatusBar />
       <ToastHost />
-      <SettingsDialog open={settingsOpen} onClose={closeSettings} />
+      {settingsLoaded && (
+        <Suspense fallback={null}>
+          <SettingsDialog open={settingsOpen} onClose={closeSettings} />
+        </Suspense>
+      )}
       <CommandPalette open={commandPaletteOpen} onClose={closeCommandPalette} />
       <KeyboardShortcuts />
     </div>

@@ -1,6 +1,7 @@
 import type { CartoProject } from '@/project/cartoproj';
 import { ExportError, effectiveExportSize, exportRaster, renderBasemapCanvas, type ExportResult } from './raster';
 import { translate } from '@/i18n/useLocale';
+import { useMapInstance } from '@/canvas/mapInstance';
 
 export type PdfMode = 'raster' | 'vector';
 
@@ -11,12 +12,15 @@ export interface PdfExportOptions {
    * `raster` places a flattened PNG on the page (today's Phase 2 behavior,
    * kept as the safe fallback). `vector` reuses the SVG exporter's output —
    * which already covers every annotation/furniture kind — and converts it
-   * with svg2pdf.js, producing real vector paths and selectable text. Data
-   * layers still rasterize inside the SVG (basemap raster `<image>`); on a
-   * projected-engine document they're real vector paths too, since the SVG
-   * exporter draws those directly.
+   * with svg2pdf.js, producing real vector paths and selectable text.
    */
   mode: PdfMode;
+  /**
+   * `vector` mode on a Mercator document: draw data layers as vector paths
+   * instead of baking them into the basemap raster (defaults to true).
+   * Projected-engine documents always get vector data.
+   */
+  vectorData?: boolean;
 }
 
 /**
@@ -38,7 +42,7 @@ export async function exportPdf(project: CartoProject, options: PdfExportOptions
   });
 
   if (options.mode === 'vector') {
-    await renderVectorPdf(project, doc, pageW, pageH);
+    await renderVectorPdf(project, doc, pageW, pageH, options.vectorData ?? true);
   } else {
     // Reuse the raster pipeline (white background — PDF pages are opaque).
     const raster = await exportRaster(project, {
@@ -56,26 +60,34 @@ export async function exportPdf(project: CartoProject, options: PdfExportOptions
   return { blob, fileName: `${base.replace(/\.cartoproj$/, '')}.pdf`, width, height };
 }
 
-async function renderVectorPdf(project: CartoProject, doc: import('jspdf').jsPDF, pageW: number, pageH: number): Promise<void> {
+async function renderVectorPdf(
+  project: CartoProject,
+  doc: import('jspdf').jsPDF,
+  pageW: number,
+  pageH: number,
+  vectorData: boolean,
+): Promise<void> {
   const background = project.exportFrame.background ?? 'white';
   if (background !== 'transparent') {
     doc.setFillColor(background === 'white' ? '#ffffff' : background);
     doc.rect(0, 0, pageW, pageH, 'F');
   }
 
-  // Mercator tiles/data have to remain a raster underlay. Projected documents
-  // have no tiles, so let the SVG exporter emit land + GeoJSON as real paths.
+  const { exportSvg, splitDataLayers } = await import('./svg');
+
+  // Mercator tiles have to remain a raster underlay, along with any data layer
+  // the SVG exporter won't draw as paths. Projected documents have no tiles,
+  // so the SVG exporter emits land + GeoJSON as real paths.
   if (project.engine !== 'projected') {
-    const basemapCanvas = await renderBasemapCanvas(project, pageW, pageH);
+    const { raster } = splitDataLayers(project, vectorData, useMapInstance.getState().projection);
+    const basemapCanvas = await renderBasemapCanvas(project, pageW, pageH, raster);
     doc.addImage(basemapCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
   }
-
-  const { exportSvg } = await import('./svg');
   const overlayProject: CartoProject = {
     ...project,
     exportFrame: { ...project.exportFrame, background: 'transparent' },
   };
-  const svgResult = await exportSvg(overlayProject, { includeBasemap: project.engine === 'projected' });
+  const svgResult = await exportSvg(overlayProject, { includeBasemap: project.engine === 'projected', vectorData });
   const svgString = await svgResult.blob.text();
   const parsed = new DOMParser().parseFromString(svgString, 'image/svg+xml');
   if (parsed.querySelector('parsererror')) {

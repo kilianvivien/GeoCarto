@@ -267,14 +267,17 @@ confidence and desktop/data reliability before deeper feature work.
 
 ### M25 — Import and Export Technical Debt 🟡
 
-- ⬜ Move TopoJSON/KML/GPX/Shapefile parsing to an import-job worker layer.
-- ⬜ Preserve progress/error reporting for large imports, with cancellation and
+- 🟡 Move TopoJSON/KML/GPX/Shapefile parsing to an import-job worker layer. 0.4.0:
+  GeoJSON, TopoJSON, and Shapefile decode in `importWorker`; KML/GPX stay on the
+  main thread because they need `DOMParser`.
+- ✅ Preserve progress/error reporting for large imports, with cancellation and
   per-file status.
 - 🟡 Add file-size / memory guardrails for very large imports and embedded images.
-- ⬜ Export edited GeoJSON features as real SVG vector paths instead of baking them
-  into the map raster.
-- ⬜ Decide whether vector GeoJSON SVG output is controlled by layer setting,
-  export setting, or automatic capability detection.
+- ✅ Export GeoJSON features as real SVG/PDF vector paths instead of baking them
+  into the map raster (Mercator engine; heatmaps and fill hatches still rasterize
+  or flatten).
+- ✅ Vector GeoJSON output is an export setting ("Data layers → Export as editable
+  vector paths", on by default) for SVG and vector PDF.
 - ✅ Add an export fidelity matrix in the export dialog/tests that explains what
   stays editable per format and what is flattened/rasterized.
 
@@ -342,7 +345,14 @@ stable, covered, and performant.
 
 ### M31 — Analysis and Thematic Mapping 🟨
 
-- ⬜ Attribute joins.
+- ✅ Attribute joins: CSV/TSV table joined to a layer by a shared key, with
+  suggested key pairing and a live match count.
+- ✅ Categorical styling: color polygons, lines, and points by a text attribute,
+  with editable per-category colors, an "Other" bucket, and linked legends.
+- ✅ Attribute labels on data layers (one or two lines, halo), collision-managed
+  on the map and exported in full as editable text in SVG / vector PDF.
+- ✅ CSV/TSV point import from latitude/longitude columns, with a geocoded
+  fallback for address or place-name tables (200-row limit).
 - ✅ Choropleth class wizard with histograms, quantile/equal/Jenks/manual breaks,
   curated ramps, missing values, and linked legends.
 - 🟨 Proportional symbols with sqrt/linear scaling and graduated-circle legends;

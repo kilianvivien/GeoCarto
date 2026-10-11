@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import type { Annotation, AnnotationStyle, LegendFillStyle, LegendSymbol, PinIcon } from '@/project/cartoproj';
 import type { CanvasProjection } from '@/canvas/canvasProjection';
 import { hatchLines, strokeDash } from '@/style/annotationPatterns';

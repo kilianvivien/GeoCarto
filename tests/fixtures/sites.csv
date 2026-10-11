@@ -1,0 +1,7 @@
+name;type;lat;lon;visitors
+Louvre;museum;48,8606;2,3376;8900000
+Orsay;museum;48,8600;2,3266;3200000
+Versailles;palace;48,8049;2,1204;8100000
+Chambord;palace;47,6161;1,5170;1100000
+Pont du Gard;monument;43,9475;4,5350;1500000
+Unknown site;monument;;;

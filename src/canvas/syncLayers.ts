@@ -1,11 +1,12 @@
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection } from 'geojson';
-import type { FeatureFillStyle, GeoJsonLayer } from '@/project/cartoproj';
+import type { CategoricalStyle, FeatureFillStyle, GeoJsonLayer } from '@/project/cartoproj';
 import type { SelectedFeature } from '@/state/documentStore';
 import { FEATURE_FILL_PROPERTY } from '@/layers/geojsonFeatureStyle';
 import { hatchTileImageData } from '@/style/annotationPatterns';
 import { coerceNumber, scanAttribute } from '@/style/classify';
 import { sampleRamp } from '@/style/ramps';
+import { LABEL_HALO_COLOR, LABEL_HALO_RATIO, layerLabels, type LayerLabel } from '@/style/labels';
 
 const sourceId = (layerId: string) => `gc:${layerId}`;
 
@@ -17,6 +18,69 @@ const sourceId = (layerId: string) => `gc:${layerId}`;
  * document store produces a new collection only when the data actually changed.
  */
 const lastSourceData = new Map<string, FeatureCollection>();
+/** Same idea for label sources: `layerLabels` returns a stable array until the labels change. */
+const lastLabelData = new Map<string, LayerLabel[]>();
+
+/** Labels live in their own point source: one anchor per feature, however many tiles it spans. */
+const labelSourceId = (layerId: string) => `gc-labels:${layerId}`;
+const labelLayerId = (layerId: string) => `gc-labels:${layerId}:text`;
+
+/** Glyph server and font for styles that bring none of their own (empty or custom basemaps). */
+export const FALLBACK_GLYPHS = 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf';
+const FALLBACK_LABEL_FONT = ['Noto Sans Regular'];
+
+/**
+ * A font the style's glyph server is known to serve: one its own text layers
+ * already use, preferring an upright regular face (basemaps set water names in
+ * italics). Custom styles name fonts we cannot guess otherwise.
+ */
+export function labelFontFor(style: { glyphs?: string; layers?: unknown[] } | null | undefined): string[] {
+  if (!style?.glyphs) return FALLBACK_LABEL_FONT;
+  const fonts: string[][] = [];
+  for (const layer of style.layers ?? []) {
+    const font = (layer as { layout?: { 'text-font'?: unknown } }).layout?.['text-font'];
+    if (Array.isArray(font) && font.length > 0 && font.every((name) => typeof name === 'string')) {
+      fonts.push(font as string[]);
+    }
+  }
+  const upright = fonts.filter(([name]) => !/italic|oblique/i.test(name));
+  return upright.find(([name]) => /regular/i.test(name)) ?? upright[0] ?? fonts[0] ?? FALLBACK_LABEL_FONT;
+}
+
+/** GeoJSON for a layer's label source: one point per label carrying its text and offset. */
+export function labelSourceData(labels: LayerLabel[]): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: labels.map((label) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: label.position },
+      properties: { text: label.lines.join('\n'), offset: label.offset },
+    })),
+  };
+}
+
+/** Layout + paint for a layer's label symbols, shared with the interactive HTML export. */
+export function labelLayerStyle(layer: GeoJsonLayer, font: string[]) {
+  const labels = layer.style.labels;
+  const size = labels?.size ?? 12;
+  return {
+    layout: {
+      'text-field': ['get', 'text'],
+      'text-font': font,
+      'text-size': size,
+      // Only explicit line breaks: wrapping would differ from the exported text.
+      'text-max-width': 100,
+      // Point labels hang below their symbol; line and polygon labels are centered.
+      'text-anchor': ['case', ['>', ['get', 'offset'], 0], 'top', 'center'],
+      'text-radial-offset': ['/', ['get', 'offset'], size],
+    },
+    paint: {
+      'text-color': labels?.color ?? '#1c1c1e',
+      'text-halo-color': LABEL_HALO_COLOR,
+      'text-halo-width': labels?.halo ? size * LABEL_HALO_RATIO : 0,
+    },
+  };
+}
 export const layerRenderIds = (layerId: string) => ({
   fill: `gc:${layerId}:fill`,
   pattern: `gc:${layerId}:pattern`,
@@ -123,8 +187,41 @@ export function choroplethFillColorExpression(
   return ['case', attributeMissingExpression(missingFeatureIds(features, attribute)), missingColor, stepArgs];
 }
 
+/** `match` over a categorical attribute's values; a constant when no category is listed. */
+export function categoryColorExpression(style: CategoricalStyle): string | unknown[] {
+  if (style.categories.length === 0) return style.otherColor;
+  return [
+    'match',
+    ['to-string', ['get', style.attribute]],
+    ...style.categories.flatMap(({ value, color }) => [value, color]),
+    style.otherColor,
+  ];
+}
+
+/** Data-driven `circle-color`: categorical and proportional styles override the flat point color. */
+export function pointColorExpression(layer: GeoJsonLayer): string | unknown[] {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind === 'categorical') return categoryColorExpression(dataStyle);
+  if (dataStyle?.kind === 'proportional') return dataStyle.color;
+  return layer.style.pointColor;
+}
+
+/** Data-driven `line-color`: categories color line features; polygon outlines keep the layer stroke. */
+export function lineColorExpression(layer: GeoJsonLayer): string | unknown[] {
+  const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind !== 'categorical' || dataStyle.categories.length === 0) return layer.style.strokeColor;
+  return [
+    'match',
+    ['geometry-type'],
+    ['LineString', 'MultiLineString'],
+    categoryColorExpression(dataStyle),
+    layer.style.strokeColor,
+  ];
+}
+
 export function fillColorExpression(layer: GeoJsonLayer): string | unknown[] {
   const dataStyle = layer.style.dataStyle;
+  if (dataStyle?.kind === 'categorical') return categoryColorExpression(dataStyle);
   if (dataStyle?.kind === 'choropleth') {
     const colors = sampleRamp(dataStyle.paletteId, dataStyle.breaks.length + 1, dataStyle.reverse);
     return choroplethFillColorExpression(layer.data.features, dataStyle.attribute, dataStyle.breaks, colors, dataStyle.missingColor);
@@ -196,18 +293,30 @@ function updateLayerGraphics(
     !editing && layer.visible && layer.renderStrategy !== 'heatmap' ? 'visible' : 'none';
   const selectedFilter = selectedFeatureFilter(layer, selectedFeature);
 
-  map.setPaintProperty(ids.fill, 'fill-color', fillColorExpression(layer));
+  map.setPaintProperty(
+    ids.fill,
+    'fill-color',
+    fillColorExpression(layer) as maplibregl.DataDrivenPropertyValueSpecification<string>,
+  );
   map.setPaintProperty(ids.fill, 'fill-opacity', style.fillOpacity);
   applyFillPattern(map, layer);
   applyFeatureFillPatterns(map, layer);
-  map.setPaintProperty(ids.line, 'line-color', style.strokeColor);
+  map.setPaintProperty(
+    ids.line,
+    'line-color',
+    lineColorExpression(layer) as maplibregl.DataDrivenPropertyValueSpecification<string>,
+  );
   map.setPaintProperty(ids.line, 'line-width', style.strokeWidth);
   map.setPaintProperty(
     ids.circle,
     'circle-color',
-    style.dataStyle?.kind === 'proportional' ? style.dataStyle.color : style.pointColor,
+    pointColorExpression(layer) as maplibregl.DataDrivenPropertyValueSpecification<string>,
   );
-  map.setPaintProperty(ids.circle, 'circle-radius', proportionalRadiusExpression(layer));
+  map.setPaintProperty(
+    ids.circle,
+    'circle-radius',
+    proportionalRadiusExpression(layer) as maplibregl.DataDrivenPropertyValueSpecification<number>,
+  );
   map.setPaintProperty(ids.circle, 'circle-stroke-color', '#ffffff');
   map.setPaintProperty(ids.circle, 'circle-stroke-width', 1.5);
   map.setFilter(ids.selectedFill, ['all', ['==', ['geometry-type'], 'Polygon'], selectedFilter]);
@@ -224,6 +333,45 @@ function updateLayerGraphics(
   map.setLayoutProperty(ids.circle, 'visibility', style.showPoints ? visibility : 'none');
   map.setLayoutProperty(ids.selectedFill, 'visibility', visibility);
   map.setLayoutProperty(ids.selectedLine, 'visibility', visibility);
+  applyLabels(map, layer, visibility === 'visible');
+}
+
+function removeLabels(map: maplibregl.Map, layerId: string): void {
+  if (map.getLayer(labelLayerId(layerId))) map.removeLayer(labelLayerId(layerId));
+  if (map.getSource(labelSourceId(layerId))) map.removeSource(labelSourceId(layerId));
+  lastLabelData.delete(layerId);
+}
+
+/** Create, refresh, or drop a layer's label symbols to match its `labels` style. */
+function applyLabels(map: maplibregl.Map, layer: GeoJsonLayer, visible: boolean): void {
+  if (!layer.style.labels || !visible) {
+    removeLabels(map, layer.id);
+    return;
+  }
+  // Text symbols need a glyph server; empty and some custom styles declare none.
+  if (!map.getGlyphs()) map.setGlyphs(FALLBACK_GLYPHS);
+  const source = labelSourceId(layer.id);
+  const id = labelLayerId(layer.id);
+  const labels = layerLabels(layer);
+  const { layout, paint } = labelLayerStyle(layer, labelFontFor(map.getStyle()));
+
+  if (!map.getSource(source)) {
+    map.addSource(source, { type: 'geojson', data: labelSourceData(labels) });
+    lastLabelData.set(layer.id, labels);
+  } else if (lastLabelData.get(layer.id) !== labels) {
+    (map.getSource(source) as maplibregl.GeoJSONSource).setData(labelSourceData(labels));
+    lastLabelData.set(layer.id, labels);
+  }
+  if (!map.getLayer(id)) {
+    map.addLayer({ id, type: 'symbol', source, layout, paint } as maplibregl.SymbolLayerSpecification);
+    return;
+  }
+  const symbols = map as unknown as {
+    setLayoutProperty(layerId: string, name: string, value: unknown): void;
+    setPaintProperty(layerId: string, name: string, value: unknown): void;
+  };
+  for (const [name, value] of Object.entries(layout)) symbols.setLayoutProperty(id, name, value);
+  for (const [name, value] of Object.entries(paint)) symbols.setPaintProperty(id, name, value);
 }
 
 const hatchImageId = (layerId: string) => `gc-hatch:${layerId}`;
@@ -243,8 +391,9 @@ function applyFillPattern(map: maplibregl.Map, layer: GeoJsonLayer): void {
     if ((id === imageId || id.startsWith(featureImagePrefix)) && map.hasImage(id)) map.removeImage(id);
   }
 
-  // Choropleth fill is fully data-driven — hatch patterns don't compose with it in v1.
-  if (layer.renderStrategy === 'heatmap' || layer.style.fillPattern === 'none' || layer.style.dataStyle?.kind === 'choropleth') return;
+  // Data-driven fills (choropleth, categories) don't compose with hatch patterns in v1.
+  const dataFill = layer.style.dataStyle?.kind === 'choropleth' || layer.style.dataStyle?.kind === 'categorical';
+  if (layer.renderStrategy === 'heatmap' || layer.style.fillPattern === 'none' || dataFill) return;
   const tile = hatchTileImageData(layer.style);
   if (!tile) return;
   map.addImage(imageId, tile, { pixelRatio: 1 });
@@ -258,7 +407,8 @@ function applyFeatureFillPatterns(map: maplibregl.Map, layer: GeoJsonLayer): voi
   map.setPaintProperty(patternId, 'fill-pattern', undefined);
   map.setFilter(patternId, ['all', ['==', ['geometry-type'], 'Polygon'], ['in', ['to-string', ['get', FEATURE_FILL_PROPERTY]], ['literal', []]]]);
   // Choropleth fill supersedes per-feature overrides in v1 — the two modes are mutually exclusive.
-  if (overrides.length === 0 || layer.style.dataStyle?.kind === 'choropleth') return;
+  const dataFill = layer.style.dataStyle?.kind === 'choropleth' || layer.style.dataStyle?.kind === 'categorical';
+  if (overrides.length === 0 || dataFill) return;
 
   const expression: unknown[] = ['match', ['to-string', ['get', FEATURE_FILL_PROPERTY]]];
   const keys: string[] = [];
@@ -277,12 +427,13 @@ function applyFeatureFillPatterns(map: maplibregl.Map, layer: GeoJsonLayer): voi
     ['==', ['geometry-type'], 'Polygon'],
     ['in', ['to-string', ['get', FEATURE_FILL_PROPERTY]], ['literal', keys]],
   ]);
-  map.setPaintProperty(patternId, 'fill-pattern', expression);
+  map.setPaintProperty(patternId, 'fill-pattern', expression as maplibregl.ExpressionSpecification);
   map.setPaintProperty(patternId, 'fill-opacity', layer.style.fillOpacity);
 }
 
 function removeLayerGraphics(map: maplibregl.Map, layerId: string): void {
   if (map.hasImage(hatchImageId(layerId))) map.removeImage(hatchImageId(layerId));
+  removeLabels(map, layerId);
   for (const id of Object.values(layerRenderIds(layerId))) {
     if (map.getLayer(id)) map.removeLayer(id);
   }
@@ -336,5 +487,9 @@ export function syncLayersToMap(
     for (const id of Object.values(layerRenderIds(layer.id))) {
       if (map.getLayer(id)) map.moveLayer(id);
     }
+  }
+  // Labels sit above every data layer, so a fill never hides another layer's text.
+  for (const layer of layers) {
+    if (map.getLayer(labelLayerId(layer.id))) map.moveLayer(labelLayerId(layer.id));
   }
 }

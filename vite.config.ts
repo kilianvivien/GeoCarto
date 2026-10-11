@@ -19,6 +19,9 @@ export default defineConfig({
       },
     },
   },
+  // Workers are ES modules: the import worker lazy-loads its format decoders,
+  // and the default IIFE worker format cannot code-split.
+  worker: { format: 'es' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -65,7 +68,10 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
       thresholds: {
         statements: 45,
-        branches: 70,
+        // Recalibrated from 70 with Vitest 5: its V8 provider maps branches
+        // from the AST, which counts far more of them (the same suite measured
+        // 74% under Vitest 3 and 42% under Vitest 5).
+        branches: 40,
         functions: 55,
         lines: 45,
       },
